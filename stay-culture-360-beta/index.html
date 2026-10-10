@@ -6,6 +6,9 @@
   <meta name="viewport"
         content="width=device-width, initial-scale=1">
   <title>Stay Culture 360 Beta | Care & Stay</title>
+  
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -47,5 +50,21 @@
       Please do not enter real employee information.
     </p>
   </main>
+  
+<script>
+  const SUPABASE_URL =
+    "https://vwxbqxmnggwaqwlwseco.supabase.co";
+
+  const SUPABASE_PUBLISHABLE_KEY =
+    "sb_publishable_GhAB0t1YaRHaqrHPSUZwqQ_oHc2mDKW";
+
+  const supabaseClient = window.supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_PUBLISHABLE_KEY
+  );
+
+  console.log("Supabase client initialized");
+</script>
+
 </body>
 </html>
