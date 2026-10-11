@@ -66,5 +66,72 @@
   console.log("Supabase client initialized");
 </script>
 
+<section id="participant-login" style="max-width:420px;margin:30px auto;padding:20px;border:1px solid #ddd;border-radius:10px;">
+  <h2>Participant Sign In</h2>
+  <p>Beta testing only. Do not enter real employee information.</p>
+
+  <form id="stay-login-form">
+    <label for="stay-email">Email</label>
+    <input id="stay-email" type="email" required
+      autocomplete="username"
+      style="display:block;width:100%;margin:8px 0 16px;padding:10px;box-sizing:border-box;">
+
+    <label for="stay-password">Password</label>
+    <input id="stay-password" type="password" required
+      autocomplete="current-password"
+      style="display:block;width:100%;margin:8px 0 16px;padding:10px;box-sizing:border-box;">
+
+    <button type="submit">Sign In</button>
+  </form>
+
+  <button id="stay-logout" type="button" hidden>Sign Out</button>
+  <p id="stay-login-status" role="status"></p>
+</section>
+
+<script>
+  const loginForm = document.getElementById("stay-login-form");
+  const loginStatus = document.getElementById("stay-login-status");
+  const logoutButton = document.getElementById("stay-logout");
+
+  function showLoginState(signedIn) {
+    loginForm.hidden = signedIn;
+    logoutButton.hidden = !signedIn;
+    loginStatus.textContent = signedIn
+      ? "Signed in successfully."
+      : "Please sign in.";
+  }
+
+  loginForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    loginStatus.textContent = "Signing in...";
+
+    const { error } = await supabaseClient.auth.signInWithPassword({
+      email: document.getElementById("stay-email").value,
+      password: document.getElementById("stay-password").value
+    });
+
+    if (error) {
+      loginStatus.textContent = "Sign-in failed. Check your credentials.";
+      return;
+    }
+
+    document.getElementById("stay-password").value = "";
+    showLoginState(true);
+  });
+
+  logoutButton.addEventListener("click", async () => {
+    const { error } = await supabaseClient.auth.signOut();
+    if (error) {
+      loginStatus.textContent = "Sign-out failed. Please try again.";
+      return;
+    }
+    showLoginState(false);
+  });
+
+  supabaseClient.auth.getUser().then(({ data, error }) => {
+    showLoginState(!error && !!data.user);
+  });
+</script>
+
 </body>
 </html>
