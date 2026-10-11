@@ -133,5 +133,132 @@
   });
 </script>
 
+<section id="stay-assessment" hidden
+  style="max-width:760px;margin:30px auto;padding:20px;">
+
+  <h2>Stay Culture 360 Assessment</h2>
+  <p>Beta testing with fictional data only.</p>
+
+  <p id="stay-progress">Loading questions...</p>
+  <div id="stay-questions"></div>
+  <p id="stay-assessment-error" role="status"></p>
+</section>
+
+<script>
+  async function loadStayQuestions() {
+    const section = document.getElementById("stay-assessment");
+    const container = document.getElementById("stay-questions");
+    const progress = document.getElementById("stay-progress");
+    const errorBox = document.getElementById("stay-assessment-error");
+
+    section.hidden = true;
+    container.replaceChildren();
+    errorBox.textContent = "";
+
+    const { data: userData, error: userError } =
+      await supabaseClient.auth.getUser();
+
+    if (userError || !userData.user) return;
+
+    const { data: invitations, error: invitationError } =
+      await supabaseClient
+        .from("stay_assessment_invitations")
+        .select("assessment_id")
+        .eq("participant_user_id", userData.user.id)
+        .in("status", ["pending", "accepted"])
+        .limit(1);
+
+    if (invitationError || !invitations?.length) return;
+
+    const assessmentId = invitations[0].assessment_id;
+
+    const { data: assignments, error: assignmentError } =
+      await supabaseClient
+        .from("stay_assessment_question_assignments")
+        .select("question_id, display_order")
+        .eq("assessment_id", assessmentId)
+        .order("display_order");
+
+    if (assignmentError || !assignments?.length) {
+      section.hidden = false;
+      errorBox.textContent = "Unable to load question assignments.";
+      return;
+    }
+
+    const { data: questions, error: questionError } =
+      await supabaseClient
+        .from("stay_assessment_questions")
+        .select("id, question_text, response_type");
+
+    if (questionError) {
+      section.hidden = false;
+      errorBox.textContent = "Unable to load questions.";
+      return;
+    }
+
+    const questionMap = new Map(
+      questions.map(question => [question.id, question])
+    );
+
+    section.hidden = false;
+    progress.textContent = `${assignments.length} questions`;
+
+    assignments.forEach((assignment, index) => {
+      const question = questionMap.get(assignment.question_id);
+      if (!question) return;
+
+      const wrapper = document.createElement("div");
+      wrapper.style.cssText =
+        "padding:18px 0;border-bottom:1px solid #ddd;";
+
+      const heading = document.createElement("h3");
+      heading.textContent =
+        `${index + 1}. ${question.question_text}`;
+      wrapper.appendChild(heading);
+
+      if (question.response_type === "scale") {
+        const choices = document.createElement("div");
+
+        for (let rating = 1; rating <= 5; rating++) {
+          const label = document.createElement("label");
+          label.style.marginRight = "16px";
+
+          const input = document.createElement("input");
+          input.type = "radio";
+          input.name = `question-${question.id}`;
+          input.value = rating;
+
+          label.append(input, ` ${rating}`);
+          choices.appendChild(label);
+        }
+
+        wrapper.appendChild(choices);
+      } else {
+        const textarea = document.createElement("textarea");
+        textarea.rows = 4;
+        textarea.style.cssText =
+          "width:100%;box-sizing:border-box;padding:10px;";
+        textarea.setAttribute(
+          "aria-label",
+          question.question_text
+        );
+        wrapper.appendChild(textarea);
+      }
+
+      container.appendChild(wrapper);
+    });
+  }
+
+  supabaseClient.auth.onAuthStateChange((_event, session) => {
+    if (session) {
+      setTimeout(loadStayQuestions, 0);
+    } else {
+      document.getElementById("stay-assessment").hidden = true;
+    }
+  });
+
+  loadStayQuestions();
+</script>
+
 </body>
 </html>
