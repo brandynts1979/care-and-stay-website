@@ -267,7 +267,7 @@
         .select("id")
         .eq("assessment_id", assessmentId)
         .eq("participant_user_id", userData.user.id)
-        .in("status", ["pending", "accepted"])
+        .in("status", ["pending", "accepted", "completed"])
         .limit(1);
 
     if (savedInvitationError || !savedInvitations?.length) {
