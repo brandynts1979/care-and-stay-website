@@ -182,7 +182,8 @@
     if (invitationError || !invitations?.length) return;
 
     const assessmentId = invitations[0].assessment_id;
-    const assessmentId = invitations[0].assessment_id;
+    const isCompleted = invitations[0].status === "completed";
+    
     const { data: assignments, error: assignmentError } =
       await supabaseClient
         .from("stay_assessment_question_assignments")
