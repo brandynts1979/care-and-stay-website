@@ -214,7 +214,7 @@
 
     section.hidden = false;
     progress.textContent = `${assignments.length} questions`;
-
+    container.replaceChildren();
     assignments.forEach((assignment, index) => {
       const question = questionMap.get(assignment.question_id);
       if (!question) return;
