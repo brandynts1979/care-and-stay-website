@@ -248,6 +248,58 @@
 
       container.appendChild(wrapper);
     });
+    
+    // Restore this participant's previously saved answers.
+    const { data: savedInvitations, error: savedInvitationError } =
+      await supabaseClient
+        .from("stay_assessment_invitations")
+        .select("id")
+        .eq("assessment_id", assessmentId)
+        .eq("participant_user_id", userData.user.id)
+        .in("status", ["pending", "accepted"])
+        .limit(1);
+
+    if (savedInvitationError || !savedInvitations?.length) {
+      errorBox.textContent = "Unable to restore saved answers.";
+      return;
+    }
+
+    const { data: savedAnswers, error: savedAnswersError } =
+      await supabaseClient
+        .from("stay_assessment_responses")
+        .select("question_key, response_value")
+        .eq("invitation_id", savedInvitations[0].id);
+
+    if (savedAnswersError) {
+      errorBox.textContent = "Unable to restore saved answers.";
+      return;
+    }
+
+    savedAnswers.forEach(answer => {
+      const block = Array.from(container.children).find(
+        element => element.dataset.questionKey === answer.question_key
+      );
+
+      if (!block) return;
+
+      const response = answer.response_value;
+
+      if (typeof response?.score === "number") {
+        const radio = Array.from(
+          block.querySelectorAll('input[type="radio"]')
+        ).find(input => Number(input.value) === response.score);
+
+        if (radio) radio.checked = true;
+      }
+
+      if (typeof response?.text === "string") {
+        const textarea = block.querySelector("textarea");
+        if (textarea) textarea.value = response.text;
+      }
+    });
+
+    updateStayProgress();
+
   }
 
   supabaseClient.auth.onAuthStateChange((_event, session) => {
