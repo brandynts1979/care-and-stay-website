@@ -511,6 +511,10 @@ async function checkStaySubmissionReady() {
   }
 
   async function handleAnswer(event) {
+    if (document.getElementById("stay-submit-assessment").disabled &&
+    document.getElementById("stay-submit-assessment").textContent === "Assessment Submitted") {
+  return;
+}
     const control = event.target;
 
     if (!control.matches('input[type="radio"], textarea')) {
