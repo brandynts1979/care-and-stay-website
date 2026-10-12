@@ -362,6 +362,53 @@
       `${answered} of ${total} questions answered (${percentage}%)`;
   }
 
+async function checkStaySubmissionReady() {
+  const button = document.getElementById("stay-submit-assessment");
+  if (!button) return;
+
+  button.disabled = true;
+
+  const { data: userData, error: userError } =
+    await supabaseClient.auth.getUser();
+
+  if (userError || !userData.user) return;
+
+  const { data: invitations, error: invitationError } =
+    await supabaseClient
+      .from("stay_assessment_invitations")
+      .select("id")
+      .eq("participant_user_id", userData.user.id)
+      .in("status", ["pending", "accepted"])
+      .limit(1);
+
+  if (invitationError || !invitations?.length) return;
+
+  const { data: responses, error: responseError } =
+    await supabaseClient
+      .from("stay_assessment_responses")
+      .select("question_key")
+      .eq("invitation_id", invitations[0].id);
+
+  if (responseError) return;
+
+  const blocks = Array.from(
+    document.getElementById("stay-questions").children
+  );
+
+  const assignedKeys = blocks
+    .map(block => block.dataset.questionKey)
+    .filter(Boolean);
+
+  const savedKeys = new Set(
+    (responses || []).map(response => response.question_key)
+  );
+
+  button.disabled = !(
+    assignedKeys.length === 20 &&
+    assignedKeys.every(key => savedKeys.has(key))
+  );
+}
+
   document.getElementById("stay-questions")
     .addEventListener("input", updateStayProgress);
 
