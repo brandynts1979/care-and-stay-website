@@ -155,7 +155,27 @@
   <p id="stay-assessment-error" role="status"></p>
 </section>
 
-<script>
+<section id="stay-employer-dashboard" hidden
+  style="max-width:760px;margin:30px auto;padding:20px;">
+
+  <h2>Stay Culture 360 — Employer Dashboard</h2>
+
+  <p>Organization-level assessment reporting</p>
+
+  <h3>Participation</h3>
+  <p id="stay-report-participation">
+    Reporting information not yet loaded.
+  </p>
+
+  <h3>Culture Dimensions</h3>
+  <div id="stay-report-dimensions">
+    Scores will appear when at least five
+    participants have completed the assessment.
+  </div>
+
+  <p id="stay-report-status" role="status"></p>
+
+</section><script>
   async function loadStayQuestions() {
     const section = document.getElementById("stay-assessment");
     const container = document.getElementById("stay-questions");
