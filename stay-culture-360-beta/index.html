@@ -174,7 +174,7 @@
     const { data: invitations, error: invitationError } =
       await supabaseClient
         .from("stay_assessment_invitations")
-        .select("assessment_id")
+        .select("assessment_id, status")
         .eq("participant_user_id", userData.user.id)
         .in("status", ["pending", "accepted", "completed"])
         .limit(1);
@@ -182,7 +182,7 @@
     if (invitationError || !invitations?.length) return;
 
     const assessmentId = invitations[0].assessment_id;
-
+    const assessmentId = invitations[0].assessment_id;
     const { data: assignments, error: assignmentError } =
       await supabaseClient
         .from("stay_assessment_question_assignments")
