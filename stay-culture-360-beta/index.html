@@ -305,5 +305,124 @@
     .addEventListener("change", updateStayProgress);
 </script>
 
+<script>
+(() => {
+  const container = document.getElementById("stay-questions");
+  const status = document.createElement("p");
+  status.id = "stay-save-status";
+  status.setAttribute("role", "status");
+  container.parentElement.insertBefore(status, container);
+
+  let activeInvitationId = null;
+  const saveTimers = new Map();
+
+  async function getInvitationId() {
+    if (activeInvitationId) return activeInvitationId;
+
+    const { data: userData, error: userError } =
+      await supabaseClient.auth.getUser();
+
+    if (userError || !userData.user) return null;
+
+    const { data, error } = await supabaseClient
+      .from("stay_assessment_invitations")
+      .select("id")
+      .eq("participant_user_id", userData.user.id)
+      .in("status", ["pending", "accepted"])
+      .limit(1);
+
+    if (error || !data?.length) return null;
+
+    activeInvitationId = data[0].id;
+    return activeInvitationId;
+  }
+
+  async function saveAnswer(questionKey, responseValue) {
+    const invitationId = await getInvitationId();
+
+    if (!invitationId) {
+      status.textContent = "Unable to save: no active invitation.";
+      return;
+    }
+
+    status.textContent = "Saving...";
+
+    const { data: existing, error: lookupError } =
+      await supabaseClient
+        .from("stay_assessment_responses")
+        .select("id")
+        .eq("invitation_id", invitationId)
+        .eq("question_key", questionKey)
+        .maybeSingle();
+
+    if (lookupError) {
+      status.textContent = "Save failed. Please try again.";
+      return;
+    }
+
+    let error;
+
+    if (existing) {
+      ({ error } = await supabaseClient
+        .from("stay_assessment_responses")
+        .update({ response_value: responseValue })
+        .eq("id", existing.id));
+    } else {
+      ({ error } = await supabaseClient
+        .from("stay_assessment_responses")
+        .insert({
+          invitation_id: invitationId,
+          question_key: questionKey,
+          response_value: responseValue
+        }));
+    }
+
+    status.textContent = error
+      ? "Save failed. Please try again."
+      : "Saved";
+  }
+
+  async function handleAnswer(event) {
+    const control = event.target;
+
+    if (!control.matches('input[type="radio"], textarea')) {
+      return;
+    }
+
+    const block = control.closest("[data-question-key]");
+    if (!block) return;
+
+    const questionKey = block.dataset.questionKey;
+    let responseValue;
+
+    if (control.type === "radio") {
+      responseValue = { score: Number(control.value) };
+    } else {
+      const answer = control.value.trim();
+      if (!answer) return;
+      responseValue = { text: answer };
+    }
+
+    clearTimeout(saveTimers.get(questionKey));
+
+    saveTimers.set(questionKey, setTimeout(() => {
+      saveAnswer(questionKey, responseValue);
+    }, control.type === "radio" ? 300 : 1000));
+  }
+
+  container.addEventListener("input", handleAnswer);
+  container.addEventListener("change", handleAnswer);
+
+  supabaseClient.auth.onAuthStateChange((event) => {
+    if (event === "SIGNED_OUT") {
+      activeInvitationId = null;
+      saveTimers.forEach(clearTimeout);
+      saveTimers.clear();
+      status.textContent = "";
+    }
+  });
+})();
+</script>
+
 </body>
 </html>
