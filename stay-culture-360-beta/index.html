@@ -723,7 +723,36 @@ document.getElementById(
 ).textContent = status.reporting_allowed
   ? "Minimum participation requirement met."
   : "Minimum participation requirement not yet met.";
+if (status.reporting_allowed) {
+  const { data: dimensionScores, error: scoresError } =
+    await supabaseClient.rpc(
+      "stay_get_dimension_scores",
+      { assessment_uuid: assessments[0].id }
+    );
 
+  const dimensionsBox = document.getElementById(
+    "stay-report-dimensions"
+  );
+
+  if (scoresError) {
+    dimensionsBox.textContent =
+      "Unable to load culture scores.";
+  } else if (!dimensionScores?.length) {
+    dimensionsBox.textContent =
+      "No dimension scores are available yet.";
+  } else {
+    dimensionsBox.replaceChildren();
+
+    dimensionScores.forEach((item) => {
+      const paragraph = document.createElement("p");
+
+      paragraph.textContent =
+        `${item.dimension}: ${item.average_score} / 5`;
+
+      dimensionsBox.appendChild(paragraph);
+    });
+  }
+}
 dashboard.hidden = false;
   }
   loadEmployerDashboard();
