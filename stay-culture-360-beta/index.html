@@ -311,6 +311,20 @@
 
     updateStayProgress();
 await checkStaySubmissionReady();
+    
+if (isCompleted) {
+  container.querySelectorAll("input, textarea").forEach(control => {
+    control.disabled = true;
+  });
+
+  const submitButton = document.getElementById("stay-submit-assessment");
+  submitButton.disabled = true;
+  submitButton.textContent = "Assessment Submitted";
+
+  document.getElementById("stay-submit-status").textContent =
+    "Assessment completed successfully. Your responses are locked.";
+}
+
   }
 
   supabaseClient.auth.onAuthStateChange((_event, session) => {
