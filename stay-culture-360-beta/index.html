@@ -646,6 +646,27 @@ async function checkStaySubmissionReady() {
   });
 })();
 </script>
+<script>
+  async function loadEmployerDashboard() {
+    const dashboard = document.getElementById(
+      "stay-employer-dashboard"
+    );
 
+    // Keep employer reporting hidden until
+    // administrator access has been verified.
+    dashboard.hidden = true;
+
+    const { data: userData, error: userError } =
+      await supabaseClient.auth.getUser();
+
+    if (userError || !userData.user) {
+      return;
+    }
+
+    console.log(
+      "Employer dashboard: authenticated user verified."
+    );
+  }
+</script>
 </body>
 </html>
