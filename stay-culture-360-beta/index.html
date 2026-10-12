@@ -538,5 +538,74 @@ async function checkStaySubmissionReady() {
 })();
 </script>
 
+<script>
+(() => {
+  const button = document.getElementById("stay-submit-assessment");
+  const status = document.getElementById("stay-submit-status");
+
+  if (!button || !status) return;
+
+  let submitting = false;
+
+  button.addEventListener("click", async () => {
+    if (submitting || button.disabled) return;
+
+    const confirmed = confirm(
+      "Submit your assessment? You will not be able to change your answers afterward."
+    );
+
+    if (!confirmed) return;
+
+    submitting = true;
+    button.disabled = true;
+    status.textContent = "Submitting assessment...";
+
+    try {
+      const { data: userData, error: userError } =
+        await supabaseClient.auth.getUser();
+
+      if (userError || !userData.user) {
+        throw new Error("Please sign in again.");
+      }
+
+      const { data: invitations, error: invitationError } =
+        await supabaseClient
+          .from("stay_assessment_invitations")
+          .select("id")
+          .eq("participant_user_id", userData.user.id)
+          .in("status", ["pending", "accepted"])
+          .limit(1);
+
+      if (invitationError || !invitations?.length) {
+        throw new Error("No active assessment invitation found.");
+      }
+
+      const { error: completionError } = await supabaseClient.rpc(
+        "stay_complete_my_assessment",
+        { invitation_uuid: invitations[0].id }
+      );
+
+      if (completionError) throw completionError;
+
+      status.textContent =
+        "Assessment submitted successfully. Your answers are now locked.";
+
+      document.querySelectorAll(
+        '#stay-questions input, #stay-questions textarea'
+      ).forEach(control => {
+        control.disabled = true;
+      });
+
+      button.textContent = "Assessment Submitted";
+    } catch (error) {
+      status.textContent =
+        "Submission was not completed. Please check that all answers are saved.";
+      submitting = false;
+      await checkStaySubmissionReady();
+    }
+  });
+})();
+</script>
+
 </body>
 </html>
