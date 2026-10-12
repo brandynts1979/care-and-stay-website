@@ -491,6 +491,9 @@ async function checkStaySubmissionReady() {
     status.textContent = error
       ? "Save failed. Please try again."
       : "Saved";
+    if (!error) {
+  await checkStaySubmissionReady();
+}
   }
 
   async function handleAnswer(event) {
