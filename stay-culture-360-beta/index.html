@@ -260,5 +260,50 @@
   loadStayQuestions();
 </script>
 
+<script>
+  function updateStayProgress() {
+    const container = document.getElementById("stay-questions");
+    const progress = document.getElementById("stay-progress");
+
+    if (!container || !progress) return;
+
+    const questionBlocks = Array.from(container.children);
+    const total = questionBlocks.length;
+
+    let answered = 0;
+
+    questionBlocks.forEach(block => {
+      const radioButtons = block.querySelectorAll(
+        'input[type="radio"]'
+      );
+
+      if (radioButtons.length > 0) {
+        if (Array.from(radioButtons).some(input => input.checked)) {
+          answered++;
+        }
+      } else {
+        const textarea = block.querySelector("textarea");
+
+        if (textarea && textarea.value.trim().length > 0) {
+          answered++;
+        }
+      }
+    });
+
+    const percentage = total
+      ? Math.round((answered / total) * 100)
+      : 0;
+
+    progress.textContent =
+      `${answered} of ${total} questions answered (${percentage}%)`;
+  }
+
+  document.getElementById("stay-questions")
+    .addEventListener("input", updateStayProgress);
+
+  document.getElementById("stay-questions")
+    .addEventListener("change", updateStayProgress);
+</script>
+
 </body>
 </html>
