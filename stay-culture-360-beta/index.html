@@ -700,7 +700,31 @@ if (reportError) {
   return;
 }
 
-console.log("Employer reporting status:", reportStatus);    
+console.log("Employer reporting status:", reportStatus);
+    const status = reportStatus?.[0];
+
+if (!status) {
+  return;
+}
+
+document.getElementById(
+  "stay-report-participation"
+).textContent =
+  `${status.completed_participants} completed participant(s).`;
+
+document.getElementById(
+  "stay-report-dimensions"
+).textContent = status.reporting_allowed
+  ? "Reporting is available. Dimension scores will be loaded next."
+  : "Culture scores are protected until at least five participants complete the assessment.";
+
+document.getElementById(
+  "stay-report-status"
+).textContent = status.reporting_allowed
+  ? "Minimum participation requirement met."
+  : "Minimum participation requirement not yet met.";
+
+dashboard.hidden = false;
   }
   loadEmployerDashboard();
 </script>
