@@ -677,7 +677,30 @@ if (membershipError || !memberships?.length) {
 console.log(
   "Employer dashboard: administrator membership verified."
 );
-    
+const { data: assessments, error: assessmentError } =
+  await supabaseClient
+    .from("stay_assessments")
+    .select("id")
+    .eq("organization_id", memberships[0].organization_id)
+    .limit(1);
+
+if (assessmentError || !assessments?.length) {
+  console.log("Employer dashboard: no accessible assessment.");
+  return;
+}
+
+const { data: reportStatus, error: reportError } =
+  await supabaseClient.rpc(
+    "stay_get_assessment_report_status",
+    { assessment_uuid: assessments[0].id }
+  );
+
+if (reportError) {
+  console.error("Employer reporting access failed:", reportError);
+  return;
+}
+
+console.log("Employer reporting status:", reportStatus);    
   }
   loadEmployerDashboard();
 </script>
