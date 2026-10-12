@@ -310,7 +310,7 @@
     });
 
     updateStayProgress();
-
+await checkStaySubmissionReady();
   }
 
   supabaseClient.auth.onAuthStateChange((_event, session) => {
