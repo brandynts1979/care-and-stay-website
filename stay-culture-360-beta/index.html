@@ -204,7 +204,13 @@
 
     const assessmentId = invitations[0].assessment_id;
     const isCompleted = invitations[0].status === "completed";
-    
+    if (!isCompleted) {
+  const submitButton = document.getElementById("stay-submit-assessment");
+  submitButton.textContent = "Submit Assessment";
+  submitButton.disabled = true;
+
+  document.getElementById("stay-submit-status").textContent = "";
+}
     const { data: assignments, error: assignmentError } =
       await supabaseClient
         .from("stay_assessment_question_assignments")
