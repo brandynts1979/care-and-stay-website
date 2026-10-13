@@ -690,8 +690,21 @@ const { data: assessments, error: assessmentError } =
     .eq("organization_id", memberships[0].organization_id)
     .limit(1);
 
-if (assessmentError || !assessments?.length) {
-  console.log("Employer dashboard: no accessible assessment.");
+if (assessmentError) {
+  console.error("Unable to load assessments:", assessmentError);
+  return;
+}
+
+if (!assessments?.length) {
+  document.getElementById("stay-report-participation").textContent =
+    "No assessments created yet.";
+
+  document.getElementById("stay-report-dimensions").replaceChildren();
+
+  document.getElementById("stay-report-status").textContent =
+    "Your organization is ready to create its first assessment.";
+
+  dashboard.hidden = false;
   return;
 }
 
