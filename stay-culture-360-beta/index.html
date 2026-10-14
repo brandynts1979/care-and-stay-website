@@ -906,7 +906,7 @@ async function loadStayAssessmentList() {
   const { data: assessments, error: assessmentError } =
     await supabaseClient
       .from("stay_assessments")
-      .select("title, status, created_at")
+      .select("id, title, status, created_at")
       .eq("organization_id", memberships[0].organization_id)
       .order("created_at", { ascending: false });
 
@@ -922,13 +922,27 @@ async function loadStayAssessmentList() {
     return;
   }
 
-  assessments.forEach((assessment) => {
-    const item = document.createElement("p");
-    item.textContent =
-      assessment.title + " — " + assessment.status;
-    list.appendChild(item);
+
+assessments.forEach((assessment) => {
+  const item = document.createElement("div");
+
+  const name = document.createElement("span");
+  name.textContent =
+    assessment.title + " — " + assessment.status + " ";
+
+  const manageButton = document.createElement("button");
+  manageButton.type = "button";
+  manageButton.textContent = "Manage";
+
+  manageButton.addEventListener("click", () => {
+    alert("Selected assessment: " + assessment.title);
   });
-}
+
+  item.appendChild(name);
+  item.appendChild(manageButton);
+  list.appendChild(item);
+});
+
 
   loadEmployerDashboard();
   loadStayAssessmentList();
