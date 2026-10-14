@@ -182,6 +182,24 @@
   </div>
 </div>
 
+<div id="stay-assessment-management" hidden>
+  <h3>Manage Assessment</h3>
+
+  <p>
+    <strong>Assessment:</strong>
+    <span id="stay-selected-assessment-title"></span>
+  </p>
+
+  <p>
+    <strong>Status:</strong>
+    <span id="stay-selected-assessment-status"></span>
+  </p>
+
+  <p id="stay-management-message">
+    Assessment management options will appear here.
+  </p>
+</div>
+
 <div id="stay-create-assessment">
   <h3>Create a New Assessment</h3>
 
@@ -934,9 +952,21 @@ assessments.forEach((assessment) => {
   manageButton.type = "button";
   manageButton.textContent = "Manage";
 
-  manageButton.addEventListener("click", () => {
-    alert("Selected assessment: " + assessment.title);
-  });
+
+manageButton.addEventListener("click", () => {
+  document.getElementById(
+    "stay-selected-assessment-title"
+  ).textContent = assessment.title;
+
+  document.getElementById(
+    "stay-selected-assessment-status"
+  ).textContent = assessment.status;
+
+  document.getElementById(
+    "stay-assessment-management"
+  ).hidden = false;
+});
+
 
   item.appendChild(name);
   item.appendChild(manageButton);
