@@ -204,7 +204,7 @@
   <button
     id="stay-setup-questions-button"
     type="button"
-    disabled
+    
   >
     Set Up Questions
   </button>
@@ -1021,6 +1021,14 @@ const questionSetup = document.getElementById(
 questionSetup.hidden = assessment.status !== "draft";
 
 document.getElementById(
+  "stay-setup-questions-button"
+).disabled = assessment.status !== "draft";
+
+document.getElementById(
+  "stay-question-setup-status"
+).textContent = "Ready to assign the 20 standard questions.";
+
+document.getElementById(
   "stay-rename-title"
 ).value = assessment.title;
 
@@ -1091,6 +1099,48 @@ async function saveStayAssessmentName() {
 document.getElementById(
   "stay-save-assessment-name"
 ).addEventListener("click", saveStayAssessmentName);
+
+async function setupStayAssessmentQuestions() {
+  const panel = document.getElementById(
+    "stay-assessment-management"
+  );
+  const assessmentId = panel.dataset.assessmentId;
+  const button = document.getElementById(
+    "stay-setup-questions-button"
+  );
+  const status = document.getElementById(
+    "stay-question-setup-status"
+  );
+
+  if (!assessmentId) {
+    status.textContent = "Please select an assessment first.";
+    return;
+  }
+
+  button.disabled = true;
+  status.textContent = "Setting up questions...";
+
+  try {
+    const { data, error } = await supabaseClient.rpc(
+      "stay_setup_standard_questions",
+      { assessment_uuid: assessmentId }
+    );
+
+    if (error) throw error;
+
+    status.textContent =
+      data + " standard questions assigned successfully.";
+  } catch (error) {
+    console.error("Question setup failed:", error);
+    status.textContent =
+      "Unable to set up questions: " + error.message;
+    button.disabled = false;
+  }
+}
+
+document.getElementById(
+  "stay-setup-questions-button"
+).addEventListener("click", setupStayAssessmentQuestions);
 
   loadEmployerDashboard();
   loadStayAssessmentList();
