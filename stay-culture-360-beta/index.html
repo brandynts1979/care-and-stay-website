@@ -175,6 +175,13 @@
 
   <p id="stay-report-status" role="status"></p>
 
+<div id="stay-my-assessments">
+  <h3>My Assessments</h3>
+  <div id="stay-assessment-list">
+    Loading assessments...
+  </div>
+</div>
+
 <div id="stay-create-assessment">
   <h3>Create a New Assessment</h3>
 
@@ -851,6 +858,7 @@ async function createStayAssessment() {
     if (insertError) throw insertError;
 
     status.textContent = "Draft assessment created successfully!";
+    await loadStayAssessmentList();
     document.getElementById(
       "stay-new-assessment-title"
     ).value = "";
@@ -868,7 +876,62 @@ document.getElementById(
   "stay-create-assessment-button"
 ).addEventListener("click", createStayAssessment);
 
+async function loadStayAssessmentList() {
+  const list = document.getElementById("stay-assessment-list");
+  if (!list) return;
+
+  list.textContent = "Loading assessments...";
+
+  const { data: userData, error: userError } =
+    await supabaseClient.auth.getUser();
+
+  if (userError || !userData?.user) {
+    list.textContent = "Please sign in to view assessments.";
+    return;
+  }
+
+  const { data: memberships, error: membershipError } =
+    await supabaseClient
+      .from("stay_organization_members")
+      .select("organization_id")
+      .eq("user_id", userData.user.id)
+      .in("role", ["owner", "admin"])
+      .limit(1);
+
+  if (membershipError || !memberships?.length) {
+    list.textContent = "No employer organization found.";
+    return;
+  }
+
+  const { data: assessments, error: assessmentError } =
+    await supabaseClient
+      .from("stay_assessments")
+      .select("title, status, created_at")
+      .eq("organization_id", memberships[0].organization_id)
+      .order("created_at", { ascending: false });
+
+  if (assessmentError) {
+    list.textContent = "Unable to load assessments.";
+    return;
+  }
+
+  list.replaceChildren();
+
+  if (!assessments?.length) {
+    list.textContent = "No assessments created yet.";
+    return;
+  }
+
+  assessments.forEach((assessment) => {
+    const item = document.createElement("p");
+    item.textContent =
+      assessment.title + " — " + assessment.status;
+    list.appendChild(item);
+  });
+}
+
   loadEmployerDashboard();
+  loadStayAssessmentList();
 </script>
 </body>
 </html>
