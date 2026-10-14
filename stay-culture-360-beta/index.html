@@ -195,6 +195,27 @@
     <span id="stay-selected-assessment-status"></span>
   </p>
 
+<div id="stay-rename-controls" hidden>
+  <label for="stay-rename-title">
+    Assessment Name
+  </label>
+
+  <input
+    id="stay-rename-title"
+    type="text"
+    placeholder="Enter assessment name"
+  />
+
+  <button
+    id="stay-save-assessment-name"
+    type="button"
+  >
+    Save Name
+  </button>
+
+  <p id="stay-rename-status"></p>
+</div>
+
   <p id="stay-management-message">
     Assessment management options will appear here.
   </p>
@@ -955,6 +976,9 @@ assessments.forEach((assessment) => {
 
 manageButton.addEventListener("click", () => {
   document.getElementById(
+  "stay-assessment-management"
+).dataset.assessmentId = assessment.id;
+  document.getElementById(
     "stay-selected-assessment-title"
   ).textContent = assessment.title;
 
@@ -965,6 +989,21 @@ manageButton.addEventListener("click", () => {
   document.getElementById(
     "stay-assessment-management"
   ).hidden = false;
+  
+const renameControls = document.getElementById(
+  "stay-rename-controls"
+);
+
+renameControls.hidden = assessment.status !== "draft";
+
+document.getElementById(
+  "stay-rename-title"
+).value = assessment.title;
+
+document.getElementById(
+  "stay-rename-status"
+).textContent = "";
+
 });
 
 
@@ -973,6 +1012,61 @@ manageButton.addEventListener("click", () => {
   list.appendChild(item);
 });
 }
+
+async function saveStayAssessmentName() {
+  const panel = document.getElementById(
+    "stay-assessment-management"
+  );
+  const assessmentId = panel.dataset.assessmentId;
+  const title = document.getElementById(
+    "stay-rename-title"
+  ).value.trim();
+  const status = document.getElementById(
+    "stay-rename-status"
+  );
+  const button = document.getElementById(
+    "stay-save-assessment-name"
+  );
+
+  if (!assessmentId || !title) {
+    status.textContent = "Please enter an assessment name.";
+    return;
+  }
+
+  button.disabled = true;
+  status.textContent = "Saving...";
+
+  try {
+    const { data, error } = await supabaseClient
+      .from("stay_assessments")
+      .update({ title })
+      .eq("id", assessmentId)
+      .eq("status", "draft")
+      .select("id, title");
+
+    if (error) throw error;
+
+    if (!data || data.length !== 1) {
+      throw new Error("This draft could not be updated.");
+    }
+
+    document.getElementById(
+      "stay-selected-assessment-title"
+    ).textContent = data[0].title;
+
+    status.textContent = "Assessment name saved.";
+    await loadStayAssessmentList();
+  } catch (error) {
+    console.error("Rename assessment failed:", error);
+    status.textContent = "Unable to save assessment name.";
+  } finally {
+    button.disabled = false;
+  }
+}
+
+document.getElementById(
+  "stay-save-assessment-name"
+).addEventListener("click", saveStayAssessmentName);
 
   loadEmployerDashboard();
   loadStayAssessmentList();
