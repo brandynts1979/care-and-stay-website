@@ -195,6 +195,24 @@
     <span id="stay-selected-assessment-status"></span>
   </p>
 
+<div id="stay-question-setup" hidden>
+  <h4>Assessment Questions</h4>
+  <p>
+    Assign the standard Stay Culture question set
+    before opening this assessment.
+  </p>
+  <button
+    id="stay-setup-questions-button"
+    type="button"
+    disabled
+  >
+    Set Up Questions
+  </button>
+  <p id="stay-question-setup-status">
+    Question setup is not yet enabled.
+  </p>
+</div>
+
 <div id="stay-rename-controls" hidden>
   <label for="stay-rename-title">
     Assessment Name
@@ -995,6 +1013,12 @@ const renameControls = document.getElementById(
 );
 
 renameControls.hidden = assessment.status !== "draft";
+
+const questionSetup = document.getElementById(
+  "stay-question-setup"
+);
+
+questionSetup.hidden = assessment.status !== "draft";
 
 document.getElementById(
   "stay-rename-title"
