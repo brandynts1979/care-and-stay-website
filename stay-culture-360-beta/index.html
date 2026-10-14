@@ -797,6 +797,77 @@ if (status.reporting_allowed) {
 }
 dashboard.hidden = false;
   }
+  
+async function createStayAssessment() {
+  const status = document.getElementById(
+    "stay-create-assessment-status"
+  );
+  const button = document.getElementById(
+    "stay-create-assessment-button"
+  );
+  const title = document.getElementById(
+    "stay-new-assessment-title"
+  ).value.trim();
+
+  if (!title) {
+    status.textContent = "Please enter an assessment name.";
+    return;
+  }
+
+  button.disabled = true;
+  status.textContent = "Creating assessment...";
+
+  try {
+    const { data: userData, error: userError } =
+      await supabaseClient.auth.getUser();
+
+    if (userError || !userData?.user) {
+      throw new Error("Please sign in first.");
+    }
+
+    const userId = userData.user.id;
+
+    const { data: memberships, error: membershipError } =
+      await supabaseClient
+        .from("stay_organization_members")
+        .select("organization_id, role")
+        .eq("user_id", userId)
+        .in("role", ["owner", "admin"])
+        .limit(1);
+
+    if (membershipError || !memberships?.length) {
+      throw new Error("Organization administrator access required.");
+    }
+
+    const { error: insertError } = await supabaseClient
+      .from("stay_assessments")
+      .insert({
+        organization_id: memberships[0].organization_id,
+        created_by: userId,
+        title: title,
+        status: "draft"
+      });
+
+    if (insertError) throw insertError;
+
+    status.textContent = "Draft assessment created successfully!";
+    document.getElementById(
+      "stay-new-assessment-title"
+    ).value = "";
+
+  } catch (error) {
+    console.error("Assessment creation failed:", error);
+    status.textContent =
+      "Unable to create assessment: " + error.message;
+  } finally {
+    button.disabled = false;
+  }
+}
+
+document.getElementById(
+  "stay-create-assessment-button"
+).addEventListener("click", createStayAssessment);
+
   loadEmployerDashboard();
 </script>
 </body>
