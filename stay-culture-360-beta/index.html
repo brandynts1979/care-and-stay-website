@@ -220,7 +220,7 @@
   <button
     id="stay-send-invitation"
     type="button"
-    disabled
+    
   >
     Add Participant
   </button>
@@ -1234,7 +1234,70 @@ async function loadStayTestParticipants(assessmentId) {
 
   status.textContent =
     (data || []).length + " test participants available.";
+  
+dropdown.onchange = () => {
+  button.disabled = !dropdown.value;
+};
+
 }
+
+async function addStayParticipant() {
+  const panel = document.getElementById(
+    "stay-assessment-management"
+  );
+  const assessmentId = panel.dataset.assessmentId;
+  const dropdown = document.getElementById(
+    "stay-invite-participant"
+  );
+  const perspective = document.getElementById(
+    "stay-invite-perspective"
+  ).value;
+  const button = document.getElementById(
+    "stay-send-invitation"
+  );
+  const status = document.getElementById(
+    "stay-invitation-status"
+  );
+
+  if (!assessmentId || !dropdown.value) {
+    status.textContent = "Please select a participant.";
+    return;
+  }
+
+  const participantId = dropdown.value;
+
+if (button.disabled) {
+  return;
+}
+
+  button.disabled = true;
+  status.textContent = "Adding participant...";
+
+  try {
+    const { error } = await supabaseClient
+      .from("stay_assessment_invitations")
+      .insert({
+        assessment_id: assessmentId,
+        participant_user_id: participantId,
+        perspective: perspective,
+        status: "pending"
+      });
+
+    if (error) throw error;
+
+    status.textContent = "Participant added successfully.";
+    dropdown.value = "";
+  } catch (error) {
+    console.error("Unable to add participant:", error);
+    status.textContent =
+      "Unable to add participant: " + error.message;
+    button.disabled = !dropdown.value;
+  }
+}
+
+document.getElementById(
+  "stay-send-invitation"
+).addEventListener("click", addStayParticipant);
 
   loadEmployerDashboard();
   loadStayAssessmentList();
