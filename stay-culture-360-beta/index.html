@@ -225,6 +225,13 @@
     Add Participant
   </button>
 
+<div id="stay-existing-invitations">
+  <h4>Existing Invitations</h4>
+  <div id="stay-invitation-list">
+    No invitations loaded yet.
+  </div>
+</div>
+
   <p id="stay-invitation-status">
     Participant invitations are not yet enabled.
   </p>
@@ -1065,6 +1072,8 @@ if (assessment.status === "draft") {
   loadStayTestParticipants(assessment.id);
 }
 
+loadStayExistingInvitations(assessment.id);
+
 document.getElementById(
   "stay-setup-questions-button"
 ).disabled = assessment.status !== "draft";
@@ -1286,6 +1295,9 @@ if (button.disabled) {
     if (error) throw error;
 
     status.textContent = "Participant added successfully.";
+    
+await loadStayExistingInvitations(assessmentId);
+
     dropdown.value = "";
   } catch (error) {
     console.error("Unable to add participant:", error);
@@ -1298,6 +1310,52 @@ if (button.disabled) {
 document.getElementById(
   "stay-send-invitation"
 ).addEventListener("click", addStayParticipant);
+
+async function loadStayExistingInvitations(assessmentId) {
+  const list = document.getElementById(
+    "stay-invitation-list"
+  );
+
+  list.textContent = "Loading invitations...";
+
+  const { data, error } = await supabaseClient
+    .from("stay_assessment_invitations")
+    .select("participant_user_id, perspective, status")
+    .eq("assessment_id", assessmentId);
+
+  if (
+    document.getElementById("stay-assessment-management")
+      .dataset.assessmentId !== assessmentId
+  ) {
+    return;
+  }
+
+  if (error) {
+    console.error("Unable to load invitations:", error);
+    list.textContent = "Unable to load invitations.";
+    return;
+  }
+
+  list.replaceChildren();
+
+  if (!data || data.length === 0) {
+    list.textContent = "No participants invited yet.";
+    return;
+  }
+
+  data.forEach((invitation) => {
+    const item = document.createElement("p");
+    item.textContent =
+      "Participant ID: " +
+      (invitation.participant_user_id || "Unassigned") +
+      " — " +
+      invitation.perspective +
+      " — " +
+      invitation.status;
+
+    list.appendChild(item);
+  });
+}
 
   loadEmployerDashboard();
   loadStayAssessmentList();
