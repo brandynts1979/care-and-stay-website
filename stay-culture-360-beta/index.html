@@ -1014,22 +1014,7 @@ async function loadStayAssessmentList() {
     return;
   }
 
-const { data: participants, error: lookupError } =
-  await supabaseClient.rpc(
-    "stay_get_test_participants",
-    { assessment_uuid: assessmentId }
-  );
 
-if (lookupError) {
-  console.error("Participant email lookup failed:", lookupError);
-}
-
-const participantEmails = new Map(
-  (participants || []).map((participant) => [
-    participant.participant_id,
-    participant.participant_email
-  ])
-);
 
   list.replaceChildren();
 
@@ -1352,6 +1337,23 @@ async function loadStayExistingInvitations(assessmentId) {
     list.textContent = "Unable to load invitations.";
     return;
   }
+
+const { data: participants, error: lookupError } =
+  await supabaseClient.rpc(
+    "stay_get_test_participants",
+    { assessment_uuid: assessmentId }
+  );
+
+if (lookupError) {
+  console.error("Participant email lookup failed:", lookupError);
+}
+
+const participantEmails = new Map(
+  (participants || []).map((participant) => [
+    participant.participant_id,
+    participant.participant_email
+  ])
+);
 
   list.replaceChildren();
 
