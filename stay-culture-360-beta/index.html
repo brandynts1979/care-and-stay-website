@@ -1014,6 +1014,23 @@ async function loadStayAssessmentList() {
     return;
   }
 
+const { data: participants, error: lookupError } =
+  await supabaseClient.rpc(
+    "stay_get_test_participants",
+    { assessment_uuid: assessmentId }
+  );
+
+if (lookupError) {
+  console.error("Participant email lookup failed:", lookupError);
+}
+
+const participantEmails = new Map(
+  (participants || []).map((participant) => [
+    participant.participant_id,
+    participant.participant_email
+  ])
+);
+
   list.replaceChildren();
 
   if (!assessments?.length) {
@@ -1346,8 +1363,11 @@ async function loadStayExistingInvitations(assessmentId) {
   data.forEach((invitation) => {
     const item = document.createElement("p");
     item.textContent =
-      "Participant ID: " +
-      (invitation.participant_user_id || "Unassigned") +
+     
+"Participant: " +
+(participantEmails.get(invitation.participant_user_id)
+  || "Unknown participant") +
+
       " — " +
       invitation.perspective +
       " — " +
