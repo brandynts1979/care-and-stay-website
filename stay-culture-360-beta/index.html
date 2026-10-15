@@ -195,6 +195,41 @@
     <span id="stay-selected-assessment-status"></span>
   </p>
 
+<div id="stay-participant-invitations" hidden>
+  <h4>Participant Invitations</h4>
+  <p>
+    Invite participants to complete this assessment.
+  </p>
+
+  <label for="stay-invite-participant">
+    Participant
+  </label>
+  <select id="stay-invite-participant">
+    <option value="">Select a test participant</option>
+  </select>
+
+  <label for="stay-invite-perspective">
+    Perspective
+  </label>
+  <select id="stay-invite-perspective">
+    <option value="employee">Employee</option>
+    <option value="manager">Manager</option>
+    <option value="senior_leader">Senior Leader</option>
+  </select>
+
+  <button
+    id="stay-send-invitation"
+    type="button"
+    disabled
+  >
+    Add Participant
+  </button>
+
+  <p id="stay-invitation-status">
+    Participant invitations are not yet enabled.
+  </p>
+</div>
+
 <div id="stay-question-setup" hidden>
   <h4>Assessment Questions</h4>
   <p>
@@ -1019,6 +1054,12 @@ const questionSetup = document.getElementById(
 );
 
 questionSetup.hidden = assessment.status !== "draft";
+
+const invitationSection = document.getElementById(
+  "stay-participant-invitations"
+);
+
+invitationSection.hidden = assessment.status !== "draft";
 
 document.getElementById(
   "stay-setup-questions-button"
