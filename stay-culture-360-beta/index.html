@@ -1061,6 +1061,10 @@ const invitationSection = document.getElementById(
 
 invitationSection.hidden = assessment.status !== "draft";
 
+if (assessment.status === "draft") {
+  loadStayTestParticipants(assessment.id);
+}
+
 document.getElementById(
   "stay-setup-questions-button"
 ).disabled = assessment.status !== "draft";
@@ -1182,6 +1186,55 @@ async function setupStayAssessmentQuestions() {
 document.getElementById(
   "stay-setup-questions-button"
 ).addEventListener("click", setupStayAssessmentQuestions);
+
+async function loadStayTestParticipants(assessmentId) {
+  const dropdown = document.getElementById(
+    "stay-invite-participant"
+  );
+  const status = document.getElementById(
+    "stay-invitation-status"
+  );
+  const button = document.getElementById(
+    "stay-send-invitation"
+  );
+
+  dropdown.replaceChildren();
+  dropdown.add(new Option("Select a test participant", ""));
+  button.disabled = true;
+
+  status.textContent = "Loading test participants...";
+
+  const { data, error } = await supabaseClient.rpc(
+    "stay_get_test_participants",
+    { assessment_uuid: assessmentId }
+  );
+
+  if (error) {
+    console.error("Unable to load test participants:", error);
+    status.textContent = "Unable to load test participants.";
+    return;
+  }
+
+  // Ignore results if the employer switched assessments.
+  if (
+    document.getElementById("stay-assessment-management")
+      .dataset.assessmentId !== assessmentId
+  ) {
+    return;
+  }
+
+  (data || []).forEach((participant) => {
+    dropdown.add(
+      new Option(
+        participant.participant_email,
+        participant.participant_id
+      )
+    );
+  });
+
+  status.textContent =
+    (data || []).length + " test participants available.";
+}
 
   loadEmployerDashboard();
   loadStayAssessmentList();
