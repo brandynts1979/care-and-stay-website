@@ -276,6 +276,20 @@
   <p id="stay-rename-status"></p>
 </div>
 
+<div id="stay-open-assessment-controls" hidden>
+  <h4>Open Assessment</h4>
+  <p>
+    Before opening, the assessment must have all 20 standard
+    questions assigned and at least one active participant invitation.
+  </p>
+  <button id="stay-open-assessment-button" type="button" disabled>
+    Open Assessment
+  </button>
+  <p id="stay-open-assessment-status">
+    Opening assessments is not yet enabled.
+  </p>
+</div>
+
   <p id="stay-management-message">
     Assessment management options will appear here.
   </p>
@@ -1057,7 +1071,17 @@ const renameControls = document.getElementById(
 );
 
 renameControls.hidden = assessment.status !== "draft";
+const openControls = document.getElementById(
+  "stay-open-assessment-controls"
+);
+openControls.hidden = assessment.status !== "draft";
+  document.getElementById(
+  "stay-open-assessment-button"
+).disabled = true;
 
+document.getElementById(
+  "stay-open-assessment-status"
+).textContent = "Checking assessment readiness...";
 const questionSetup = document.getElementById(
   "stay-question-setup"
 );
