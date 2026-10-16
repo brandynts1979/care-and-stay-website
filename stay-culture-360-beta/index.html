@@ -1322,7 +1322,7 @@ async function loadStayExistingInvitations(assessmentId) {
 
   const { data, error } = await supabaseClient
     .from("stay_assessment_invitations")
-    .select("participant_user_id, perspective, status")
+    .select("id, participant_user_id, perspective, status")
     .eq("assessment_id", assessmentId);
 
   if (
@@ -1374,6 +1374,19 @@ const participantEmails = new Map(
       invitation.perspective +
       " — " +
       invitation.status;
+
+if (invitation.status === "pending") {
+  const revokeButton = document.createElement("button");
+  revokeButton.type = "button";
+  revokeButton.textContent = "Revoke Invitation";
+
+  revokeButton.addEventListener("click", () => {
+    alert("Invitation revocation will be enabled next.");
+  });
+
+  item.appendChild(document.createTextNode(" "));
+  item.appendChild(revokeButton);
+}
 
     list.appendChild(item);
   });
