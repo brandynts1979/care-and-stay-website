@@ -1380,9 +1380,41 @@ if (invitation.status === "pending") {
   revokeButton.type = "button";
   revokeButton.textContent = "Revoke Invitation";
 
-  revokeButton.addEventListener("click", () => {
-    alert("Invitation revocation will be enabled next.");
-  });
+ 
+revokeButton.addEventListener("click", async () => {
+  const confirmed = confirm(
+    "Are you sure you want to revoke this invitation?"
+  );
+
+  if (!confirmed) return;
+
+  revokeButton.disabled = true;
+  revokeButton.textContent = "Revoking...";
+
+  try {
+    const { data, error } = await supabaseClient
+      .from("stay_assessment_invitations")
+      .update({ status: "revoked" })
+      .eq("id", invitation.id)
+      .eq("assessment_id", assessmentId)
+      .eq("status", "pending")
+      .select("id");
+
+    if (error) throw error;
+
+    if (!data || data.length !== 1) {
+      throw new Error("Invitation could not be revoked.");
+    }
+
+    await loadStayExistingInvitations(assessmentId);
+  } catch (error) {
+    console.error("Unable to revoke invitation:", error);
+    alert("Unable to revoke invitation: " + error.message);
+    revokeButton.disabled = false;
+    revokeButton.textContent = "Revoke Invitation";
+  }
+});
+
 
   item.appendChild(document.createTextNode(" "));
   item.appendChild(revokeButton);
