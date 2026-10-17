@@ -1099,7 +1099,9 @@ if (assessment.status === "draft") {
 }
 
 loadStayExistingInvitations(assessment.id);
-
+if (assessment.status === "draft") {
+  checkStayAssessmentReadiness(assessment.id);
+}
 document.getElementById(
   "stay-setup-questions-button"
 ).disabled = assessment.status !== "draft";
@@ -1446,6 +1448,54 @@ revokeButton.addEventListener("click", async () => {
 
     list.appendChild(item);
   });
+}
+
+async function checkStayAssessmentReadiness(assessmentId) {
+  const button = document.getElementById(
+    "stay-open-assessment-button"
+  );
+  const status = document.getElementById(
+    "stay-open-assessment-status"
+  );
+
+  button.disabled = true;
+  status.textContent = "Checking assessment readiness...";
+
+  try {
+    const { count: questionCount, error: questionError } =
+      await supabaseClient
+        .from("stay_assessment_question_assignments")
+        .select("question_id", { count: "exact", head: true })
+        .eq("assessment_id", assessmentId);
+
+    if (questionError) throw questionError;
+
+    const { count: invitationCount, error: invitationError } =
+      await supabaseClient
+        .from("stay_assessment_invitations")
+        .select("id", { count: "exact", head: true })
+        .eq("assessment_id", assessmentId)
+        .in("status", ["pending", "accepted"]);
+
+    if (invitationError) throw invitationError;
+
+    if (
+      document.getElementById("stay-assessment-management")
+        .dataset.assessmentId !== assessmentId
+    ) return;
+
+    if (questionCount !== 20 || invitationCount < 1) {
+      status.textContent =
+        "Not ready: requires 20 questions and at least one active invitation.";
+      return;
+    }
+
+    button.disabled = false;
+    status.textContent = "Ready to open this assessment.";
+  } catch (error) {
+    console.error("Assessment readiness check failed:", error);
+    status.textContent = "Unable to verify assessment readiness.";
+  }
 }
 
   loadEmployerDashboard();
