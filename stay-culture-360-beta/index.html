@@ -162,6 +162,15 @@
 
   <p>Organization-level assessment reporting</p>
 
+<div id="stay-report-assessment-selection">
+  <label for="stay-report-assessment-select">
+    <strong>Select Assessment</strong>
+  </label>
+  <select id="stay-report-assessment-select">
+    <option value="">Loading assessments...</option>
+  </select>
+</div>
+
   <h3>Participation</h3>
   <p id="stay-report-participation">
     Reporting information not yet loaded.
@@ -840,16 +849,36 @@ console.log(
 );
 const { data: assessments, error: assessmentError } =
   await supabaseClient
-    .from("stay_assessments")
-    .select("id")
-    .eq("organization_id", memberships[0].organization_id)
-    .limit(1);
+   .from("stay_assessments")
+.select("id, title, status, created_at")
+.eq("organization_id", memberships[0].organization_id)
+.order("created_at", { ascending: false });
 
 if (assessmentError) {
   console.error("Unable to load assessments:", assessmentError);
   return;
 }
 
+const assessmentSelect = document.getElementById(
+  "stay-report-assessment-select"
+);
+const previouslySelectedAssessment = assessmentSelect.value;
+assessmentSelect.replaceChildren();
+
+(assessments || []).forEach((assessment) => {
+  const option = document.createElement("option");
+  option.value = assessment.id;
+  option.textContent =
+    assessment.title + " (" + assessment.status + ")";
+  assessmentSelect.appendChild(option);
+});
+if (
+  assessments.some(
+    (assessment) => assessment.id === previouslySelectedAssessment
+  )
+) {
+  assessmentSelect.value = previouslySelectedAssessment;
+}
 if (!assessments?.length) {
   document.getElementById("stay-report-participation").textContent =
     "No assessments created yet.";
@@ -866,7 +895,7 @@ if (!assessments?.length) {
 const { data: reportStatus, error: reportError } =
   await supabaseClient.rpc(
     "stay_get_assessment_report_status",
-    { assessment_uuid: assessments[0].id }
+    { assessment_uuid: assessmentSelect.value }
   );
 
 if (reportError) {
@@ -897,11 +926,12 @@ document.getElementById(
 ).textContent = status.reporting_allowed
   ? "Minimum participation requirement met."
   : "Minimum participation requirement not yet met.";
+    document.getElementById("stay-report-dimensions").replaceChildren();
 if (status.reporting_allowed) {
   const { data: dimensionScores, error: scoresError } =
     await supabaseClient.rpc(
       "stay_get_dimension_scores",
-      { assessment_uuid: assessments[0].id }
+     { assessment_uuid: assessmentSelect.value }
     );
 
   const dimensionsBox = document.getElementById(
@@ -1559,6 +1589,13 @@ async function openStayAssessment() {
 document.getElementById(
   "stay-open-assessment-button"
 ).addEventListener("click", openStayAssessment);
+  
+document.getElementById(
+  "stay-report-assessment-select"
+).addEventListener("change", () => {
+  loadEmployerDashboard();
+});
+
   loadEmployerDashboard();
   loadStayAssessmentList();
 </script>
