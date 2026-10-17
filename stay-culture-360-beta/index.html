@@ -1501,6 +1501,52 @@ console.log("Assessment readiness counts:", {
   }
 }
 
+async function openStayAssessment() {
+  const management = document.getElementById(
+    "stay-assessment-management"
+  );
+  const assessmentId = management.dataset.assessmentId;
+  const button = document.getElementById(
+    "stay-open-assessment-button"
+  );
+  const status = document.getElementById(
+    "stay-open-assessment-status"
+  );
+
+  if (!assessmentId || button.disabled) return;
+
+  const confirmed = confirm(
+    "Open this assessment? Invited participants will be able to begin responding."
+  );
+
+  if (!confirmed) return;
+
+  button.disabled = true;
+  status.textContent = "Opening assessment...";
+
+  try {
+    const { error } = await supabaseClient.rpc(
+      "stay_open_assessment",
+      { assessment_uuid: assessmentId }
+    );
+
+    if (error) throw error;
+
+    status.textContent = "Assessment opened successfully.";
+    document.getElementById(
+      "stay-selected-assessment-status"
+    ).textContent = "open";
+
+    await loadStayAssessmentList();
+  } catch (error) {
+    console.error("Unable to open assessment:", error);
+    status.textContent =
+      "Unable to open assessment: " + error.message;
+  }
+}
+document.getElementById(
+  "stay-open-assessment-button"
+).addEventListener("click", openStayAssessment);
   loadEmployerDashboard();
   loadStayAssessmentList();
 </script>
