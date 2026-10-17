@@ -1483,7 +1483,10 @@ async function checkStayAssessmentReadiness(assessmentId) {
       document.getElementById("stay-assessment-management")
         .dataset.assessmentId !== assessmentId
     ) return;
-
+console.log("Assessment readiness counts:", {
+  questionCount,
+  invitationCount
+});
     if (questionCount !== 20 || invitationCount < 1) {
       status.textContent =
         "Not ready: requires 20 questions and at least one active invitation.";
