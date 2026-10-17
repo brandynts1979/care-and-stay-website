@@ -341,7 +341,8 @@
         .select("assessment_id, status")
         .eq("participant_user_id", userData.user.id)
         .in("status", ["pending", "accepted", "completed"])
-        .limit(1);
+.order("status", { ascending: false })
+.limit(1);
 
     if (invitationError || !invitations?.length) return;
 
