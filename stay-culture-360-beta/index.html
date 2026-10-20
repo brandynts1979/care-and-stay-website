@@ -369,6 +369,10 @@ one active participant invitation.
     if (invitationError || !invitations?.length) return;
 
     const assessmentId = invitations[0].assessment_id;
+    
+document.getElementById("stay-questions").dataset.assessmentId =
+  assessmentId;
+
     const isCompleted = invitations[0].status === "completed";
     if (!isCompleted) {
   const submitButton = document.getElementById("stay-submit-assessment");
@@ -436,18 +440,31 @@ assignments.sort((a, b) => {
       if (question.response_type === "scale") {
         const choices = document.createElement("div");
 
-        for (let rating = 1; rating <= 5; rating++) {
-          const label = document.createElement("label");
-          label.style.marginRight = "16px";
+        
+const ratingOptions = [
+  { value: "1", label: "1 — Rarely true" },
+  { value: "2", label: "2 — Sometimes true" },
+  { value: "3", label: "3 — Often true" },
+  { value: "4", label: "4 — Usually true" },
+  { value: "5", label: "5 — Consistently true" },
+  { value: "not_visible", label: "Not enough visibility" }
+];
 
-          const input = document.createElement("input");
-          input.type = "radio";
-          input.name = `question-${question.id}`;
-          input.value = rating;
+for (const option of ratingOptions) {
+  const label = document.createElement("label");
+  label.style.display = "inline-block";
+  label.style.marginRight = "16px";
+  label.style.marginBottom = "10px";
 
-          label.append(input, ` ${rating}`);
-          choices.appendChild(label);
-        }
+  const input = document.createElement("input");
+  input.type = "radio";
+  input.name = `question-${question.id}`;
+  input.value = option.value;
+
+  label.append(input, ` ${option.label}`);
+  choices.appendChild(label);
+}
+
 
         wrapper.appendChild(choices);
       } else {
@@ -500,13 +517,22 @@ assignments.sort((a, b) => {
 
       const response = answer.response_value;
 
-      if (typeof response?.score === "number") {
-        const radio = Array.from(
-          block.querySelectorAll('input[type="radio"]')
-        ).find(input => Number(input.value) === response.score);
+    
+if (
+  typeof response?.score === "number" ||
+  response?.not_visible === true
+) {
+  const savedValue = response.not_visible === true
+    ? "not_visible"
+    : String(response.score);
 
-        if (radio) radio.checked = true;
-      }
+  const radio = Array.from(
+    block.querySelectorAll('input[type="radio"]')
+  ).find(input => input.value === savedValue);
+
+  if (radio) radio.checked = true;
+}
+
 
       if (typeof response?.text === "string") {
         const textarea = block.querySelector("textarea");
@@ -592,13 +618,22 @@ async function checkStaySubmissionReady() {
 
   if (userError || !userData.user) return;
 
-  const { data: invitations, error: invitationError } =
-    await supabaseClient
-      .from("stay_assessment_invitations")
-      .select("id")
-      .eq("participant_user_id", userData.user.id)
-      .in("status", ["pending", "accepted"])
-      .limit(1);
+ 
+const assessmentId = document.getElementById(
+  "stay-questions"
+)?.dataset.assessmentId;
+
+if (!assessmentId) return;
+
+const { data: invitations, error: invitationError } =
+  await supabaseClient
+    .from("stay_assessment_invitations")
+    .select("id")
+    .eq("participant_user_id", userData.user.id)
+    .eq("assessment_id", assessmentId)
+    .in("status", ["pending", "accepted"])
+    .limit(1);
+
 
   if (invitationError || !invitations?.length) return;
 
@@ -622,10 +657,12 @@ async function checkStaySubmissionReady() {
     (responses || []).map(response => response.question_key)
   );
 
-  button.disabled = !(
-    assignedKeys.length === 20 &&
-    assignedKeys.every(key => savedKeys.has(key))
-  );
+ 
+button.disabled = !(
+  (assignedKeys.length === 20 || assignedKeys.length === 49) &&
+  assignedKeys.every(key => savedKeys.has(key))
+);
+
 }
 
   document.getElementById("stay-questions")
@@ -647,19 +684,28 @@ async function checkStaySubmissionReady() {
   const saveTimers = new Map();
 
   async function getInvitationId() {
-    if (activeInvitationId) return activeInvitationId;
+    
 
     const { data: userData, error: userError } =
       await supabaseClient.auth.getUser();
 
     if (userError || !userData.user) return null;
 
-    const { data, error } = await supabaseClient
-      .from("stay_assessment_invitations")
-      .select("id")
-      .eq("participant_user_id", userData.user.id)
-      .in("status", ["pending", "accepted"])
-      .limit(1);
+  
+const assessmentId = document.getElementById(
+  "stay-questions"
+)?.dataset.assessmentId;
+
+if (!assessmentId) return null;
+
+const { data, error } = await supabaseClient
+  .from("stay_assessment_invitations")
+  .select("id")
+  .eq("participant_user_id", userData.user.id)
+  .eq("assessment_id", assessmentId)
+  .in("status", ["pending", "accepted"])
+  .limit(1);
+
 
     if (error || !data?.length) return null;
 
@@ -732,9 +778,13 @@ async function checkStaySubmissionReady() {
     const questionKey = block.dataset.questionKey;
     let responseValue;
 
-    if (control.type === "radio") {
-      responseValue = { score: Number(control.value) };
-    } else {
+   
+if (control.type === "radio") {
+  responseValue = control.value === "not_visible"
+    ? { not_visible: true }
+    : { score: Number(control.value) };
+} else {
+
       const answer = control.value.trim();
       if (!answer) return;
       responseValue = { text: answer };
@@ -791,13 +841,24 @@ async function checkStaySubmissionReady() {
         throw new Error("Please sign in again.");
       }
 
-      const { data: invitations, error: invitationError } =
-        await supabaseClient
-          .from("stay_assessment_invitations")
-          .select("id")
-          .eq("participant_user_id", userData.user.id)
-          .in("status", ["pending", "accepted"])
-          .limit(1);
+     
+const assessmentId = document.getElementById(
+  "stay-questions"
+).dataset.assessmentId;
+
+if (!assessmentId) {
+  throw new Error("No assessment is currently selected.");
+}
+
+const { data: invitations, error: invitationError } =
+  await supabaseClient
+    .from("stay_assessment_invitations")
+    .select("id")
+    .eq("participant_user_id", userData.user.id)
+    .eq("assessment_id", assessmentId)
+    .in("status", ["pending", "accepted"])
+    .limit(1);
+
 
       if (invitationError || !invitations?.length) {
         throw new Error("No active assessment invitation found.");
