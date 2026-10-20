@@ -1581,11 +1581,16 @@ console.log("Assessment readiness counts:", {
   questionCount,
   invitationCount
 });
-    if (questionCount !== 20 || invitationCount < 1) {
-      status.textContent =
-        "Not ready: requires 20 questions and at least one active invitation.";
-      return;
-    }
+ 
+if (
+  (questionCount !== 20 && questionCount !== 49) ||
+  invitationCount < 1
+) {
+  status.textContent =
+    "Not ready: requires 20 or 49 questions and at least one active invitation.";
+  return;
+}
+
 
     button.disabled = false;
     status.textContent = "Ready to open this assessment.";
