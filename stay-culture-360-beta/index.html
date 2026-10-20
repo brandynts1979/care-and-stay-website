@@ -1569,12 +1569,18 @@ async function checkStayAssessmentReadiness(assessmentId) {
 
     if (questionError) throw questionError;
 
-    const { count: invitationCount, error: invitationError } =
-      await supabaseClient
-        .from("stay_assessment_invitations")
-        .select("id", { count: "exact", head: true })
-        .eq("assessment_id", assessmentId)
-        .in("status", ["pending", "accepted"]);
+  
+const { data: activeInvitations, error: invitationError } =
+  await supabaseClient
+    .from("stay_assessment_invitations")
+    .select("id, participant_user_id, status")
+    .eq("assessment_id", assessmentId)
+    .in("status", ["pending", "accepted"]);
+
+const invitationCount = (activeInvitations || []).filter(
+  invitation => invitation.participant_user_id !== null
+).length;
+
 
     if (invitationError) throw invitationError;
 
