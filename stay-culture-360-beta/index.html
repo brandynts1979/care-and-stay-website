@@ -259,6 +259,14 @@
   >
     Set Up Questions
   </button>
+  
+<button
+  id="stay-setup-full-questions-button"
+  type="button"
+>
+  Set Up Full 49-Question Assessment
+</button>
+
   <p id="stay-question-setup-status">
     Question setup is not yet enabled.
   </p>
@@ -1265,6 +1273,50 @@ async function setupStayAssessmentQuestions() {
 document.getElementById(
   "stay-setup-questions-button"
 ).addEventListener("click", setupStayAssessmentQuestions);
+
+async function setupFullStay360Questions() {
+  const button = document.getElementById(
+    "stay-setup-full-questions-button"
+  );
+  const status = document.getElementById(
+    "stay-question-setup-status"
+  );
+ 
+const panel = document.getElementById(
+  "stay-assessment-management"
+);
+const assessmentId = panel.dataset.assessmentId;
+
+
+  if (!assessmentId) {
+    status.textContent = "Please select an assessment first.";
+    return;
+  }
+
+  button.disabled = true;
+  status.textContent = "Setting up all 49 questions...";
+
+  try {
+    const { data, error } = await supabaseClient.rpc(
+      "stay_setup_full_360_questions",
+      { assessment_uuid: assessmentId }
+    );
+
+    if (error) throw error;
+
+    status.textContent =
+      data + " full Stay Culture 360 questions assigned successfully.";
+  } catch (error) {
+    console.error("Full question setup failed:", error);
+    status.textContent =
+      "Unable to set up full assessment: " + error.message;
+    button.disabled = false;
+  }
+}
+
+document.getElementById(
+  "stay-setup-full-questions-button"
+).addEventListener("click", setupFullStay360Questions);
 
 async function loadStayTestParticipants(assessmentId) {
   const dropdown = document.getElementById(
