@@ -1044,13 +1044,39 @@ const pillarLabels = {
   sustainable_work_wellbeing: "Sustainable Work & Well-being",
   leadership_credibility_accountability: "Leadership Credibility & Accountability"
 };
+    const scorecard = document.createElement("div");
+scorecard.style.cssText =
+  "display:grid;gap:14px;margin-top:18px;";
+
+dimensionsBox.appendChild(scorecard);
     dimensionScores.forEach((item) => {
-      const paragraph = document.createElement("p");
+      const card = document.createElement("div");
 
-      paragraph.textContent =
-       `${pillarLabels[item.dimension] || item.dimension}: ${item.average_score} / 5`;
+const label = document.createElement("div");
+label.style.cssText =
+  "display:flex;justify-content:space-between;gap:12px;margin-bottom:7px;font-weight:600;";
 
-      dimensionsBox.appendChild(paragraph);
+const name = document.createElement("span");
+name.textContent = pillarLabels[item.dimension] || item.dimension;
+
+const score = document.createElement("span");
+score.textContent = `${item.average_score} / 5`;
+
+label.append(name, score);
+
+const track = document.createElement("div");
+track.style.cssText =
+  "height:12px;background:#e2e8f0;border-radius:8px;overflow:hidden;";
+
+const bar = document.createElement("div");
+const value = Math.max(0, Math.min(5, Number(item.average_score)));
+
+bar.style.cssText =
+  `height:100%;width:${(value / 5) * 100}%;background:#28745a;border-radius:8px;`;
+
+track.appendChild(bar);
+card.append(label, track);
+scorecard.appendChild(card);
     });
   }
 }
