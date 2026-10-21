@@ -1231,9 +1231,10 @@ const invitationSection = document.getElementById(
   "stay-participant-invitations"
 );
 
-invitationSection.hidden = assessment.status !== "draft";
+invitationSection.hidden =
+  assessment.status !== "draft" && assessment.status !== "open";
 
-if (assessment.status === "draft") {
+if (assessment.status === "draft" || assessment.status === "open") {
   loadStayTestParticipants(assessment.id);
 }
 
