@@ -589,7 +589,9 @@ if (isCompleted) {
 
     if (!container || !progress) return;
 
-    const questionBlocks = Array.from(container.children);
+   const questionBlocks = Array.from(container.children).filter(
+  block => block.dataset.questionKey
+);
     const total = questionBlocks.length;
 
     let answered = 0;
