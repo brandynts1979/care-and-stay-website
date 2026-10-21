@@ -417,16 +417,29 @@ assignments.sort((a, b) => {
   const questionA = questionMap.get(a.question_id);
   const questionB = questionMap.get(b.question_id);
 
-  const typeA = questionA?.response_type === "scale" ? 0 : 1;
-  const typeB = questionB?.response_type === "scale" ? 0 : 1;
-
-  return typeA - typeB || a.display_order - b.display_order;
+ return a.display_order - b.display_order;
 });
 
     assignments.forEach((assignment, index) => {
       const question = questionMap.get(assignment.question_id);
       if (!question) return;
+const pillarNames = [
+  "Purpose & Belonging",
+  "Trust & Psychological Safety",
+  "Appreciation & Recognition",
+  "Growth & Development",
+  "Voice & Influence",
+  "Sustainable Work & Well-being",
+  "Leadership Credibility & Accountability"
+];
 
+if (assignments.length === 49 && index % 7 === 0) {
+  const pillarHeading = document.createElement("h2");
+  pillarHeading.textContent = `Pillar ${Math.floor(index / 7) + 1}: ${pillarNames[Math.floor(index / 7)]}`;
+  pillarHeading.style.cssText =
+    "margin:32px 0 12px;padding:14px;background:#eef5f2;border-left:4px solid #28745a;border-radius:6px;";
+  container.appendChild(pillarHeading);
+}
       const wrapper = document.createElement("div");
       wrapper.dataset.questionKey = question.question_key;
       wrapper.style.cssText =
