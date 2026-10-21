@@ -1035,12 +1035,20 @@ if (status.reporting_allowed) {
       "No dimension scores are available yet.";
   } else {
     dimensionsBox.replaceChildren();
-
+const pillarLabels = {
+  purpose_belonging: "Purpose & Belonging",
+  trust_psychological_safety: "Trust & Psychological Safety",
+  appreciation_recognition: "Appreciation & Recognition",
+  growth_development: "Growth & Development",
+  voice_influence: "Voice & Influence",
+  sustainable_work_wellbeing: "Sustainable Work & Well-being",
+  leadership_credibility_accountability: "Leadership Credibility & Accountability"
+};
     dimensionScores.forEach((item) => {
       const paragraph = document.createElement("p");
 
       paragraph.textContent =
-        `${item.dimension}: ${item.average_score} / 5`;
+       `${pillarLabels[item.dimension] || item.dimension}: ${item.average_score} / 5`;
 
       dimensionsBox.appendChild(paragraph);
     });
