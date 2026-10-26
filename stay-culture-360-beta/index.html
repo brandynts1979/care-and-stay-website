@@ -1188,7 +1188,52 @@ developmentPriorities.forEach(item => {
   paragraph.textContent = `${name}: ${action}`;
   recommendationsSection.appendChild(paragraph);
 });
+  
 dimensionsBox.appendChild(recommendationsSection);
+    const actionPlanSection = document.createElement("div");
+actionPlanSection.style.cssText =
+  "margin-top:24px;padding:20px;border:1px solid #d8e2e8;border-radius:8px;";
+
+const actionPlanHeading = document.createElement("h3");
+actionPlanHeading.textContent = "Your 30/60/90-Day Stay Culture Leadership Action Plan";
+
+actionPlanSection.appendChild(actionPlanHeading);
+      const first30Heading = document.createElement("h4");
+first30Heading.textContent = "Days 1–30: Discover & Listen";
+
+const first30Text = document.createElement("p");
+first30Text.textContent =
+  "Meet with employees to discover when the organization is at its best. " +
+  "Explore the experiences behind its strongest cultural pillars. " +
+  "Discuss opportunities for improvement in " +
+  opportunityNames.join(" and ") +
+  ". Identify one achievable leadership commitment for each priority.";
+
+actionPlanSection.append(first30Heading, first30Text);
+    const day60Heading = document.createElement("h4");
+day60Heading.textContent = "Days 31–60: Design & Implement";
+
+const day60Text = document.createElement("p");
+day60Text.textContent =
+  "Work with employees to design practical improvements in " +
+  opportunityNames.join(" and ") +
+  ". Put the recommended leadership actions into practice. " +
+  "Assign responsibility for each commitment, establish measurable goals, " +
+  "and invite regular employee feedback on what is improving.";
+
+actionPlanSection.append(day60Heading, day60Text);
+    const day90Heading = document.createElement("h4");
+day90Heading.textContent = "Days 61–90: Measure & Sustain";
+
+const day90Text = document.createElement("p");
+day90Text.textContent =
+  "Review progress against the leadership commitments established during " +
+  "the first 60 days. Gather employee feedback, recognize improvements, " +
+  "and identify practices worth continuing. Establish a regular leadership " +
+  "review process and prepare for a follow-up Stay Culture assessment.";
+
+actionPlanSection.append(day90Heading, day90Text);
+dimensionsBox.appendChild(actionPlanSection);
   }
 }
 dashboard.hidden = false;
