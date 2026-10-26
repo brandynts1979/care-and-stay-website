@@ -1,4 +1,4 @@
-
+x
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1118,6 +1118,47 @@ developmentPriorities.forEach(item => {
 });
 
 dimensionsBox.appendChild(prioritiesSection);
+    const recommendationsSection = document.createElement("div");
+recommendationsSection.style.cssText =
+  "margin-top:24px;padding:20px;border:1px solid #d8e2e8;border-radius:8px;";
+
+const recommendationsHeading = document.createElement("h3");
+recommendationsHeading.textContent = "Appreciative Leadership Recommendations";
+
+recommendationsSection.appendChild(recommendationsHeading);
+    const recommendationsIntro = document.createElement("p");
+recommendationsIntro.textContent =
+  "A strong Stay Culture begins by recognizing what is already working well. " +
+  "The following recommendations use the organization's cultural strengths " +
+  "as a foundation for improving areas with the greatest opportunity for growth.";
+
+recommendationsSection.appendChild(recommendationsIntro);
+const strengthNames = topStrengths.map(
+  item => pillarLabels[item.dimension] || item.dimension
+);
+
+const foundationParagraph = document.createElement("p");
+
+foundationParagraph.textContent =
+  "Build on existing strengths: " +
+  strengthNames.join(" and ") +
+  ". These cultural assets provide a starting point for leadership development.";
+
+recommendationsSection.appendChild(foundationParagraph);
+    const opportunityNames = developmentPriorities.map(
+  item => pillarLabels[item.dimension] || item.dimension
+);
+
+const opportunityParagraph = document.createElement("p");
+
+opportunityParagraph.textContent =
+  "Leadership development opportunities: " +
+  opportunityNames.join(" and ") +
+  ". Explore how the organization's existing strengths can help leaders " +
+  "create positive change in these areas.";
+
+recommendationsSection.appendChild(opportunityParagraph);
+dimensionsBox.appendChild(recommendationsSection);
   }
 }
 dashboard.hidden = false;
