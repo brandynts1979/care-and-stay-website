@@ -1158,6 +1158,36 @@ opportunityParagraph.textContent =
   "create positive change in these areas.";
 
 recommendationsSection.appendChild(opportunityParagraph);
+    const leadershipActions = {
+  purpose_belonging:
+    "Invite employees to share when their work feels most meaningful. Identify ways to strengthen those experiences.",
+  trust_psychological_safety:
+    "Hold regular listening conversations where employees can raise concerns without fear of criticism or retaliation.",
+  appreciation_recognition:
+    "Ask employees how they prefer to be recognized. Encourage managers to acknowledge specific contributions each week.",
+  growth_development:
+    "Schedule individual development conversations focused on employees' strengths, aspirations, and opportunities to grow.",
+  voice_influence:
+    "Invite employees to help shape workplace improvements. Communicate which suggestions are being implemented and why.",
+  sustainable_work_wellbeing:
+    "Review workloads and scheduling practices with employees. Identify changes that would make work more sustainable.",
+  leadership_credibility_accountability:
+    "Ask leaders to identify one commitment they can consistently demonstrate. Review progress openly with their teams."
+};
+    const actionsHeading = document.createElement("h4");
+actionsHeading.textContent = "Recommended Leadership Actions";
+recommendationsSection.appendChild(actionsHeading);
+
+developmentPriorities.forEach(item => {
+  const action = leadershipActions[item.dimension];
+  if (!action) return;
+
+  const paragraph = document.createElement("p");
+  const name = pillarLabels[item.dimension] || item.dimension;
+
+  paragraph.textContent = `${name}: ${action}`;
+  recommendationsSection.appendChild(paragraph);
+});
 dimensionsBox.appendChild(recommendationsSection);
   }
 }
