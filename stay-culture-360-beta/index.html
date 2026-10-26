@@ -48,7 +48,9 @@ body.print-executive-report > footer {
   }
 
 
-
+body.print-executive-report > :not(#stay-employer-dashboard):not(script) {
+  display: none !important;
+}
   body.print-executive-report #stay-employer-dashboard {
     display: block !important;
     max-width: none !important;
