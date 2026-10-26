@@ -31,6 +31,45 @@ x
       padding: 15px;
       border-radius: 8px;
     }
+@media print {
+  body {
+    background: white;
+  }
+body.print-executive-report > main,
+body.print-executive-report > header,
+body.print-executive-report > footer {
+  display: none !important;
+}
+  main {
+    max-width: none;
+    margin: 0;
+    padding: 0;
+    box-shadow: none;
+  }
+
+
+
+  body.print-executive-report #stay-employer-dashboard {
+    display: block !important;
+    max-width: none !important;
+  }
+
+  body.print-executive-report #stay-employer-dashboard > * {
+    display: none !important;
+  }
+
+  body.print-executive-report #stay-employer-dashboard > h2,
+body.print-executive-report #stay-employer-dashboard > h3,
+body.print-executive-report #stay-employer-dashboard > #stay-report-participation,
+ 
+  body.print-executive-report #stay-employer-dashboard > #stay-report-dimensions {
+    display: block !important;
+  }
+
+  body.print-executive-report #stay-report-dimensions > div {
+    break-inside: avoid;
+  }
+}
   </style>
 </head>
 <body>
@@ -183,7 +222,13 @@ x
   </div>
 
   <p id="stay-report-status" role="status"></p>
-
+<button
+  id="stay-print-report-button"
+  type="button"
+  hidden
+>
+  Print Executive Report
+</button>
 <div id="stay-my-assessments">
   <h3>My Assessments</h3>
   <div id="stay-assessment-list">
@@ -1016,6 +1061,7 @@ document.getElementById(
   ? "Minimum participation requirement met."
   : "Minimum participation requirement not yet met.";
     document.getElementById("stay-report-dimensions").replaceChildren();
+    document.getElementById("stay-print-report-button").hidden = true;
 if (status.reporting_allowed) {
   const { data: dimensionScores, error: scoresError } =
     await supabaseClient.rpc(
@@ -1234,11 +1280,30 @@ day90Text.textContent =
 
 actionPlanSection.append(day90Heading, day90Text);
 dimensionsBox.appendChild(actionPlanSection);
+    document.getElementById("stay-print-report-button").hidden = false;
   }
 }
 dashboard.hidden = false;
   }
-  
+ function printStayExecutiveReport() {
+  const printButton = document.getElementById(
+    "stay-print-report-button"
+  );
+
+  const dimensionsBox = document.getElementById(
+    "stay-report-dimensions"
+  );
+
+  if (printButton.hidden || !dimensionsBox.children.length) {
+    return;
+  }
+
+  document.body.classList.add("print-executive-report");
+window.print();
+   document.body.classList.remove("print-executive-report");
+} 
+  document.getElementById("stay-print-report-button")
+  .addEventListener("click", printStayExecutiveReport);
 async function createStayAssessment() {
   const status = document.getElementById(
     "stay-create-assessment-status"
