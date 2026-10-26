@@ -1078,6 +1078,46 @@ track.appendChild(bar);
 card.append(label, track);
 scorecard.appendChild(card);
     });
+    const rankedPillars = [...dimensionScores]
+  .filter(item => Number.isFinite(Number(item.average_score)))
+  .sort((a, b) => Number(b.average_score) - Number(a.average_score));
+
+const topStrengths = rankedPillars.slice(0, 2);
+const developmentPriorities = rankedPillars.slice(-2).reverse();
+    const strengthsSection = document.createElement("div");
+strengthsSection.style.cssText =
+  "margin-top:28px;padding:18px;background:#eef5f2;border-radius:8px;";
+
+const strengthsHeading = document.createElement("h3");
+strengthsHeading.textContent = "Our Greatest Strengths";
+
+strengthsSection.appendChild(strengthsHeading);
+
+topStrengths.forEach(item => {
+  const paragraph = document.createElement("p");
+  paragraph.textContent =
+    `${pillarLabels[item.dimension] || item.dimension} — ${item.average_score} / 5`;
+  strengthsSection.appendChild(paragraph);
+});
+
+dimensionsBox.appendChild(strengthsSection);
+    const prioritiesSection = document.createElement("div");
+prioritiesSection.style.cssText =
+  "margin-top:18px;padding:18px;background:#f4f6f8;border-radius:8px;";
+
+const prioritiesHeading = document.createElement("h3");
+prioritiesHeading.textContent = "Opportunities for Growth";
+
+prioritiesSection.appendChild(prioritiesHeading);
+
+developmentPriorities.forEach(item => {
+  const paragraph = document.createElement("p");
+  paragraph.textContent =
+    `${pillarLabels[item.dimension] || item.dimension} — ${item.average_score} / 5`;
+  prioritiesSection.appendChild(paragraph);
+});
+
+dimensionsBox.appendChild(prioritiesSection);
   }
 }
 dashboard.hidden = false;
