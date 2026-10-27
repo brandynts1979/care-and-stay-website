@@ -31,7 +31,46 @@
       padding: 15px;
       border-radius: 8px;
     }
+    #stay-executive-cover {
+  display: none;
+}
+
 @media print {
+  body.print-executive-report #stay-employer-dashboard > #stay-executive-cover {
+  display: block !important;
+  break-after: page;
+}
+  body.print-executive-report #stay-executive-cover {
+  min-height: 85vh;
+  padding: 80px 45px;
+  box-sizing: border-box;
+  background: #f6f5ee !important;
+  border-top: 12px solid #174f4c;
+  border-bottom: 4px solid #b08039;
+  text-align: center;
+  color: #334d48;
+}
+  body.print-executive-report #stay-executive-cover h1 {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 52px;
+  font-weight: 700;
+  color: #174f4c !important;
+  margin: 65px 0 12px;
+}
+  body.print-executive-report #stay-executive-cover h2 {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 28px !important;
+  font-weight: 400;
+  color: #174f4c !important;
+  margin: 0 0 35px;
+}
+  body.print-executive-report #stay-executive-cover > p:first-child {
+  color: #b08039 !important;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+}
 body.print-executive-report #stay-employer-dashboard h2,
 body.print-executive-report #stay-employer-dashboard h3 {
   color: #174f4c !important;
@@ -229,7 +268,14 @@ body.print-executive-report #stay-employer-dashboard > #stay-report-participatio
 
 <section id="stay-employer-dashboard" hidden
   style="max-width:760px;margin:30px auto;padding:20px;">
-
+<div id="stay-executive-cover">
+  <p>CARE & STAY</p>
+  <h1>Stay Culture 360</h1>
+  <h2>Executive Culture Report</h2>
+  <p>Discovering strengths. Building cultures where people stay.</p>
+  <p id="stay-cover-organization"></p>
+  <p id="stay-cover-date"></p>
+</div>
   <h2>Stay Culture 360 — Employer Dashboard</h2>
 
   <p>Organization-level assessment reporting</p>
@@ -1330,7 +1376,22 @@ dashboard.hidden = false;
   if (printButton.hidden || !dimensionsBox.children.length) {
     return;
   }
+const assessmentSelect = document.getElementById(
+  "stay-report-assessment-select"
+);
 
+const selectedAssessment =
+  assessmentSelect.options[assessmentSelect.selectedIndex];
+
+document.getElementById("stay-cover-organization").textContent =
+  selectedAssessment ? selectedAssessment.textContent : "";
+   document.getElementById("stay-cover-date").textContent =
+  "Report prepared: " +
+  new Date().toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric"
+  });
   document.body.classList.add("print-executive-report");
 window.print();
    document.body.classList.remove("print-executive-report");
