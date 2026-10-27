@@ -1169,6 +1169,73 @@ const pillarLabels = {
   sustainable_work_wellbeing: "Sustainable Work & Well-being",
   leadership_credibility_accountability: "Leadership Credibility & Accountability"
 };
+    const rankedPillars = [...dimensionScores]
+  .filter(item => Number.isFinite(Number(item.average_score)))
+  .sort((a, b) => Number(b.average_score) - Number(a.average_score));
+
+const topStrengths = rankedPillars.slice(0, 2);
+const developmentPriorities = rankedPillars.slice(-2).reverse();
+    const executiveSummary = document.createElement("div");
+executiveSummary.id = "stay-executive-summary";
+
+const summaryHeading = document.createElement("h3");
+summaryHeading.textContent = "Executive Summary";
+
+executiveSummary.appendChild(summaryHeading);
+    const summaryIntroduction = document.createElement("p");
+
+summaryIntroduction.textContent =
+  "This Executive Culture Report provides a strengths-based view " +
+  "of the organization's workplace culture across seven key pillars. " +
+  "Using an Appreciative Inquiry approach, it identifies existing " +
+  "cultural strengths, opportunities for growth, and practical " +
+  "leadership priorities for building a workplace where people " +
+  "feel valued, supported, and inspired to stay.";
+
+executiveSummary.appendChild(summaryIntroduction);
+    const summaryStrengths = document.createElement("p");
+
+summaryStrengths.textContent =
+  "Greatest cultural strengths: " +
+  topStrengths
+    .map(item =>
+      (pillarLabels[item.dimension] || item.dimension) +
+      " (" + item.average_score + " / 5)"
+    )
+    .join(" and ") +
+  ".";
+
+executiveSummary.appendChild(summaryStrengths);
+    const summaryPriorities = document.createElement("p");
+
+summaryPriorities.textContent =
+  "Priority opportunities for growth: " +
+  developmentPriorities
+    .map(item =>
+      (pillarLabels[item.dimension] || item.dimension) +
+      " (" + item.average_score + " / 5)"
+    )
+    .join(" and ") +
+  ".";
+
+executiveSummary.appendChild(summaryPriorities);
+    const summaryInterpretation = document.createElement("p");
+
+summaryInterpretation.textContent =
+  "Leadership opportunity: Build on the organization's strengths in " +
+  topStrengths
+    .map(item => pillarLabels[item.dimension] || item.dimension)
+    .join(" and ") +
+  " to strengthen " +
+  developmentPriorities
+    .map(item => pillarLabels[item.dimension] || item.dimension)
+    .join(" and ") +
+  ". Begin by inviting employees to share examples of when the " +
+  "organization is at its best, then use those insights to design " +
+  "practical improvements together.";
+
+executiveSummary.appendChild(summaryInterpretation);
+dimensionsBox.appendChild(executiveSummary);
     const scorecard = document.createElement("div");
 scorecard.style.cssText =
   "display:grid;gap:14px;margin-top:18px;";
@@ -1203,12 +1270,7 @@ track.appendChild(bar);
 card.append(label, track);
 scorecard.appendChild(card);
     });
-    const rankedPillars = [...dimensionScores]
-  .filter(item => Number.isFinite(Number(item.average_score)))
-  .sort((a, b) => Number(b.average_score) - Number(a.average_score));
-
-const topStrengths = rankedPillars.slice(0, 2);
-const developmentPriorities = rankedPillars.slice(-2).reverse();
+    
     const strengthsSection = document.createElement("div");
 strengthsSection.style.cssText =
   "margin-top:28px;padding:18px;background:#eef5f2;border-radius:8px;";
