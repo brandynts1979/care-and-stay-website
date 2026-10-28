@@ -1258,13 +1258,13 @@ label.append(name, score);
 
 const track = document.createElement("div");
 track.style.cssText =
-  "height:12px;background:#e2e8f0;border-radius:8px;overflow:hidden;";
+  "height:12px;background:#e8e5dc;border-radius:8px;overflow:hidden;";
 
 const bar = document.createElement("div");
 const value = Math.max(0, Math.min(5, Number(item.average_score)));
 
 bar.style.cssText =
-  `height:100%;width:${(value / 5) * 100}%;background:#28745a;border-radius:8px;`;
+  `height:100%;width:${(value / 5) * 100}%;background:#174f4c;border-radius:8px;`;
 
 track.appendChild(bar);
 card.append(label, track);
@@ -1273,7 +1273,7 @@ scorecard.appendChild(card);
     
     const strengthsSection = document.createElement("div");
 strengthsSection.style.cssText =
-  "margin-top:28px;padding:18px;background:#eef5f2;border-radius:8px;";
+  "margin-top:28px;padding:18px;background:#f6f5ee;border-radius:8px;";
 
 const strengthsHeading = document.createElement("h3");
 strengthsHeading.textContent = "Our Greatest Strengths";
@@ -1290,7 +1290,7 @@ topStrengths.forEach(item => {
 dimensionsBox.appendChild(strengthsSection);
     const prioritiesSection = document.createElement("div");
 prioritiesSection.style.cssText =
-  "margin-top:18px;padding:18px;background:#f4f6f8;border-radius:8px;";
+  "margin-top:18px;padding:18px;background:#f6f5ee;border-radius:8px;";
 
 const prioritiesHeading = document.createElement("h3");
 prioritiesHeading.textContent = "Opportunities for Growth";
@@ -1307,7 +1307,7 @@ developmentPriorities.forEach(item => {
 dimensionsBox.appendChild(prioritiesSection);
     const recommendationsSection = document.createElement("div");
 recommendationsSection.style.cssText =
-  "margin-top:24px;padding:20px;border:1px solid #d8e2e8;border-radius:8px;";
+  "margin-top:24px;padding:20px;border:1px solid #d8c9a9;border-radius:8px;";
 
 const recommendationsHeading = document.createElement("h3");
 recommendationsHeading.textContent = "Appreciative Leadership Recommendations";
