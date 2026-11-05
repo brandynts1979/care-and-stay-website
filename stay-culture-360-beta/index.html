@@ -2363,13 +2363,501 @@ if (
 
 
     reportContent.replaceChildren();
+const reportHeading = document.createElement("h3");
+reportHeading.textContent = "Executive Summary";
+reportHeading.style.cssText =
+  "color:#174f4c;font-size:24px;margin:24px 0 16px;";
 
-    const pre = document.createElement("pre");
-    pre.style.whiteSpace = "pre-wrap";
-    pre.style.fontFamily = "inherit";
-    pre.textContent = JSON.stringify(result.report, null, 2);
+reportContent.appendChild(reportHeading);
+    const executiveSummary = result.report.executive_summary;
 
-    reportContent.appendChild(pre);
+if (executiveSummary?.overview) {
+  const overview = document.createElement("p");
+  overview.textContent = executiveSummary.overview;
+  overview.style.cssText =
+    "font-size:16px;line-height:1.7;margin-bottom:20px;";
+  reportContent.appendChild(overview);
+}
+    if (Array.isArray(executiveSummary?.key_findings)) {
+  const findingsHeading = document.createElement("h4");
+  findingsHeading.textContent = "Key Findings";
+  findingsHeading.style.cssText =
+    "color:#174f4c;font-size:19px;margin:24px 0 12px;";
+
+  const findingsList = document.createElement("ul");
+  findingsList.style.cssText =
+    "line-height:1.7;padding-left:24px;";
+
+  executiveSummary.key_findings.forEach(finding => {
+    const item = document.createElement("li");
+    item.textContent = finding;
+    item.style.marginBottom = "10px";
+    findingsList.appendChild(item);
+  });
+
+  reportContent.append(findingsHeading, findingsList);
+}
+    if (Array.isArray(executiveSummary?.leadership_implications)) {
+  const implicationsHeading = document.createElement("h4");
+  implicationsHeading.textContent = "Leadership Implications";
+  implicationsHeading.style.cssText =
+    "color:#174f4c;font-size:19px;margin:24px 0 12px;";
+
+  const implicationsList = document.createElement("ul");
+  implicationsList.style.cssText =
+    "line-height:1.7;padding-left:24px;";
+
+  executiveSummary.leadership_implications.forEach(implication => {
+    const item = document.createElement("li");
+    item.textContent = implication;
+    item.style.marginBottom = "10px";
+    implicationsList.appendChild(item);
+  });
+
+  reportContent.append(implicationsHeading, implicationsList);
+}
+    const pillarsHeading = document.createElement("h3");
+pillarsHeading.textContent = "The Seven Pillars of Stay Culture";
+pillarsHeading.style.cssText =
+  "color:#174f4c;font-size:24px;margin:36px 0 20px;" +
+  "padding-bottom:10px;border-bottom:2px solid #b08039;";
+
+reportContent.appendChild(pillarsHeading);
+    const aiPillarNames = {
+  purpose_belonging: "Purpose & Belonging",
+  trust_psychological_safety: "Trust & Psychological Safety",
+  appreciation_recognition: "Appreciation & Recognition",
+  growth_development: "Growth & Development",
+  voice_influence: "Voice & Influence",
+  sustainable_work_wellbeing: "Sustainable Work & Wellbeing",
+  leadership_credibility_accountability:
+    "Leadership Credibility & Accountability"
+};
+    if (Array.isArray(result.report.seven_pillar_analysis)) {
+  result.report.seven_pillar_analysis.forEach(pillar => {
+    const pillarCard = document.createElement("div");
+    pillarCard.style.cssText =
+      "background:#f6f5ee;border:1px solid #d9dfd8;" +
+      "border-radius:10px;padding:20px;margin-bottom:20px;";
+
+    const pillarTitle = document.createElement("h4");
+    pillarTitle.textContent =
+      aiPillarNames[pillar.dimension] ||
+      pillar.dimension.replace(/_/g, " ");
+
+    pillarTitle.style.cssText =
+      "color:#174f4c;font-size:19px;margin:0 0 10px;";
+
+    const pillarScore = document.createElement("p");
+    pillarScore.textContent =
+      "Culture Score: " +
+      (typeof pillar.average_score === "number"
+        ? pillar.average_score.toFixed(2) + " / 5"
+        : "Not available");
+
+    pillarScore.style.cssText =
+      "font-size:17px;font-weight:bold;color:#b08039;";
+const pillarInterpretation = document.createElement("p");
+pillarInterpretation.textContent =
+  pillar.interpretation || "No interpretation available.";
+
+pillarInterpretation.style.cssText =
+  "font-size:15px;line-height:1.7;color:#334d48;" +
+  "margin:12px 0;";
+    const strengthsSection = document.createElement("div");
+
+if (Array.isArray(pillar.strengths) && pillar.strengths.length) {
+  const strengthsHeading = document.createElement("h5");
+  strengthsHeading.textContent = "Organizational Strengths";
+  strengthsHeading.style.cssText =
+    "color:#174f4c;font-size:16px;margin:18px 0 8px;";
+
+  const strengthsList = document.createElement("ul");
+  strengthsList.style.cssText =
+    "line-height:1.7;padding-left:24px;margin:0;";
+
+  pillar.strengths.forEach(strength => {
+    const item = document.createElement("li");
+    item.textContent = strength;
+    item.style.marginBottom = "8px";
+    strengthsList.appendChild(item);
+  });
+
+  strengthsSection.append(strengthsHeading, strengthsList);
+}
+    const opportunitiesSection = document.createElement("div");
+
+if (Array.isArray(pillar.opportunities) && pillar.opportunities.length) {
+  const opportunitiesHeading = document.createElement("h5");
+  opportunitiesHeading.textContent = "Development Opportunities";
+  opportunitiesHeading.style.cssText =
+    "color:#174f4c;font-size:16px;margin:18px 0 8px;";
+
+  const opportunitiesList = document.createElement("ul");
+  opportunitiesList.style.cssText =
+    "line-height:1.7;padding-left:24px;margin:0;";
+
+  pillar.opportunities.forEach(opportunity => {
+    const item = document.createElement("li");
+    item.textContent = opportunity;
+    item.style.marginBottom = "8px";
+    opportunitiesList.appendChild(item);
+  });
+
+  opportunitiesSection.append(
+    opportunitiesHeading,
+    opportunitiesList
+  );
+}
+    const leadershipSection = document.createElement("div");
+
+if (pillar.leadership_implication) {
+  const leadershipHeading = document.createElement("h5");
+  leadershipHeading.textContent = "Leadership Implications";
+  leadershipHeading.style.cssText =
+    "color:#174f4c;font-size:16px;margin:18px 0 8px;";
+
+  const leadershipText = document.createElement("p");
+  leadershipText.textContent = pillar.leadership_implication;
+  leadershipText.style.cssText =
+    "font-size:15px;line-height:1.7;margin:0;";
+
+  leadershipSection.append(
+    leadershipHeading,
+    leadershipText
+  );
+}
+ pillarCard.append(
+  pillarTitle,
+  pillarScore,
+  pillarInterpretation,
+  strengthsSection,
+  opportunitiesSection,
+  leadershipSection
+);
+    reportContent.appendChild(pillarCard);
+  });
+}
+    const actionPlanHeading = document.createElement("h3");
+actionPlanHeading.textContent = "90-Day Leadership Action Plan";
+actionPlanHeading.style.cssText =
+  "color:#174f4c;font-size:24px;margin:36px 0 20px;" +
+  "padding-bottom:10px;border-bottom:2px solid #b08039;";
+
+reportContent.appendChild(actionPlanHeading);
+    const actionPlanLabels = {
+  "30_days": "First 30 Days — Establish Momentum",
+  "60_days": "Days 31–60 — Build on Strengths",
+  "90_days": "Days 61–90 — Sustain Progress"
+};
+
+if (Array.isArray(result.report.leadership_action_plan)) {
+  result.report.leadership_action_plan.forEach(phase => {
+    const phaseHeading = document.createElement("h4");
+
+    phaseHeading.textContent =
+      actionPlanLabels[phase.timeframe] ||
+      phase.timeframe.replace(/_/g, " ");
+
+    phaseHeading.style.cssText =
+      "color:#174f4c;font-size:19px;margin:24px 0 12px;";
+
+    reportContent.appendChild(phaseHeading);
+    if (Array.isArray(phase.actions)) {
+  const actionsList = document.createElement("ol");
+  actionsList.style.cssText =
+    "line-height:1.7;padding-left:26px;margin-bottom:24px;";
+
+  phase.actions.forEach(action => {
+    const item = document.createElement("li");
+    item.textContent = action.action || "Action not specified";
+    item.style.cssText =
+      "font-size:15px;margin-bottom:14px;color:#334d48;";
+if (action.suggested_owner) {
+  const owner = document.createElement("div");
+  owner.textContent = "Suggested Owner: " + action.suggested_owner;
+  owner.style.cssText =
+    "font-size:14px;font-weight:600;color:#174f4c;" +
+    "margin-top:6px;";
+
+  item.appendChild(owner);
+}
+    if (action.success_indicator) {
+  const indicator = document.createElement("div");
+  indicator.textContent =
+    "Success Indicator: " + action.success_indicator;
+
+  indicator.style.cssText =
+    "font-size:14px;color:#334d48;" +
+    "margin-top:5px;line-height:1.6;";
+
+  item.appendChild(indicator);
+}
+    actionsList.appendChild(item);
+  });
+
+  reportContent.appendChild(actionsList);
+}
+  });
+}
+    const appreciativeHeading = document.createElement("h3");
+appreciativeHeading.textContent =
+  "Appreciative Inquiry: Building on What Works";
+
+appreciativeHeading.style.cssText =
+  "color:#174f4c;font-size:24px;margin:36px 0 20px;" +
+  "padding-bottom:10px;border-bottom:2px solid #b08039;";
+
+reportContent.appendChild(appreciativeHeading);
+    if (Array.isArray(result.report.appreciative_inquiry)) {
+  result.report.appreciative_inquiry.forEach((entry, index) => {
+    const questionCard = document.createElement("div");
+    questionCard.style.cssText =
+      "background:#f6f5ee;border-left:4px solid #b08039;" +
+      "padding:18px 20px;margin-bottom:16px;border-radius:6px;";
+
+    const question = document.createElement("h4");
+    question.textContent =
+      (index + 1) + ". " + entry.question;
+    question.style.cssText =
+      "color:#174f4c;font-size:17px;margin:0 0 10px;";
+
+    const purpose = document.createElement("p");
+    purpose.textContent =
+      "Purpose: " + (entry.intended_purpose || "");
+    purpose.style.cssText =
+      "font-size:15px;line-height:1.6;color:#334d48;margin:0;";
+
+    questionCard.append(question, purpose);
+    reportContent.appendChild(questionCard);
+  });
+}
+    const organizationalStrengthsHeading = document.createElement("h3");
+organizationalStrengthsHeading.textContent =
+  "Organizational Strengths";
+
+organizationalStrengthsHeading.style.cssText =
+  "color:#174f4c;font-size:24px;margin:36px 0 20px;" +
+  "padding-bottom:10px;border-bottom:2px solid #b08039;";
+
+reportContent.appendChild(organizationalStrengthsHeading);
+    if (Array.isArray(result.report.organizational_strengths)) {
+  result.report.organizational_strengths.forEach(entry => {
+    const strengthCard = document.createElement("div");
+    strengthCard.style.cssText =
+      "background:#f6f5ee;border:1px solid #d9dfd8;" +
+      "border-radius:10px;padding:20px;margin-bottom:18px;";
+
+    const strengthTitle = document.createElement("h4");
+    strengthTitle.textContent = entry.strength || "Organizational Strength";
+    strengthTitle.style.cssText =
+      "color:#174f4c;font-size:18px;margin:0 0 12px;";
+
+    strengthCard.appendChild(strengthTitle);
+
+    if (Array.isArray(entry.supporting_dimensions) &&
+        entry.supporting_dimensions.length) {
+      const dimensions = document.createElement("p");
+      dimensions.textContent =
+        "Supporting Dimensions: " +
+        entry.supporting_dimensions
+          .map(name => aiPillarNames[name] || name)
+          .join(", ");
+
+      dimensions.style.cssText =
+        "font-size:14px;color:#334d48;line-height:1.6;";
+
+      strengthCard.appendChild(dimensions);
+    }
+if (Array.isArray(entry.ways_to_build_on_strength) &&
+    entry.ways_to_build_on_strength.length) {
+
+  const recommendationsHeading = document.createElement("h5");
+  recommendationsHeading.textContent = "Building on This Strength";
+  recommendationsHeading.style.cssText =
+    "color:#174f4c;font-size:16px;margin:18px 0 8px;";
+
+  const recommendationsList = document.createElement("ul");
+  recommendationsList.style.cssText =
+    "line-height:1.7;padding-left:24px;margin:0;";
+
+  entry.ways_to_build_on_strength.forEach(recommendation => {
+    const item = document.createElement("li");
+    item.textContent = recommendation;
+    item.style.marginBottom = "8px";
+    recommendationsList.appendChild(item);
+  });
+
+  strengthCard.append(
+    recommendationsHeading,
+    recommendationsList
+  );
+}
+    reportContent.appendChild(strengthCard);
+  });
+}
+    const developmentHeading = document.createElement("h3");
+developmentHeading.textContent =
+  "Organizational Development Priorities";
+
+developmentHeading.style.cssText =
+  "color:#174f4c;font-size:24px;margin:36px 0 20px;" +
+  "padding-bottom:10px;border-bottom:2px solid #b08039;";
+
+reportContent.appendChild(developmentHeading);
+    if (Array.isArray(result.report.development_opportunities)) {
+  result.report.development_opportunities.forEach((entry, index) => {
+    const priorityCard = document.createElement("div");
+    priorityCard.style.cssText =
+      "background:#f6f5ee;border:1px solid #d9dfd8;" +
+      "border-radius:10px;padding:20px;margin-bottom:18px;";
+
+    const priorityTitle = document.createElement("h4");
+    priorityTitle.textContent =
+      (index + 1) + ". " + (entry.priority || "Development Priority");
+    priorityTitle.style.cssText =
+      "color:#174f4c;font-size:18px;margin:0 0 12px;";
+
+    const rationale = document.createElement("p");
+    rationale.textContent = entry.rationale || "";
+    rationale.style.cssText =
+      "font-size:15px;line-height:1.7;color:#334d48;margin:0;";
+
+    priorityCard.append(priorityTitle, rationale);
+    if (Array.isArray(entry.recommended_actions) &&
+    entry.recommended_actions.length) {
+
+  const actionsHeading = document.createElement("h5");
+  actionsHeading.textContent = "Recommended Actions";
+  actionsHeading.style.cssText =
+    "color:#174f4c;font-size:16px;margin:18px 0 8px;";
+
+  const recommendedList = document.createElement("ul");
+  recommendedList.style.cssText =
+    "line-height:1.7;padding-left:24px;margin:0;";
+
+  entry.recommended_actions.forEach(recommendation => {
+    const item = document.createElement("li");
+    item.textContent = recommendation;
+    item.style.marginBottom = "8px";
+    recommendedList.appendChild(item);
+  });
+
+  priorityCard.append(actionsHeading, recommendedList);
+}
+    reportContent.appendChild(priorityCard);
+  });
+}
+    const resourcesHeading = document.createElement("h3");
+resourcesHeading.textContent =
+  "Leadership Development & Coaching Resources";
+
+resourcesHeading.style.cssText =
+  "color:#174f4c;font-size:24px;margin:36px 0 20px;" +
+  "padding-bottom:10px;border-bottom:2px solid #b08039;";
+
+reportContent.appendChild(resourcesHeading);
+    const developmentResources = result.report.development_resources;
+
+if (Array.isArray(developmentResources?.learning_topics) &&
+    developmentResources.learning_topics.length) {
+
+  const learningHeading = document.createElement("h4");
+  learningHeading.textContent = "Recommended Leadership Learning Topics";
+  learningHeading.style.cssText =
+    "color:#174f4c;font-size:19px;margin:24px 0 12px;";
+
+  const learningList = document.createElement("ul");
+  learningList.style.cssText =
+    "line-height:1.7;padding-left:24px;";
+
+  developmentResources.learning_topics.forEach(topic => {
+    const item = document.createElement("li");
+    item.textContent = topic;
+    item.style.marginBottom = "10px";
+    learningList.appendChild(item);
+  });
+
+  reportContent.append(learningHeading, learningList);
+}
+    if (Array.isArray(developmentResources?.coaching_opportunities) &&
+    developmentResources.coaching_opportunities.length) {
+
+  const coachingHeading = document.createElement("h4");
+  coachingHeading.textContent = "Recommended Coaching Opportunities";
+  coachingHeading.style.cssText =
+    "color:#174f4c;font-size:19px;margin:24px 0 12px;";
+
+  const coachingList = document.createElement("ul");
+  coachingList.style.cssText =
+    "line-height:1.7;padding-left:24px;";
+
+  developmentResources.coaching_opportunities.forEach(opportunity => {
+    const item = document.createElement("li");
+    item.textContent = opportunity;
+    item.style.marginBottom = "10px";
+    coachingList.appendChild(item);
+  });
+
+  reportContent.append(coachingHeading, coachingList);
+}
+    const methodologyHeading = document.createElement("h3");
+methodologyHeading.textContent = "Methodology & Limitations";
+
+methodologyHeading.style.cssText =
+  "color:#174f4c;font-size:24px;margin:36px 0 20px;" +
+  "padding-bottom:10px;border-bottom:2px solid #b08039;";
+
+reportContent.appendChild(methodologyHeading);
+    const methodology = result.report.methodology_limitations;
+
+if (methodology) {
+  const methodologyText = document.createElement("p");
+  methodologyText.textContent =
+    methodology.scoring_description ||
+    "Scoring methodology not available.";
+
+  methodologyText.style.cssText =
+    "font-size:15px;line-height:1.7;color:#334d48;" +
+    "margin-bottom:16px;";
+
+  reportContent.appendChild(methodologyText);
+
+  if (typeof methodology.completed_participants === "number") {
+    const participantCount = document.createElement("p");
+    participantCount.textContent =
+      "Completed Participants: " +
+      methodology.completed_participants;
+
+    participantCount.style.cssText =
+      "font-size:15px;font-weight:600;color:#174f4c;" +
+      "margin-bottom:16px;";
+
+    reportContent.appendChild(participantCount);
+  }
+}
+    if (Array.isArray(methodology?.limitations) &&
+    methodology.limitations.length) {
+
+  const limitationsHeading = document.createElement("h4");
+  limitationsHeading.textContent = "Important Considerations";
+  limitationsHeading.style.cssText =
+    "color:#174f4c;font-size:18px;margin:24px 0 12px;";
+
+  const limitationsList = document.createElement("ul");
+  limitationsList.style.cssText =
+    "font-size:15px;line-height:1.7;padding-left:24px;";
+
+  methodology.limitations.forEach(limitation => {
+    const item = document.createElement("li");
+    item.textContent = limitation;
+    item.style.marginBottom = "10px";
+    limitationsList.appendChild(item);
+  });
+
+  reportContent.append(limitationsHeading, limitationsList);
+}
+   
     reportSection.hidden = false;
     reportStatus.textContent =
       "Executive report loaded successfully.";
