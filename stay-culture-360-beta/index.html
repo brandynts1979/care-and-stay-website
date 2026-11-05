@@ -236,6 +236,33 @@ body.print-executive-report #stay-employer-dashboard > #stay-report-participatio
       loginStatus.textContent = "Sign-out failed. Please try again.";
       return;
     }
+    
+++window.stayAIReportRequestVersion;
+    
+++window.stayDashboardRequestVersion;
+
+window.stayReportOrganizationId = null;
+
+document.getElementById("stay-employer-dashboard").hidden = true;
+
+document.getElementById(
+  "stay-ai-executive-report"
+).hidden = true;
+
+document.getElementById(
+  "stay-ai-report-content"
+).replaceChildren();
+
+document.getElementById(
+  "stay-ai-report-status"
+).textContent = "";
+
+document.getElementById(
+  "stay-view-ai-report-button"
+).hidden = true;
+
+document.getElementById("stay-view-ai-report-button").disabled = false;
+
     showLoginState(false);
   });
 
@@ -299,6 +326,28 @@ body.print-executive-report #stay-employer-dashboard > #stay-report-participatio
     Scores will appear when at least five
     participants have completed the assessment.
   </div>
+
+<section
+  id="stay-ai-executive-report"
+  hidden
+  aria-labelledby="stay-ai-report-heading"
+>
+  <h2 id="stay-ai-report-heading">
+    AI Executive Culture Analysis
+  </h2>
+
+  <p id="stay-ai-report-status" role="status"></p>
+
+  <div id="stay-ai-report-content"></div>
+</section>
+
+<button
+  id="stay-view-ai-report-button"
+  type="button"
+  hidden
+>
+  View AI Executive Report
+</button>
 
   <p id="stay-report-status" role="status"></p>
 <button
@@ -1030,7 +1079,14 @@ const { data: invitations, error: invitationError } =
 })();
 </script>
 <script>
+  
+window.stayDashboardRequestVersion ??= 0;
+
   async function loadEmployerDashboard() {
+    
+const dashboardRequestVersion =
+  ++window.stayDashboardRequestVersion;
+
     const dashboard = document.getElementById(
       "stay-employer-dashboard"
     );
@@ -1042,6 +1098,12 @@ const { data: invitations, error: invitationError } =
     const { data: userData, error: userError } =
       await supabaseClient.auth.getUser();
 
+if (
+  dashboardRequestVersion !== window.stayDashboardRequestVersion
+) {
+  return;
+}
+
     if (userError || !userData.user) {
       return;
     }
@@ -1052,10 +1114,20 @@ const { data: invitations, error: invitationError } =
     .select("organization_id, role")
     .eq("user_id", userData.user.id)
     .in("role", ["owner", "admin"]);
+    
+if (
+  dashboardRequestVersion !== window.stayDashboardRequestVersion
+) {
+  return;
+}
+
 
 if (membershipError || !memberships?.length) {
   return;
 }
+
+window.stayReportOrganizationId =
+  memberships[0].organization_id;
 
 console.log(
   "Employer dashboard: administrator membership verified."
@@ -1066,6 +1138,12 @@ const { data: assessments, error: assessmentError } =
 .select("id, title, status, created_at")
 .eq("organization_id", memberships[0].organization_id)
 .order("created_at", { ascending: false });
+
+if (
+  dashboardRequestVersion !== window.stayDashboardRequestVersion
+) {
+  return;
+}
 
 if (assessmentError) {
   console.error("Unable to load assessments:", assessmentError);
@@ -1092,6 +1170,9 @@ if (
 ) {
   assessmentSelect.value = previouslySelectedAssessment;
 }
+    
+const selectedAssessmentId = assessmentSelect.value;
+
 if (!assessments?.length) {
   document.getElementById("stay-report-participation").textContent =
     "No assessments created yet.";
@@ -1108,8 +1189,19 @@ if (!assessments?.length) {
 const { data: reportStatus, error: reportError } =
   await supabaseClient.rpc(
     "stay_get_assessment_report_status",
-    { assessment_uuid: assessmentSelect.value }
+    
+{ assessment_uuid: selectedAssessmentId }
+
   );
+
+
+if (
+  dashboardRequestVersion !== window.stayDashboardRequestVersion ||
+  assessmentSelect.value !== selectedAssessmentId
+) {
+  return;
+}
+
 
 if (reportError) {
   console.error("Employer reporting access failed:", reportError);
@@ -1141,12 +1233,30 @@ document.getElementById(
   : "Minimum participation requirement not yet met.";
     document.getElementById("stay-report-dimensions").replaceChildren();
     document.getElementById("stay-print-report-button").hidden = true;
+document.getElementById("stay-print-report-button").hidden = true;
+
+document.getElementById(
+  "stay-view-ai-report-button"
+).hidden = !status.reporting_allowed;
+
 if (status.reporting_allowed) {
+    
   const { data: dimensionScores, error: scoresError } =
     await supabaseClient.rpc(
       "stay_get_dimension_scores",
-     { assessment_uuid: assessmentSelect.value }
+     
+{ assessment_uuid: selectedAssessmentId }
+
     );
+
+
+if (
+  dashboardRequestVersion !== window.stayDashboardRequestVersion ||
+  assessmentSelect.value !== selectedAssessmentId
+) {
+  return;
+}
+
 
   const dimensionsBox = document.getElementById(
     "stay-report-dimensions"
@@ -1423,7 +1533,7 @@ actionPlanSection.append(day90Heading, day90Text);
 dimensionsBox.appendChild(actionPlanSection);
     document.getElementById("stay-print-report-button").hidden = false;
   }
-}
+
 dashboard.hidden = false;
   }
  function printStayExecutiveReport() {
@@ -2146,11 +2256,178 @@ document.getElementById(
   "stay-open-assessment-button"
 ).addEventListener("click", openStayAssessment);
   
+
+
+window.stayAIReportRequestVersion ??= 0;
+
+
+async function loadStayAIExecutiveReport() {
+  const reportSection = document.getElementById(
+    "stay-ai-executive-report"
+  );
+  const reportContent = document.getElementById(
+    "stay-ai-report-content"
+  );
+  const reportStatus = document.getElementById(
+    "stay-ai-report-status"
+  );
+  const reportButton = document.getElementById(
+    "stay-view-ai-report-button"
+  );
+  const assessmentSelect = document.getElementById(
+    "stay-report-assessment-select"
+  );
+
+const requestVersion = ++window.stayAIReportRequestVersion;
+
+  const assessmentId = assessmentSelect.value;
+  const organizationId = window.stayReportOrganizationId;
+
+  if (!assessmentId || !organizationId) {
+    reportStatus.textContent =
+      "Select an assessment to view its executive report.";
+    return;
+  }
+
+  const { data: sessionData, error: sessionError } =
+    await supabaseClient.auth.getSession();
+
+if (
+  dashboardRequestVersion !== window.stayDashboardRequestVersion
+) {
+  return;
+}
+
+  if (sessionError || !sessionData.session) {
+    reportStatus.textContent =
+      "Please sign in to view this report.";
+    return;
+  }
+
+  reportButton.disabled = true;
+  reportStatus.textContent = "Loading executive report...";
+
+  try {
+    const response = await fetch(
+      `${SUPABASE_URL}/functions/v1/stay-generate-ai-report`,
+      {
+        method: "POST",
+        headers: {
+          Authorization:
+            `Bearer ${sessionData.session.access_token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          action: "get_report",
+          organization_id: organizationId,
+          assessment_id: assessmentId,
+        }),
+      }
+    );
+
+    const result = await response.json();
+
+    if (!response.ok || result.status !== "completed") {
+      throw new Error(
+        result.message ||
+        result.error ||
+        "Executive report is not available."
+      );
+    }
+
+    // Ignore responses if the selected assessment changed.
+ 
+if (
+  requestVersion !== window.stayAIReportRequestVersion \|\|
+  assessmentSelect.value !== assessmentId ||
+  window.stayReportOrganizationId !== organizationId
+) {
+  return;
+}
+
+const { data: currentSessionData, error: currentSessionError } =
+  await supabaseClient.auth.getSession();
+
+if (
+  currentSessionError ||
+  !currentSessionData.session ||
+  currentSessionData.session.user.id !== sessionData.session.user.id ||
+  requestVersion !== window.stayAIReportRequestVersion ||
+  assessmentSelect.value !== assessmentId ||
+  window.stayReportOrganizationId !== organizationId
+) {
+  return;
+}
+
+
+    reportContent.replaceChildren();
+
+    const pre = document.createElement("pre");
+    pre.style.whiteSpace = "pre-wrap";
+    pre.style.fontFamily = "inherit";
+    pre.textContent = JSON.stringify(result.report, null, 2);
+
+    reportContent.appendChild(pre);
+    reportSection.hidden = false;
+    reportStatus.textContent =
+      "Executive report loaded successfully.";
+  
+} catch (error) {
+  if (
+    requestVersion === window.stayAIReportRequestVersion &&
+    assessmentSelect.value === assessmentId &&
+    window.stayReportOrganizationId === organizationId
+  ) {
+    reportStatus.textContent =
+      error instanceof Error
+        ? error.message
+        : "Unable to load executive report.";
+  }
+} finally {
+  if (
+    requestVersion === window.stayAIReportRequestVersion &&
+    assessmentSelect.value === assessmentId &&
+    window.stayReportOrganizationId === organizationId
+  ) {
+    reportButton.disabled = false;
+  }
+}
+
+}
+document.getElementById(
+  "stay-view-ai-report-button"
+).addEventListener("click", loadStayAIExecutiveReport);
 document.getElementById(
   "stay-report-assessment-select"
 ).addEventListener("change", () => {
+  
+  ++window.stayAIReportRequestVersion;
+
+++window.stayDashboardRequestVersion;
+
+  const reportSection = document.getElementById(
+    "stay-ai-executive-report"
+  );
+  const reportContent = document.getElementById(
+    "stay-ai-report-content"
+  );
+  const reportStatus = document.getElementById(
+    "stay-ai-report-status"
+  );
+  const reportButton = document.getElementById(
+    "stay-view-ai-report-button"
+  );
+
+  reportSection.hidden = true;
+  reportContent.replaceChildren();
+  reportStatus.textContent = "";
+  reportButton.hidden = true;
+
+reportButton.disabled = false;
+
   loadEmployerDashboard();
 });
+
 
   loadEmployerDashboard();
   loadStayAssessmentList();
