@@ -2293,7 +2293,7 @@ const requestVersion = ++window.stayAIReportRequestVersion;
     await supabaseClient.auth.getSession();
 
 if (
-  dashboardRequestVersion !== window.stayDashboardRequestVersion
+  requestVersion !== window.stayAIReportRequestVersion
 ) {
   return;
 }
