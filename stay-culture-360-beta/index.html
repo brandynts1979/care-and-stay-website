@@ -1232,7 +1232,7 @@ document.getElementById(
   ? "Minimum participation requirement met."
   : "Minimum participation requirement not yet met.";
     document.getElementById("stay-report-dimensions").replaceChildren();
-    document.getElementById("stay-print-report-button").hidden = true;
+    
 document.getElementById("stay-print-report-button").hidden = true;
 
 document.getElementById(
@@ -1533,7 +1533,7 @@ actionPlanSection.append(day90Heading, day90Text);
 dimensionsBox.appendChild(actionPlanSection);
     document.getElementById("stay-print-report-button").hidden = false;
   }
-
+}
 dashboard.hidden = false;
   }
  function printStayExecutiveReport() {
@@ -2338,7 +2338,9 @@ if (
     // Ignore responses if the selected assessment changed.
  
 if (
-  requestVersion !== window.stayAIReportRequestVersion \|\|
+  
+requestVersion !== window.stayAIReportRequestVersion ||
+
   assessmentSelect.value !== assessmentId ||
   window.stayReportOrganizationId !== organizationId
 ) {
