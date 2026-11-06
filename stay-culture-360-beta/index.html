@@ -1126,7 +1126,9 @@ const { data: invitations, error: invitationError } =
 window.stayDashboardRequestVersion ??= 0;
 
   async function loadEmployerDashboard() {
-    
+   document.getElementById(
+  "stay-generate-ai-report-button"
+).hidden = true; 
 const dashboardRequestVersion =
   ++window.stayDashboardRequestVersion;
 
