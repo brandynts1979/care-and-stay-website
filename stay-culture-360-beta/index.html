@@ -1283,7 +1283,11 @@ document.getElementById("stay-print-report-button").hidden = true;
 document.getElementById(
   "stay-view-ai-report-button"
 ).hidden = !status.reporting_allowed;
+const generateAIReportButton = document.getElementById(
+  "stay-generate-ai-report-button"
+);
 
+generateAIReportButton.hidden = true;
 if (status.reporting_allowed) {
     
   const { data: dimensionScores, error: scoresError } =
@@ -1578,6 +1582,49 @@ actionPlanSection.append(day90Heading, day90Text);
 dimensionsBox.appendChild(actionPlanSection);
     document.getElementById("stay-print-report-button").hidden = false;
   }
+}
+    try {
+    if (status.reporting_allowed) {
+  const { data: sessionData, error: sessionError } =
+    await supabaseClient.auth.getSession();
+
+  if (!sessionError && sessionData.session) {
+    const response = await fetch(
+      `${SUPABASE_URL}/functions/v1/stay-generate-ai-report`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${sessionData.session.access_token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          action: "get_report",
+          organization_id: window.stayReportOrganizationId,
+          assessment_id: selectedAssessmentId,
+        }),
+      }
+    );
+
+    const result = await response.json();
+
+    if (
+      dashboardRequestVersion === window.stayDashboardRequestVersion &&
+      assessmentSelect.value === selectedAssessmentId
+    ) {
+      if (response.ok && result.status === "completed") {
+        generateAIReportButton.hidden = true;
+      } else if (
+        response.status === 404 &&
+        result.status === "not_found"
+      ) {
+        generateAIReportButton.hidden = false;
+      }
+    }
+  }
+}
+      } catch (error) {
+  console.error("Unable to check AI Executive Report availability:", error);
+  generateAIReportButton.hidden = true;
 }
 dashboard.hidden = false;
   }
