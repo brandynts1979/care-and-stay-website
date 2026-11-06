@@ -2988,6 +2988,106 @@ if (methodology) {
 }
 
 }
+  async function generateStayAIExecutiveReport() {
+  const generateButton = document.getElementById(
+    "stay-generate-ai-report-button"
+  );
+const assessmentSelect = document.getElementById(
+  "stay-report-assessment-select"
+);
+
+const assessmentId = assessmentSelect.value;
+const organizationId = window.stayReportOrganizationId;
+  if (generateButton.disabled) return;
+if (!assessmentId || !organizationId) {
+  document.getElementById(
+    "stay-ai-report-status"
+  ).textContent = "Please select an assessment before generating a report.";
+  return;
+}
+    const reportStatus = document.getElementById(
+  "stay-ai-report-status"
+);
+  generateButton.disabled = true;
+  generateButton.textContent = "Generating AI Executive Report...";
+    reportStatus.textContent =
+  "Generating your AI Executive Report. This may take a moment...";
+    try {
+const { data: sessionData, error: sessionError } =
+  await supabaseClient.auth.getSession();
+
+if (sessionError || !sessionData.session) {
+  throw new Error("Please sign in before generating a report.");
+}
+      const response = await fetch(
+  `${SUPABASE_URL}/functions/v1/stay-generate-ai-report`,
+  {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${sessionData.session.access_token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      action: "generate",
+      organization_id: organizationId,
+      assessment_id: assessmentId,
+    }),
+  }
+);
+      const result = await response.json();
+if (response.status === 409 && result.status === "failed") {
+  reportStatus.textContent =
+    "The AI Executive Report could not be completed. Please contact support.";
+  generateButton.hidden = true;
+  return;
+}
+if (!response.ok) {
+  throw new Error(
+    result.message ||
+    result.error ||
+    "Unable to generate the AI Executive Report."
+  );
+}
+      if (result.status === "completed") {
+  reportStatus.textContent =
+    "Your AI Executive Report is ready.";
+
+  generateButton.hidden = true;
+
+  document.getElementById(
+    "stay-view-ai-report-button"
+  ).hidden = false;
+}
+      if (result.status === "pending") {
+  reportStatus.textContent =
+    "Your AI Executive Report is being prepared. Please check again shortly.";
+  generateButton.hidden = true;
+}
+      if (result.status === "failed") {
+  reportStatus.textContent =
+    "The AI Executive Report could not be completed. Please contact support.";
+  generateButton.hidden = true;
+}
+      if (
+  !["completed", "pending", "failed"].includes(result.status)
+) {
+  throw new Error("Unexpected report generation response.");
+}
+} catch (error) {
+  console.error("AI Executive Report generation failed:", error);
+reportStatus.textContent =
+  error instanceof Error &&
+  error.message === "Please sign in before generating a report."
+    ? error.message
+    : "Unable to generate the AI Executive Report. Please try again or contact support.";
+} finally {
+  generateButton.disabled = false;
+  generateButton.textContent = "Generate AI Executive Report";
+}
+}
+  document.getElementById(
+  "stay-generate-ai-report-button"
+).addEventListener("click", generateStayAIExecutiveReport);
 document.getElementById(
   "stay-view-ai-report-button"
 ).addEventListener("click", loadStayAIExecutiveReport);
