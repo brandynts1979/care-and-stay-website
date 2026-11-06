@@ -1283,7 +1283,7 @@ document.getElementById("stay-print-report-button").hidden = true;
 
 document.getElementById(
   "stay-view-ai-report-button"
-).hidden = !status.reporting_allowed;
+).hidden = true;
 const generateAIReportButton = document.getElementById(
   "stay-generate-ai-report-button"
 );
@@ -1612,9 +1612,13 @@ dimensionsBox.appendChild(actionPlanSection);
       dashboardRequestVersion === window.stayDashboardRequestVersion &&
       assessmentSelect.value === selectedAssessmentId
     ) {
-      if (response.ok && result.status === "completed") {
-        generateAIReportButton.hidden = true;
-      } else if (
+     if (response.ok && result.status === "completed") {
+  generateAIReportButton.hidden = true;
+
+  document.getElementById(
+    "stay-view-ai-report-button"
+  ).hidden = false;
+} else if (
         response.status === 404 &&
         result.status === "not_found"
       ) {
