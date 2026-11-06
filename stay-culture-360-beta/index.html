@@ -36,6 +36,29 @@
 }
 
 @media print {
+  body.print-executive-report.print-ai-executive-report
+#stay-employer-dashboard > #stay-ai-executive-report {
+  display: block !important;
+}
+
+body.print-executive-report.print-ai-executive-report
+#stay-ai-report-content {
+  display: block !important;
+}
+
+body.print-executive-report.print-ai-executive-report
+#stay-ai-report-content > * {
+  break-inside: auto;
+}
+
+body.print-executive-report.print-ai-executive-report
+#stay-ai-report-content h2,
+body.print-executive-report.print-ai-executive-report
+#stay-ai-report-content h3,
+body.print-executive-report.print-ai-executive-report
+#stay-ai-report-content h4 {
+  break-after: avoid;
+}
   body.print-executive-report #stay-employer-dashboard > #stay-executive-cover {
   display: block !important;
   break-after: page;
@@ -129,7 +152,10 @@ body.print-executive-report > :not(#stay-employer-dashboard):not(script) {
   body.print-executive-report #stay-employer-dashboard > * {
     display: none !important;
   }
-
+body.print-executive-report.print-ai-executive-report
+#stay-employer-dashboard > #stay-ai-executive-report {
+  display: block !important;
+}
   body.print-executive-report #stay-employer-dashboard > h2,
 body.print-executive-report #stay-employer-dashboard > h3,
 body.print-executive-report #stay-employer-dashboard > #stay-report-participation,
@@ -137,10 +163,21 @@ body.print-executive-report #stay-employer-dashboard > #stay-report-participatio
   body.print-executive-report #stay-employer-dashboard > #stay-report-dimensions {
     display: block !important;
   }
-
+body.print-executive-report.print-ai-executive-report
+#stay-employer-dashboard > #stay-ai-executive-report {
+  display: block !important;
+  margin-top: 36px;
+  padding-top: 20px;
+  border-top: 3px solid #b08039;
+}
   body.print-executive-report #stay-report-dimensions > div {
     break-inside: avoid;
   }
+  body.print-executive-report.print-ai-executive-report
+#stay-ai-report-content > div {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
 }
   </style>
 </head>
@@ -1564,9 +1601,21 @@ document.getElementById("stay-cover-organization").textContent =
     month: "long",
     day: "numeric"
   });
+   const aiReportSection = document.getElementById(
+  "stay-ai-executive-report"
+);
+
+const includeAIReport =
+  aiReportSection && !aiReportSection.hidden;
+
+document.body.classList.toggle(
+  "print-ai-executive-report",
+  Boolean(includeAIReport)
+);
   document.body.classList.add("print-executive-report");
 window.print();
    document.body.classList.remove("print-executive-report");
+   document.body.classList.remove("print-ai-executive-report");
 } 
   document.getElementById("stay-print-report-button")
   .addEventListener("click", printStayExecutiveReport);
