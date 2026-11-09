@@ -1244,6 +1244,10 @@ if (membershipError || !memberships?.length) {
 window.stayReportOrganizationId =
   memberships[0].organization_id;
 
+// Show administrator controls as soon as membership is verified.
+// Report calculations and AI availability may load independently.
+dashboard.hidden = false;
+
 console.log(
   "Employer dashboard: administrator membership verified."
 );
