@@ -3192,6 +3192,17 @@ reportButton.disabled = false;
 });
 
 
+  // Refresh administrator controls after authentication without a page reload.
+  // Defer Supabase queries outside the auth callback to avoid auth-client lock contention.
+  supabaseClient.auth.onAuthStateChange((event) => {
+    if (event === "SIGNED_IN") {
+      setTimeout(() => {
+        loadEmployerDashboard();
+        loadStayAssessmentList();
+      }, 0);
+    }
+  });
+
   loadEmployerDashboard();
   loadStayAssessmentList();
 </script>
