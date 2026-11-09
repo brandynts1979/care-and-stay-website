@@ -839,11 +839,15 @@ if (isCompleted) {
       `${answered} of ${total} questions answered (${percentage}%)`;
   }
 
+window.staySaveState = { pending: new Map(), revision: 0, submissionStarted: false };
+
 async function checkStaySubmissionReady() {
   const button = document.getElementById("stay-submit-assessment");
   if (!button) return;
 
+  const revision = ++window.staySaveState.revision;
   button.disabled = true;
+  if (window.staySaveState.submissionStarted) return;
 
   const { data: userData, error: userError } =
     await supabaseClient.auth.getUser();
@@ -890,10 +894,14 @@ const { data: invitations, error: invitationError } =
   );
 
  
-button.disabled = !(
-  (assignedKeys.length === 20 || assignedKeys.length === 49) &&
-  assignedKeys.every(key => savedKeys.has(key))
-);
+const complete = (assignedKeys.length === 20 || assignedKeys.length === 49) &&
+  assignedKeys.every(key => savedKeys.has(key));
+if (revision !== window.staySaveState.revision || window.staySaveState.submissionStarted) return;
+button.disabled = !complete || window.staySaveState.pending.size > 0;
+const saveStatus = document.getElementById("stay-save-status");
+if (saveStatus && window.staySaveState.pending.size === 0 && complete) {
+  saveStatus.textContent = "All answers saved. Ready to submit.";
+}
 
 }
 
@@ -914,6 +922,51 @@ button.disabled = !(
 
   let activeInvitationId = null;
   const saveTimers = new Map();
+  const state = window.staySaveState;
+  const latestValues = new Map();
+  const inFlight = new Map();
+  const saveErrors = new Set();
+
+  function refreshSaveStatus() {
+    if (state.submissionStarted) return;
+    const busy = state.pending.size > 0 || inFlight.size > 0;
+    if (saveErrors.size) status.textContent = "Some answers could not be saved. Please try again.";
+    else if (busy) status.textContent = "Saving answers...";
+    else status.textContent = "Answers saved.";
+    checkStaySubmissionReady();
+  }
+
+  async function persistLatest(key) {
+    if (inFlight.has(key)) return inFlight.get(key);
+    const task = (async () => {
+      while (latestValues.has(key)) {
+        const value = latestValues.get(key);
+        latestValues.delete(key);
+        const ok = await saveAnswer(key, value);
+        if (!ok) { saveErrors.add(key); break; }
+        saveErrors.delete(key);
+      }
+    })();
+    inFlight.set(key, task);
+    try { await task; }
+    finally {
+      inFlight.delete(key);
+      if (!saveErrors.has(key) && !saveTimers.has(key) && !latestValues.has(key)) state.pending.delete(key);
+      refreshSaveStatus();
+    }
+  }
+
+  window.stayFlushPendingAnswers = async () => {
+    for (const [key, timer] of saveTimers) {
+      clearTimeout(timer);
+      saveTimers.delete(key);
+      persistLatest(key);
+    }
+    await Promise.all(Array.from(inFlight.values()));
+    // A value typed while a request was in flight must also be persisted.
+    for (const key of latestValues.keys()) await persistLatest(key);
+    if (saveErrors.size || state.pending.size) throw new Error("Some answers are not saved.");
+  };
 
   async function getInvitationId() {
     
@@ -950,7 +1003,7 @@ const { data, error } = await supabaseClient
 
     if (!invitationId) {
       status.textContent = "Unable to save: no active invitation.";
-      return;
+      return false;
     }
 
     status.textContent = "Saving...";
@@ -965,7 +1018,7 @@ const { data, error } = await supabaseClient
 
     if (lookupError) {
       status.textContent = "Save failed. Please try again.";
-      return;
+      return false;
     }
 
     let error;
@@ -988,9 +1041,7 @@ const { data, error } = await supabaseClient
     status.textContent = error
       ? "Save failed. Please try again."
       : "Saved";
-    if (!error) {
-  await checkStaySubmissionReady();
-}
+    return !error;
   }
 
   async function handleAnswer(event) {
@@ -1023,9 +1074,14 @@ if (control.type === "radio") {
     }
 
     clearTimeout(saveTimers.get(questionKey));
-
+    latestValues.set(questionKey, responseValue);
+    state.pending.set(questionKey, true);
+    saveErrors.delete(questionKey);
+    status.textContent = "Saving answers...";
+    document.getElementById("stay-submit-assessment").disabled = true;
     saveTimers.set(questionKey, setTimeout(() => {
-      saveAnswer(questionKey, responseValue);
+      saveTimers.delete(questionKey);
+      persistLatest(questionKey);
     }, control.type === "radio" ? 300 : 1000));
   }
 
@@ -1037,6 +1093,10 @@ if (control.type === "radio") {
       activeInvitationId = null;
       saveTimers.forEach(clearTimeout);
       saveTimers.clear();
+      latestValues.clear();
+      saveErrors.clear();
+      state.pending.clear();
+      state.submissionStarted = false;
       status.textContent = "";
     }
   });
@@ -1062,10 +1122,13 @@ if (control.type === "radio") {
     if (!confirmed) return;
 
     submitting = true;
+    window.staySaveState.submissionStarted = true;
     button.disabled = true;
-    status.textContent = "Submitting assessment...";
+    status.textContent = "Finishing saves before submission...";
 
     try {
+      await window.stayFlushPendingAnswers();
+      status.textContent = "Submitting assessment...";
       const { data: userData, error: userError } =
         await supabaseClient.auth.getUser();
 
@@ -1117,6 +1180,7 @@ const { data: invitations, error: invitationError } =
       status.textContent =
         "Submission was not completed. Please check that all answers are saved.";
       submitting = false;
+      window.staySaveState.submissionStarted = false;
       await checkStaySubmissionReady();
     }
   });
