@@ -1127,6 +1127,11 @@ if (control.type === "radio") {
 
   let submitting = false;
 
+  // Submission state belongs to the current signed-in participant, not the page lifetime.
+  supabaseClient.auth.onAuthStateChange((event) => {
+    if (event === "SIGNED_OUT") submitting = false;
+  });
+
   button.addEventListener("click", async () => {
     if (submitting) return;
     if (button.disabled) {
@@ -1195,6 +1200,8 @@ const { data: invitations, error: invitationError } =
       });
 
       button.textContent = "Assessment Submitted";
+      button.disabled = true;
+      submitting = false;
     } catch (error) {
       status.textContent =
         "Submission was not completed. Please check that all answers are saved.";
