@@ -2204,6 +2204,7 @@ if (button.disabled) {
     status.textContent = "Participant added successfully.";
     
 await loadStayExistingInvitations(assessmentId);
+    await checkStayAssessmentReadiness(assessmentId);
 
     dropdown.value = "";
   } catch (error) {
@@ -2312,6 +2313,7 @@ revokeButton.addEventListener("click", async () => {
     }
 
     await loadStayExistingInvitations(assessmentId);
+    await checkStayAssessmentReadiness(assessmentId);
   } catch (error) {
     console.error("Unable to revoke invitation:", error);
     alert("Unable to revoke invitation: " + error.message);
