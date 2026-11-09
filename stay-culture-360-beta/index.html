@@ -851,8 +851,17 @@ async function checkStaySubmissionReady() {
   if (!button) return;
 
   const revision = ++window.staySaveState.revision;
-  button.disabled = true;
   if (window.staySaveState.submissionStarted) return;
+  const saveStatus = document.getElementById("stay-save-status");
+  const hasPendingSaves = window.staySaveState.pending.size > 0;
+  // Preserve an already-ready button during background verification.
+  // Disable immediately only while answers are still being saved.
+  if (hasPendingSaves) {
+    button.disabled = true;
+    if (saveStatus) saveStatus.textContent = "Saving answers before submission...";
+  } else if (button.disabled && saveStatus) {
+    saveStatus.textContent = "Checking saved answers...";
+  }
 
   const { data: userData, error: userError } =
     await supabaseClient.auth.getUser();
@@ -903,9 +912,10 @@ const complete = (assignedKeys.length === 20 || assignedKeys.length === 49) &&
   assignedKeys.every(key => savedKeys.has(key));
 if (revision !== window.staySaveState.revision || window.staySaveState.submissionStarted) return;
 button.disabled = !complete || window.staySaveState.pending.size > 0;
-const saveStatus = document.getElementById("stay-save-status");
-if (saveStatus && window.staySaveState.pending.size === 0 && complete) {
-  saveStatus.textContent = "All answers saved. Ready to submit.";
+if (saveStatus && window.staySaveState.pending.size === 0) {
+  saveStatus.textContent = complete
+    ? "All answers saved. Ready to submit."
+    : "Checking answers: complete all questions to submit.";
 }
 
 }
@@ -1118,7 +1128,11 @@ if (control.type === "radio") {
   let submitting = false;
 
   button.addEventListener("click", async () => {
-    if (submitting || button.disabled) return;
+    if (submitting) return;
+    if (button.disabled) {
+      status.textContent = "Please wait until all answers are saved and verified.";
+      return;
+    }
 
     const confirmed = confirm(
       "Submit your assessment? You will not be able to change your answers afterward."
