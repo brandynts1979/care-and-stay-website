@@ -265,6 +265,11 @@ body.print-executive-report.print-ai-executive-report
 
     document.getElementById("stay-password").value = "";
     showLoginState(true);
+
+    // The sign-in promise has completed: load admin data from the new session.
+    // This also covers sign-ins where the auth event fires before dashboard setup.
+    await loadEmployerDashboard();
+    await loadStayAssessmentList();
   });
 
   logoutButton.addEventListener("click", async () => {
@@ -3191,17 +3196,6 @@ reportButton.disabled = false;
   loadEmployerDashboard();
 });
 
-
-  // Refresh administrator controls after authentication without a page reload.
-  // Defer Supabase queries outside the auth callback to avoid auth-client lock contention.
-  supabaseClient.auth.onAuthStateChange((event) => {
-    if (event === "SIGNED_IN") {
-      setTimeout(() => {
-        loadEmployerDashboard();
-        loadStayAssessmentList();
-      }, 0);
-    }
-  });
 
   loadEmployerDashboard();
   loadStayAssessmentList();
