@@ -2941,6 +2941,21 @@ reportContent.appendChild(developmentHeading);
       "font-size:15px;line-height:1.7;color:#334d48;margin:0;";
 
     priorityCard.append(priorityTitle, rationale);
+    const prioritySections = [
+      ["Evidence-Based Interpretation", entry.evidence_interpretation],
+      ["Potential Organizational Implications", entry.potential_organizational_implications],
+      ["Appreciative Inquiry Opportunity", entry.appreciative_opportunity]
+    ];
+    prioritySections.forEach(([heading, value]) => {
+      if (typeof value !== "string" || !value.trim()) return;
+      const h = document.createElement("h5");
+      h.textContent = heading;
+      h.style.cssText = "color:#174f4c;font-size:16px;margin:18px 0 8px;";
+      const p = document.createElement("p");
+      p.textContent = value;
+      p.style.cssText = "font-size:15px;line-height:1.7;color:#334d48;margin:0;";
+      priorityCard.append(h, p);
+    });
     if (Array.isArray(entry.recommended_actions) &&
     entry.recommended_actions.length) {
 
@@ -2962,6 +2977,20 @@ reportContent.appendChild(developmentHeading);
 
   priorityCard.append(actionsHeading, recommendedList);
 }
+    if (Array.isArray(entry.success_indicators) && entry.success_indicators.length) {
+      const heading = document.createElement("h5");
+      heading.textContent = "Measures of Progress";
+      heading.style.cssText = "color:#174f4c;font-size:16px;margin:18px 0 8px;";
+      const list = document.createElement("ul");
+      list.style.cssText = "line-height:1.7;padding-left:24px;margin:0;";
+      entry.success_indicators.forEach(indicator => {
+        const item = document.createElement("li");
+        item.textContent = indicator;
+        item.style.marginBottom = "8px";
+        list.appendChild(item);
+      });
+      priorityCard.append(heading, list);
+    }
     reportContent.appendChild(priorityCard);
   });
 }
