@@ -1978,9 +1978,7 @@ document.getElementById(
   "stay-setup-questions-button"
 ).disabled = assessment.status !== "draft";
 
-document.getElementById(
-  "stay-question-setup-status"
-).textContent = "Ready to assign the 20 standard questions.";
+updateStayQuestionSetupStatus(assessment.id);
 
 document.getElementById(
   "stay-rename-title"
@@ -2127,7 +2125,7 @@ const assessmentId = panel.dataset.assessmentId;
     if (error) throw error;
 
     status.textContent =
-      data + " full Stay Culture 360 questions assigned successfully.";
+      data + " full Stay Culture 360 questions assigned successfully.";\n    await updateStayQuestionSetupStatus(assessmentId);
   } catch (error) {
     console.error("Full question setup failed:", error);
     status.textContent =
@@ -2265,6 +2263,34 @@ revokeButton.addEventListener("click", async () => {
 
     list.appendChild(item);
   });
+}
+
+async function updateStayQuestionSetupStatus(assessmentId) {
+  const panel=document.getElementById("stay-assessment-management");
+  const status=document.getElementById("stay-question-setup-status");
+  const fullButton=document.getElementById("stay-setup-full-questions-button");
+  const standardButton=document.getElementById("stay-setup-questions-button");
+  fullButton.disabled=true;
+  standardButton.disabled=true;
+  status.textContent="Checking assigned questions...";
+  const {count,error}=await supabaseClient.from("stay_assessment_question_assignments")
+    .select("question_id",{count:"exact",head:true}).eq("assessment_id",assessmentId);
+  if(panel.dataset.assessmentId!==assessmentId)return;
+  if(error){status.textContent="Unable to verify assigned questions.";return;}
+  if(count===49){
+    status.textContent="All 49 questions assigned (42 scored statements + 7 written reflections).";
+    fullButton.hidden=true;
+  }else if(count===20){
+    status.textContent="20 standard questions assigned.";
+    fullButton.hidden=true;
+  }else if(count===0){
+    status.textContent="No questions assigned yet. Set up the full 49-question assessment.";
+    fullButton.hidden=false;
+    fullButton.disabled=false;
+  }else{
+    status.textContent=String(count)+" questions assigned. Contact Care & Stay before opening this assessment.";
+    fullButton.hidden=true;
+  }
 }
 
 async function checkStayAssessmentReadiness(assessmentId) {
