@@ -2542,6 +2542,83 @@ if (executiveSummary?.overview) {
 
   reportContent.append(implicationsHeading, implicationsList);
 }
+    // Visual Insights: only report numeric scores already present in the saved report.
+    // The reference line is an illustrative aspiration, never an industry benchmark.
+    const visualPillars = Array.isArray(result.report.seven_pillar_analysis)
+      ? result.report.seven_pillar_analysis.filter(p => typeof p.average_score === "number" && Number.isFinite(p.average_score) && p.average_score >= 1 && p.average_score <= 5)
+      : [];
+    if (visualPillars.length) {
+      const visualNames = {
+        purpose_belonging:"Purpose & Belonging",
+        trust_psychological_safety:"Trust & Psychological Safety",
+        appreciation_recognition:"Appreciation & Recognition",
+        growth_development:"Growth & Development",
+        voice_influence:"Voice & Influence",
+        sustainable_work_wellbeing:"Sustainable Work & Wellbeing",
+        leadership_credibility_accountability:"Leadership Credibility & Accountability"
+      };
+      const section=document.createElement("section");
+      section.className="stay-visual-insights";
+      section.style.cssText="margin:32px 0;padding:22px;border:1px solid #d9dfd8;border-radius:10px;break-inside:avoid;";
+      const heading=document.createElement("h3");
+      heading.textContent="Stay Culture Visual Insights & Coaching Roadmap";
+      heading.style.cssText="color:#174f4c;font-size:23px;margin:0 0 12px;";
+      const explanation=document.createElement("p");
+      explanation.textContent="Current pillar scores are shown on the assessment's 1–5 scale. The 4.25 reference is an illustrative aspirational goal, not a validated industry benchmark or a prescribed standard. Interpret differences as opportunities for inquiry, not proof of causation.";
+      explanation.style.cssText="line-height:1.55;font-size:14px;";
+      section.append(heading,explanation);
+      const aspiration=4.25;
+      visualPillars.forEach(p=>{
+        const row=document.createElement("div");
+        row.style.cssText="margin:17px 0;break-inside:avoid;";
+        const label=document.createElement("div");
+        label.style.cssText="display:flex;justify-content:space-between;gap:12px;font-size:14px;font-weight:600;margin-bottom:6px;";
+        const name=document.createElement("span");
+        name.textContent=visualNames[p.dimension]||String(p.dimension||"Pillar").replace(/_/g," ");
+        const score=document.createElement("span");
+        score.textContent=p.average_score.toFixed(2)+" / 5";
+        label.append(name,score);
+        const track=document.createElement("div");
+        track.style.cssText="height:16px;background:#e8eae5;position:relative;border-radius:5px;overflow:hidden;";
+        const fill=document.createElement("div");
+        fill.style.cssText="height:100%;background:#23716b;width:"+((p.average_score/5)*100).toFixed(2)+"%;";
+        const marker=document.createElement("div");
+        marker.style.cssText="position:absolute;top:0;bottom:0;left:"+(aspiration/5*100)+"%;border-left:3px dashed #a66b27;";
+        marker.title="Illustrative aspirational reference: 4.25 / 5";
+        track.append(fill,marker);
+        row.append(label,track);
+        section.appendChild(row);
+      });
+      const legend=document.createElement("p");
+      legend.style.cssText="font-size:12px;color:#4b625c;";
+      legend.textContent="Teal bar = reported pillar score. Dashed gold line = illustrative 4.25/5 aspiration. No external benchmark is implied.";
+      section.appendChild(legend);
+      const priorities=[...visualPillars].sort((a,b)=>a.average_score-b.average_score).slice(0,3);
+      const priorityTitle=document.createElement("h4");
+      priorityTitle.textContent="Three Opportunities for Appreciative Coaching";
+      priorityTitle.style.cssText="color:#174f4c;margin:24px 0 8px;";
+      section.appendChild(priorityTitle);
+      const prompts={
+        purpose_belonging:"When do people feel most connected to our shared purpose, and how can we create more of those moments?",
+        trust_psychological_safety:"Where do people already speak openly and safely, and what leadership behaviors make that possible?",
+        appreciation_recognition:"When does recognition feel most meaningful, and how can we expand those practices?",
+        growth_development:"Where are employees growing and thriving, and what could help more people experience that?",
+        voice_influence:"When have employee ideas shaped a positive outcome, and how can we make that participation routine?",
+        sustainable_work_wellbeing:"Where are teams sustaining both performance and wellbeing, and what can we learn from them?",
+        leadership_credibility_accountability:"When have leaders earned deep trust through their actions, and how can we build on those examples?"
+      };
+      priorities.forEach((p,index)=>{
+        const block=document.createElement("p");
+        block.style.cssText="font-size:14px;line-height:1.55;margin:10px 0;";
+        block.textContent=(index+1)+". "+(visualNames[p.dimension]||p.dimension)+" ("+p.average_score.toFixed(2)+"/5): "+(prompts[p.dimension]||"What is working well here, and how can we build on it?");
+        section.appendChild(block);
+      });
+      const roadmap=document.createElement("div");
+      roadmap.style.cssText="background:#f6f5ee;border-left:4px solid #b08039;padding:14px;margin-top:18px;font-size:14px;line-height:1.6;";
+      roadmap.textContent="30 days — Discover existing strengths and listen across roles. 60 days — Co-design and practice one observable leadership behavior per priority. 90 days — Review adoption and repeat selected measures against this organization's own baseline. Targets should be agreed with the customer.";
+      section.appendChild(roadmap);
+      reportContent.appendChild(section);
+    }
     const pillarsHeading = document.createElement("h3");
 pillarsHeading.textContent = "The Seven Pillars of Stay Culture";
 pillarsHeading.style.cssText =
