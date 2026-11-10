@@ -1219,7 +1219,7 @@ const { data: invitations, error: invitationError } =
 <script>
   
 window.stayDashboardRequestVersion ??= 0;
-document.addEventListener("change",event=>{if(event.target?.id==="stay-org-select"){window.stayReportOrganizationId=event.target.value;loadEmployerDashboard();if(typeof loadEmployerAssessments==="function")loadEmployerAssessments();}});
+document.addEventListener("change",event=>{if(event.target?.id==="stay-org-select"){window.stayReportOrganizationId=event.target.value;loadEmployerDashboard();if(typeof loadStayAssessmentList==="function")loadStayAssessmentList();}});
 
 
   async function loadEmployerDashboard() {
@@ -1829,8 +1829,8 @@ async function createStayAssessment() {
         .in("role", ["owner", "admin"])
         .limit(1);
 
-    if (membershipError || !memberships?.length) {
-      throw new Error("Organization administrator access required.");
+    if (membershipError || !memberships?.length || !memberships.some(m=>m.organization_id===window.stayReportOrganizationId)) {
+      throw new Error("Select an organization you administer.");
     }
 
     const { error: insertError } = await supabaseClient
@@ -1890,11 +1890,13 @@ async function loadStayAssessmentList() {
     return;
   }
 
+  const selectedOrgId=window.stayReportOrganizationId;
+  if (!selectedOrgId || !memberships.some(m=>m.organization_id===selectedOrgId)) { list.textContent="Select an authorized workspace."; return; }
   const { data: assessments, error: assessmentError } =
     await supabaseClient
       .from("stay_assessments")
       .select("id, title, status, created_at")
-      .eq("organization_id", window.stayReportOrganizationId)
+      .eq("organization_id", selectedOrgId)
       .order("created_at", { ascending: false });
 
   if (assessmentError) {
