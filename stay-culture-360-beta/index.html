@@ -2125,7 +2125,8 @@ const assessmentId = panel.dataset.assessmentId;
     if (error) throw error;
 
     status.textContent =
-      data + " full Stay Culture 360 questions assigned successfully.";\n    await updateStayQuestionSetupStatus(assessmentId);
+      data + " full Stay Culture 360 questions assigned successfully.";
+    await updateStayQuestionSetupStatus(assessmentId);
   } catch (error) {
     console.error("Full question setup failed:", error);
     status.textContent =
