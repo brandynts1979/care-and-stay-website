@@ -345,7 +345,7 @@ document.getElementById("stay-view-ai-report-button").disabled = false;
   <p id="stay-cover-organization"></p>
   <p id="stay-cover-date"></p>
 </div>
-  <h2>Stay Culture 360 — Employer Dashboard</h2>
+  <h2>Stay Culture 360 — Employer Dashboard</h2><div style="margin:12px 0 20px"><label for="stay-org-select"><strong>Workspace</strong></label><select id="stay-org-select" style="display:block;width:100%;max-width:460px;padding:10px;margin-top:6px"><option value="">Loading workspaces...</option></select><p class="fine">Choose the fictional demo workspace or another organization you administer.</p></div>
 
   <p>Organization-level assessment reporting</p>
 
@@ -1219,6 +1219,8 @@ const { data: invitations, error: invitationError } =
 <script>
   
 window.stayDashboardRequestVersion ??= 0;
+document.addEventListener("change",event=>{if(event.target?.id==="stay-org-select"){window.stayReportOrganizationId=event.target.value;loadEmployerDashboard();if(typeof loadEmployerAssessments==="function")loadEmployerAssessments();}});
+
 
   async function loadEmployerDashboard() {
    document.getElementById(
@@ -1266,8 +1268,18 @@ if (membershipError || !memberships?.length) {
   return;
 }
 
-window.stayReportOrganizationId =
-  memberships[0].organization_id;
+const orgSelect=document.getElementById("stay-org-select");
+const validIds=memberships.map(m=>m.organization_id);
+const {data: orgNames}=await supabaseClient.from("stay_organizations").select("id,name").in("id",validIds);
+if(dashboardRequestVersion!==window.stayDashboardRequestVersion)return;
+const nameById=new Map((orgNames||[]).map(o=>[o.id,o.name]));
+const priorOrg=orgSelect.value || window.stayReportOrganizationId;
+orgSelect.replaceChildren();
+memberships.sort((a,b)=>String(nameById.get(a.organization_id)||"").localeCompare(String(nameById.get(b.organization_id)||"")));
+for(const m of memberships){const option=document.createElement("option");option.value=m.organization_id;option.textContent=nameById.get(m.organization_id)||("Organization "+m.organization_id.slice(0,8));orgSelect.appendChild(option)}
+const demoId="53c93a18-0a53-4366-a375-7b19e184526d";
+orgSelect.value=validIds.includes(priorOrg)?priorOrg:(validIds.includes(demoId)?demoId:validIds[0]);
+window.stayReportOrganizationId=orgSelect.value;
 
 // Show administrator controls as soon as membership is verified.
 // Report calculations and AI availability may load independently.
@@ -1280,7 +1292,7 @@ const { data: assessments, error: assessmentError } =
   await supabaseClient
    .from("stay_assessments")
 .select("id, title, status, created_at")
-.eq("organization_id", memberships[0].organization_id)
+.eq("organization_id", window.stayReportOrganizationId)
 .order("created_at", { ascending: false });
 
 if (
@@ -1824,7 +1836,7 @@ async function createStayAssessment() {
     const { error: insertError } = await supabaseClient
       .from("stay_assessments")
       .insert({
-        organization_id: memberships[0].organization_id,
+        organization_id: window.stayReportOrganizationId,
         created_by: userId,
         title: title,
         status: "draft"
@@ -1882,7 +1894,7 @@ async function loadStayAssessmentList() {
     await supabaseClient
       .from("stay_assessments")
       .select("id, title, status, created_at")
-      .eq("organization_id", memberships[0].organization_id)
+      .eq("organization_id", window.stayReportOrganizationId)
       .order("created_at", { ascending: false });
 
   if (assessmentError) {
