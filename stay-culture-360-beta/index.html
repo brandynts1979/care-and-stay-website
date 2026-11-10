@@ -1878,8 +1878,7 @@ async function loadStayAssessmentList() {
       .from("stay_organization_members")
       .select("organization_id")
       .eq("user_id", userData.user.id)
-      .in("role", ["owner", "admin"])
-      .limit(1);
+      .in("role", ["owner", "admin"]);
 
   if (membershipError || !memberships?.length) {
     list.textContent = "No employer organization found.";
