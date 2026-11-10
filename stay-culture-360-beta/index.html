@@ -436,12 +436,8 @@ document.getElementById("stay-view-ai-report-button").disabled = false;
     Invite participants to complete this assessment.
   </p>
 
-  <label for="stay-invite-participant">
-    Participant
-  </label>
-  <select id="stay-invite-participant">
-    <option value="">Select a test participant</option>
-  </select>
+  <label for="stay-invite-participant"> Participant email (new accounts only during pilot) </label>
+  <input id="stay-invite-participant" type="email" placeholder="employee@example.com" maxlength="254" autocomplete="off">
 
   <label for="stay-invite-perspective">
     Perspective
@@ -2146,120 +2142,34 @@ document.getElementById(
 ).addEventListener("click", setupFullStay360Questions);
 
 async function loadStayTestParticipants(assessmentId) {
-  const dropdown = document.getElementById(
-    "stay-invite-participant"
-  );
-  const status = document.getElementById(
-    "stay-invitation-status"
-  );
-  const button = document.getElementById(
-    "stay-send-invitation"
-  );
-
-  dropdown.replaceChildren();
-  dropdown.add(new Option("Select a test participant", ""));
-  button.disabled = true;
-
-  status.textContent = "Loading test participants...";
-
-  const { data, error } = await supabaseClient.rpc(
-    "stay_get_test_participants",
-    { assessment_uuid: assessmentId }
-  );
-
-  if (error) {
-    console.error("Unable to load test participants:", error);
-    status.textContent = "Unable to load test participants.";
-    return;
-  }
-
-  // Ignore results if the employer switched assessments.
-  if (
-    document.getElementById("stay-assessment-management")
-      .dataset.assessmentId !== assessmentId
-  ) {
-    return;
-  }
-
-  (data || []).forEach((participant) => {
-    dropdown.add(
-      new Option(
-        participant.participant_email,
-        participant.participant_id
-      )
-    );
-  });
-
-  status.textContent =
-    (data || []).length + " test participants available.";
-  
-dropdown.onchange = () => {
-  button.disabled = !dropdown.value;
-};
-
+  document.getElementById("stay-invite-participant").value="";
+  document.getElementById("stay-send-invitation").disabled=false;
+  document.getElementById("stay-invitation-status").textContent="Pilot: invite new participants by email. Existing account holders require assisted setup.";
 }
 
 async function addStayParticipant() {
-  const panel = document.getElementById(
-    "stay-assessment-management"
-  );
-  const assessmentId = panel.dataset.assessmentId;
-  const dropdown = document.getElementById(
-    "stay-invite-participant"
-  );
-  const perspective = document.getElementById(
-    "stay-invite-perspective"
-  ).value;
-  const button = document.getElementById(
-    "stay-send-invitation"
-  );
-  const status = document.getElementById(
-    "stay-invitation-status"
-  );
-
-  if (!assessmentId || !dropdown.value) {
-    status.textContent = "Please select a participant.";
-    return;
-  }
-
-  const participantId = dropdown.value;
-
-if (button.disabled) {
-  return;
+ const assessmentId=document.getElementById("stay-assessment-management").dataset.assessmentId;
+ const input=document.getElementById("stay-invite-participant"),email=input.value.trim().toLowerCase();
+ const perspective=document.getElementById("stay-invite-perspective").value;
+ const status=document.getElementById("stay-invitation-status"),button=document.getElementById("stay-send-invitation");
+ if(!assessmentId||!input.checkValidity()||!email){status.textContent="Enter a valid participant email.";return;}
+ if(!confirm("Send a Stay Culture 360 invitation to "+email+"?"))return;
+ button.disabled=true;status.textContent="Sending invitation...";
+ try{
+  const {data:{session},error:sessionError}=await supabaseClient.auth.getSession();
+  if(sessionError||!session)throw new Error("Please sign in again.");
+  const response=await fetch(SUPABASE_URL+"/functions/v1/stay-invite-participant",{
+   method:"POST",headers:{"Content-Type":"application/json","apikey":SUPABASE_PUBLISHABLE_KEY,"Authorization":"Bearer "+session.access_token},
+   body:JSON.stringify({assessmentId,email,perspective})
+  });
+  const result=await response.json();
+  if(!response.ok)throw new Error(result.message||"Invitation failed");
+  status.textContent=result.message;input.value="";
+  await loadStayExistingInvitations(assessmentId);await checkStayAssessmentReadiness(assessmentId);
+ }catch(error){console.error("Unable to invite participant",error);status.textContent=error.message||"Unable to invite participant";}
+ finally{button.disabled=false;}
 }
-
-  button.disabled = true;
-  status.textContent = "Adding participant...";
-
-  try {
-    const { error } = await supabaseClient
-      .from("stay_assessment_invitations")
-      .insert({
-        assessment_id: assessmentId,
-        participant_user_id: participantId,
-        perspective: perspective,
-        status: "pending"
-      });
-
-    if (error) throw error;
-
-    status.textContent = "Participant added successfully.";
-    
-await loadStayExistingInvitations(assessmentId);
-    await checkStayAssessmentReadiness(assessmentId);
-
-    dropdown.value = "";
-  } catch (error) {
-    console.error("Unable to add participant:", error);
-    status.textContent =
-      "Unable to add participant: " + error.message;
-    button.disabled = !dropdown.value;
-  }
-}
-
-document.getElementById(
-  "stay-send-invitation"
-).addEventListener("click", addStayParticipant);
+document.getElementById("stay-send-invitation").addEventListener("click",addStayParticipant);
 
 async function loadStayExistingInvitations(assessmentId) {
   const list = document.getElementById(
@@ -2286,22 +2196,7 @@ async function loadStayExistingInvitations(assessmentId) {
     return;
   }
 
-const { data: participants, error: lookupError } =
-  await supabaseClient.rpc(
-    "stay_get_test_participants",
-    { assessment_uuid: assessmentId }
-  );
-
-if (lookupError) {
-  console.error("Participant email lookup failed:", lookupError);
-}
-
-const participantEmails = new Map(
-  (participants || []).map((participant) => [
-    participant.participant_id,
-    participant.participant_email
-  ])
-);
+const participantEmails = new Map(); // Do not expose participant email lookups to the browser.
 
   list.replaceChildren();
 
@@ -2316,7 +2211,7 @@ const participantEmails = new Map(
      
 "Participant: " +
 (participantEmails.get(invitation.participant_user_id)
-  || "Unknown participant") +
+  || "Invited participant") +
 
       " — " +
       invitation.perspective +
