@@ -3255,7 +3255,7 @@ document.getElementById("stay-regenerate-ai-report-button").addEventListener("cl
 ).addEventListener("click", generateStayAIExecutiveReport);
 document.getElementById(
   "stay-view-ai-report-button"
-).addEventListener("click", loadStayAIExecutiveReport);
+).addEventListener("click", () => loadStayAIExecutiveReport());
 document.getElementById(
   "stay-report-assessment-select"
 ).addEventListener("change", () => {
