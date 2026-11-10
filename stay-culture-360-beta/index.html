@@ -3017,7 +3017,7 @@ if (Array.isArray(developmentResources?.learning_topics) &&
   learningList.style.cssText =
     "line-height:1.7;padding-left:24px;";
 
-  developmentResources.learning_topics.forEach(topic => {
+  developmentResources.learning_topics.slice(0, 4).forEach(topic => {
     const item = document.createElement("li");
     item.textContent = topic;
     item.style.marginBottom = "10px";
@@ -3038,7 +3038,9 @@ if (Array.isArray(developmentResources?.learning_topics) &&
   coachingList.style.cssText =
     "line-height:1.7;padding-left:24px;";
 
-  developmentResources.coaching_opportunities.forEach(opportunity => {
+  developmentResources.coaching_opportunities.filter(opportunity =>
+    typeof opportunity === "string" && !/care\s*&\s*stay/i.test(opportunity)
+  ).forEach(opportunity => {
     const item = document.createElement("li");
     item.textContent = opportunity;
     item.style.marginBottom = "10px";
@@ -3047,6 +3049,22 @@ if (Array.isArray(developmentResources?.learning_topics) &&
 
   reportContent.append(coachingHeading, coachingList);
 }
+    const invitation = document.createElement("section");
+    invitation.style.cssText = "border-top:1px solid #d9dfd8;margin:32px 0 24px;padding-top:22px;";
+    const invitationHeading = document.createElement("h4");
+    invitationHeading.textContent = "Continue Your Stay Culture Journey";
+    invitationHeading.style.cssText = "color:#174f4c;font-size:19px;margin:0 0 12px;";
+    const invitationIntro = document.createElement("p");
+    invitationIntro.textContent = "Understanding your organization's culture is the beginning. Creating meaningful, lasting change requires intentional leadership and a commitment to building on what works.";
+    invitationIntro.style.cssText = "font-size:15px;line-height:1.7;margin:0 0 12px;";
+    const invitationServices = document.createElement("p");
+    invitationServices.textContent = "Care & Stay offers executive coaching, team coaching, leadership development, and facilitated Appreciative Inquiry experiences to help organizations turn assessment insights into meaningful action.";
+    invitationServices.style.cssText = "font-size:15px;line-height:1.7;margin:0 0 12px;";
+    const invitationClose = document.createElement("p");
+    invitationClose.textContent = "To explore how Care & Stay can support your organization's next steps, connect with our team.";
+    invitationClose.style.cssText = "font-size:15px;line-height:1.7;font-style:italic;margin:0;";
+    invitation.append(invitationHeading, invitationIntro, invitationServices, invitationClose);
+    reportContent.appendChild(invitation);
     const methodologyHeading = document.createElement("h3");
 methodologyHeading.textContent = "Methodology & Limitations";
 
