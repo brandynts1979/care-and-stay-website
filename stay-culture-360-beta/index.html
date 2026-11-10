@@ -398,6 +398,10 @@ document.getElementById("stay-view-ai-report-button").disabled = false;
   View AI Executive Report
 </button>
 
+<button id="stay-regenerate-ai-report-button" type="button" hidden>Regenerate AI Report (preserve previous version)</button>
+<label id="stay-report-history-label" for="stay-report-history-select" hidden>Previous report versions</label>
+<select id="stay-report-history-select" hidden><option value="">Select previous report</option></select>
+<button id="stay-view-history-report-button" type="button" hidden>View Selected Previous Report</button>
   <p id="stay-report-status" role="status"></p>
 <button
   id="stay-print-report-button"
@@ -1383,6 +1387,10 @@ const generateAIReportButton = document.getElementById(
 );
 
 generateAIReportButton.hidden = true;
+document.getElementById("stay-regenerate-ai-report-button").hidden = true;
+document.getElementById("stay-report-history-label").hidden = true;
+document.getElementById("stay-report-history-select").hidden = true;
+document.getElementById("stay-view-history-report-button").hidden = true;
 if (status.reporting_allowed) {
     
   const { data: dimensionScores, error: scoresError } =
@@ -1708,10 +1716,9 @@ dimensionsBox.appendChild(actionPlanSection);
     ) {
      if (response.ok && result.status === "completed") {
   generateAIReportButton.hidden = true;
-
-  document.getElementById(
-    "stay-view-ai-report-button"
-  ).hidden = false;
+  document.getElementById("stay-regenerate-ai-report-button").hidden = false;
+  document.getElementById("stay-view-ai-report-button").hidden = false;
+  loadStayReportHistory(selectedAssessmentId, window.stayReportOrganizationId);
 } else if (
         response.status === 404 &&
         result.status === "not_found"
@@ -2466,7 +2473,7 @@ document.getElementById(
 window.stayAIReportRequestVersion ??= 0;
 
 
-async function loadStayAIExecutiveReport() {
+async function loadStayAIExecutiveReport(archivedReportId = null) {
   const reportSection = document.getElementById(
     "stay-ai-executive-report"
   );
@@ -2523,14 +2530,19 @@ if (
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          action: "get_report",
+          action: archivedReportId ? "history" : "get_report",
           organization_id: organizationId,
           assessment_id: assessmentId,
         }),
       }
     );
 
-    const result = await response.json();
+    let result = await response.json();
+    if (archivedReportId && response.ok && Array.isArray(result.history)) {
+      const previous = result.history.find(item => item.id === archivedReportId);
+      result = previous ? { status: "completed", report: previous.report } :
+        { status: "not_found", error: "Previous report version not found." };
+    }
 
     if (!response.ok || result.status !== "completed") {
       throw new Error(
@@ -3186,6 +3198,58 @@ reportStatus.textContent =
   generateButton.textContent = "Generate AI Executive Report";
 }
 }
+async function loadStayReportHistory(assessmentId, organizationId) {
+  const select = document.getElementById("stay-report-history-select");
+  const label = document.getElementById("stay-report-history-label");
+  const view = document.getElementById("stay-view-history-report-button");
+  select.hidden = label.hidden = view.hidden = true;
+  const { data } = await supabaseClient.auth.getSession();
+  if (!data.session) return;
+  const response = await fetch(`${SUPABASE_URL}/functions/v1/stay-generate-ai-report`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${data.session.access_token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({action:"history",organization_id:organizationId,assessment_id:assessmentId})
+  });
+  if (!response.ok || document.getElementById("stay-report-assessment-select").value !== assessmentId) return;
+  const result = await response.json();
+  select.replaceChildren(new Option("Select previous report", ""));
+  (result.history || []).forEach((item, index) => {
+    select.add(new Option(`Previous version ${index + 1} — ${new Date(item.archived_at).toLocaleString()}`, item.id));
+  });
+  if ((result.history || []).length) select.hidden = label.hidden = view.hidden = false;
+}
+
+document.getElementById("stay-view-history-report-button").addEventListener("click", () => {
+  const id = document.getElementById("stay-report-history-select").value;
+  if (id) loadStayAIExecutiveReport(id);
+});
+
+document.getElementById("stay-regenerate-ai-report-button").addEventListener("click", async () => {
+  const button = document.getElementById("stay-regenerate-ai-report-button");
+  const assessmentId = document.getElementById("stay-report-assessment-select").value;
+  const organizationId = window.stayReportOrganizationId;
+  if (!assessmentId || !organizationId || button.disabled) return;
+  if (!confirm("Generate a new AI report from the same completed responses? The existing report will be archived as a previous version.")) return;
+  button.disabled = true;
+  const status = document.getElementById("stay-ai-report-status");
+  status.textContent = "Archiving the existing report and generating a new version...";
+  try {
+    const {data,error} = await supabaseClient.auth.getSession();
+    if (error || !data.session) throw new Error("Please sign in again.");
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/stay-generate-ai-report`, {
+      method: "POST",
+      headers: {Authorization:`Bearer ${data.session.access_token}`,"Content-Type":"application/json"},
+      body: JSON.stringify({action:"regenerate",organization_id:organizationId,assessment_id:assessmentId})
+    });
+    const result = await response.json();
+    if (!response.ok || result.status !== "completed") throw new Error(result.message || result.error || "Regeneration did not complete.");
+    status.textContent = "New report generated. The previous report is available in Previous report versions.";
+    await loadStayReportHistory(assessmentId,organizationId);
+  } catch (error) {
+    status.textContent = error instanceof Error ? error.message : "Unable to regenerate report.";
+  } finally { button.disabled = false; }
+});
+
   document.getElementById(
   "stay-generate-ai-report-button"
 ).addEventListener("click", generateStayAIExecutiveReport);
