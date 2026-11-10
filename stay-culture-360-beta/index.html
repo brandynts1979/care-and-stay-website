@@ -230,6 +230,16 @@ body.print-executive-report.print-ai-executive-report
       style="display:block;width:100%;margin:8px 0 16px;padding:10px;box-sizing:border-box;">
 
     <button type="submit">Sign In</button>
+    <button type="button" id="stay-reset-request" style="margin-left:10px;">Set or Reset Password</button>
+  </form>
+  <form id="stay-new-password-form" hidden style="margin-top:16px;">
+    <h3>Create your password</h3>
+    <p>Choose a new password to finish setting up your account.</p>
+    <label for="stay-new-password">New password (at least 12 characters)</label>
+    <input id="stay-new-password" type="password" minlength="12" required autocomplete="new-password" style="display:block;width:100%;box-sizing:border-box;margin:8px 0;padding:10px;">
+    <label for="stay-new-password-confirm">Confirm new password</label>
+    <input id="stay-new-password-confirm" type="password" minlength="12" required autocomplete="new-password" style="display:block;width:100%;box-sizing:border-box;margin:8px 0;padding:10px;">
+    <button type="submit">Save Password</button>
   </form>
 
   <button id="stay-logout" type="button" hidden>Sign Out</button>
@@ -272,6 +282,57 @@ body.print-executive-report.print-ai-executive-report
     await loadStayAssessmentList();
   });
 
+  const newPasswordForm=document.getElementById("stay-new-password-form");
+  const resetButton=document.getElementById("stay-reset-request");
+  resetButton.addEventListener("click",async()=>{
+    const email=document.getElementById("stay-email").value.trim();
+    if(!email || !document.getElementById("stay-email").checkValidity()){
+      loginStatus.textContent="Enter your email address first, then choose Set or Reset Password.";
+      return;
+    }
+    resetButton.disabled=true;
+    loginStatus.textContent="Requesting a secure password link...";
+    const {error}=await supabaseClient.auth.resetPasswordForEmail(email,{
+      redirectTo:"https://mycareandstay.com/stay-culture-360-beta/"
+    });
+    loginStatus.textContent=error
+      ? "Unable to send a password link. Please try again or contact Care & Stay."
+      : "If this email has an account, a password setup link has been sent. Check your inbox and spam folder.";
+    resetButton.disabled=false;
+  });
+  function showPasswordRecovery(){
+    loginForm.hidden=true;
+    newPasswordForm.hidden=false;
+    logoutButton.hidden=true;
+    loginStatus.textContent="Secure link accepted. Create a password to continue.";
+  }
+  supabaseClient.auth.onAuthStateChange((event,session)=>{
+    if(event==="PASSWORD_RECOVERY")showPasswordRecovery();
+  });
+  // Recovery links may restore a session before this listener runs.
+  if(window.location.hash.includes("type=recovery") || window.location.search.includes("type=recovery")){
+    supabaseClient.auth.getSession().then(({data})=>{if(data.session)showPasswordRecovery();});
+  }
+  newPasswordForm.addEventListener("submit",async(event)=>{
+    event.preventDefault();
+    const password=document.getElementById("stay-new-password").value;
+    if(password!==document.getElementById("stay-new-password-confirm").value){
+      loginStatus.textContent="Passwords do not match.";return;
+    }
+    loginStatus.textContent="Saving password...";
+    const {error}=await supabaseClient.auth.updateUser({password});
+    if(error){loginStatus.textContent="Could not save password: "+error.message;return;}
+    document.getElementById("stay-new-password").value="";
+    document.getElementById("stay-new-password-confirm").value="";
+    newPasswordForm.hidden=true;
+    window.history.replaceState(null,"",window.location.pathname);
+    showLoginState(true);
+    loginStatus.textContent="Password saved. You're signed in.";
+    await loadEmployerDashboard();
+    await loadStayAssessmentList();
+    if(typeof loadStayQuestions==="function")await loadStayQuestions();
+  });
+
   logoutButton.addEventListener("click", async () => {
     const { error } = await supabaseClient.auth.signOut();
     if (error) {
@@ -309,6 +370,7 @@ document.getElementById("stay-view-ai-report-button").disabled = false;
   });
 
   supabaseClient.auth.getUser().then(({ data, error }) => {
+    if(!newPasswordForm.hidden)return;
     showLoginState(!error && !!data.user);
   });
 </script>
