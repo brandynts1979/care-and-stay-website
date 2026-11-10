@@ -1276,6 +1276,9 @@ for(const m of memberships){const option=document.createElement("option");option
 const demoId="53c93a18-0a53-4366-a375-7b19e184526d";
 orgSelect.value=validIds.includes(priorOrg)?priorOrg:(validIds.includes(demoId)?demoId:validIds[0]);
 window.stayReportOrganizationId=orgSelect.value;
+// Refresh management only after the authorized workspace has been selected.
+await loadStayAssessmentList();
+if (dashboardRequestVersion !== window.stayDashboardRequestVersion) return;
 
 // Show administrator controls as soon as membership is verified.
 // Report calculations and AI availability may load independently.
