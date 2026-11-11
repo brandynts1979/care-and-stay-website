@@ -173,11 +173,26 @@ body.print-executive-report.print-ai-executive-report
   body.print-executive-report #stay-report-dimensions > div {
     break-inside: avoid;
   }
+  /* Allow long AI report sections to flow across pages instead of
+     pushing nearly all of a section onto a new sheet. */
   body.print-executive-report.print-ai-executive-report
-#stay-ai-report-content > div {
-  break-inside: avoid;
-  page-break-inside: avoid;
-}
+  #stay-ai-report-content > div {
+    break-inside: auto;
+    page-break-inside: auto;
+  }
+  body.print-executive-report.print-ai-executive-report
+  #stay-ai-report-content h2,
+  body.print-executive-report.print-ai-executive-report
+  #stay-ai-report-content h3,
+  body.print-executive-report.print-ai-executive-report
+  #stay-ai-report-content h4 {
+    break-after: avoid-page;
+    page-break-after: avoid;
+  }
+  body.print-executive-report.print-ai-executive-report
+  #stay-ai-report-content li {
+    break-inside: avoid-page;
+  }
 }
   </style>
 </head>
