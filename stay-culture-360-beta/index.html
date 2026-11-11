@@ -237,6 +237,16 @@ body.print-executive-report.print-ai-executive-report
       page-break-after: avoid;
     }
   }
+  /* Keep the detailed AI narrative and its 90-day roadmap as the single
+     client-facing summary/action plan; retain overview cards on screen. */
+  @media print {
+    body.print-executive-report.print-ai-executive-report
+    #stay-executive-summary,
+    body.print-executive-report.print-ai-executive-report
+    #stay-overview-action-plan {
+      display: none !important;
+    }
+  }
   /* The administrative dashboard title belongs on screen, not in the
      customer-facing executive PDF. Keep the participation and results. */
   @media print {
@@ -1815,6 +1825,7 @@ developmentPriorities.forEach(item => {
   
 dimensionsBox.appendChild(recommendationsSection);
     const actionPlanSection = document.createElement("div");
+actionPlanSection.id = "stay-overview-action-plan";
 actionPlanSection.style.cssText =
   "margin-top:24px;padding:20px;border:1px solid #d8e2e8;border-radius:8px;";
 
