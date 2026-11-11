@@ -261,8 +261,8 @@ body.print-executive-report.print-ai-executive-report
     #stay-ai-report-content .stay-development-priority {
       display: block !important;
       box-sizing: border-box !important;
-      break-before: page !important;
-      page-break-before: always !important;
+      break-before: auto !important;
+      page-break-before: auto !important;
       break-inside: avoid !important;
       page-break-inside: avoid !important;
       background: transparent !important;
@@ -1940,7 +1940,7 @@ const selectedAssessment =
   assessmentSelect.options[assessmentSelect.selectedIndex];
 
 document.getElementById("stay-cover-organization").textContent =
-  selectedAssessment ? selectedAssessment.textContent : "";
+  selectedAssessment ? selectedAssessment.textContent.replace(/\s*\((?:draft|open|closed)\)\s*$/i, "") : "";
    document.getElementById("stay-cover-date").textContent =
   "Report prepared: " +
   new Date().toLocaleDateString("en-US", {
@@ -2982,7 +2982,7 @@ if (Array.isArray(result.report.leadership_action_plan)) {
       "font-size:15px;margin-bottom:14px;color:#334d48;";
 if (action.suggested_owner) {
   const owner = document.createElement("div");
-  owner.textContent = "Suggested Owner: " + action.suggested_owner;
+  owner.textContent = "Illustrative owner (confirm with client): " + action.suggested_owner;
   owner.style.cssText =
     "font-size:14px;font-weight:600;color:#174f4c;" +
     "margin-top:6px;";
