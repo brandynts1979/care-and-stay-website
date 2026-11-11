@@ -2693,12 +2693,15 @@ if (
 
 
     reportContent.replaceChildren();
+const executiveSummarySection = document.createElement("section");
+executiveSummarySection.className = "stay-ai-executive-summary";
+reportContent.appendChild(executiveSummarySection);
 const reportHeading = document.createElement("h3");
 reportHeading.textContent = "Executive Summary";
 reportHeading.style.cssText =
   "color:#174f4c;font-size:24px;margin:24px 0 16px;";
 
-reportContent.appendChild(reportHeading);
+executiveSummarySection.appendChild(reportHeading);
     const executiveSummary = result.report.executive_summary;
 
 if (executiveSummary?.overview) {
@@ -2706,7 +2709,7 @@ if (executiveSummary?.overview) {
   overview.textContent = executiveSummary.overview;
   overview.style.cssText =
     "font-size:16px;line-height:1.7;margin-bottom:20px;";
-  reportContent.appendChild(overview);
+  executiveSummarySection.appendChild(overview);
 }
     if (Array.isArray(executiveSummary?.key_findings)) {
   const findingsHeading = document.createElement("h4");
@@ -2725,7 +2728,7 @@ if (executiveSummary?.overview) {
     findingsList.appendChild(item);
   });
 
-  reportContent.append(findingsHeading, findingsList);
+  executiveSummarySection.append(findingsHeading, findingsList);
 }
     if (Array.isArray(executiveSummary?.leadership_implications)) {
   const implicationsHeading = document.createElement("h4");
@@ -2744,7 +2747,7 @@ if (executiveSummary?.overview) {
     implicationsList.appendChild(item);
   });
 
-  reportContent.append(implicationsHeading, implicationsList);
+  executiveSummarySection.append(implicationsHeading, implicationsList);
 }
     // Visual Insights: only report numeric scores already present in the saved report.
     // The reference line is an illustrative aspiration, never an industry benchmark.
