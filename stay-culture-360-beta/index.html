@@ -301,6 +301,17 @@ body.print-executive-report.print-ai-executive-report
     body.print-executive-report.print-ai-executive-report #stay-ai-report-content .stay-ai-executive-summary ul {line-height:1.3 !important;margin:0 0 7px !important;padding-left:20px !important;}
     body.print-executive-report.print-ai-executive-report #stay-ai-report-content .stay-ai-executive-summary {break-inside:auto !important;}
   }
+
+  @media print {
+    body.print-executive-report.print-ai-executive-report #stay-ai-report-content .stay-visual-roadmap {
+      break-inside: avoid !important;
+      page-break-inside: avoid !important;
+      padding: 9px 12px !important;
+      margin-top: 10px !important;
+      font-size: 12px !important;
+      line-height: 1.35 !important;
+    }
+  }
   </style>
 </head>
 <body>
@@ -2831,6 +2842,7 @@ if (executiveSummary?.overview) {
         section.appendChild(block);
       });
       const roadmap=document.createElement("div");
+      roadmap.className="stay-visual-roadmap";
       roadmap.style.cssText="background:#f6f5ee;border-left:4px solid #b08039;padding:14px;margin-top:18px;font-size:14px;line-height:1.6;";
       roadmap.textContent="30 days — Discover existing strengths and listen across roles. 60 days — Co-design and practice one observable leadership behavior per priority. 90 days — Review adoption and repeat selected measures against this organization's own baseline. Targets should be agreed with the customer.";
       section.appendChild(roadmap);
