@@ -237,6 +237,13 @@ body.print-executive-report.print-ai-executive-report
       page-break-after: avoid;
     }
   }
+  /* The administrative dashboard title belongs on screen, not in the
+     customer-facing executive PDF. Keep the participation and results. */
+  @media print {
+    body.print-executive-report #stay-employer-dashboard > h2:first-of-type {
+      display: none !important;
+    }
+  }
   /* Dedicated print presentation for development priorities: remove the
      screen card treatment and fit each priority on a single printed page. */
   @media print {
