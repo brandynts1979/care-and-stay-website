@@ -237,6 +237,43 @@ body.print-executive-report.print-ai-executive-report
       page-break-after: avoid;
     }
   }
+  /* Dedicated print presentation for development priorities: remove the
+     screen card treatment and fit each priority on a single printed page. */
+  @media print {
+    body.print-executive-report.print-ai-executive-report
+    #stay-ai-report-content .stay-development-priority {
+      display: block !important;
+      box-sizing: border-box !important;
+      break-before: page !important;
+      page-break-before: always !important;
+      break-inside: avoid !important;
+      page-break-inside: avoid !important;
+      background: transparent !important;
+      border: none !important;
+      box-shadow: none !important;
+      padding: 0 !important;
+      margin: 0 !important;
+    }
+    body.print-executive-report.print-ai-executive-report
+    #stay-ai-report-content .stay-development-priority * {
+      font-size: 11px !important;
+      line-height: 1.25 !important;
+    }
+    body.print-executive-report.print-ai-executive-report
+    #stay-ai-report-content .stay-development-priority h4 {
+      font-size: 17px !important;
+      margin: 0 0 10px !important;
+    }
+    body.print-executive-report.print-ai-executive-report
+    #stay-ai-report-content .stay-development-priority h5 {
+      font-size: 12px !important;
+      margin: 10px 0 3px !important;
+    }
+    body.print-executive-report.print-ai-executive-report
+    #stay-ai-report-content .stay-development-priority li {
+      margin-bottom: 3px !important;
+    }
+  }
   </style>
 </head>
 <body>
