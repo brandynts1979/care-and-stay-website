@@ -1,1 +1,98 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="Stay Culture for Quick-Service Restaurants — Care & Stay"><title>Stay Culture for Quick-Service Restaurants | Care & Stay</title><link rel="stylesheet" href="/styles.css"><style>.industry{max-width:1050px;margin:5vh auto;padding:24px}.industry h1{font-size:clamp(2rem,5vw,3.5rem)}.industry-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px;margin:24px 0}.industry-card{padding:24px;border:1px solid #d6dedb;border-radius:14px;background:#fff;line-height:1.6}.industry-card strong.figure{font-size:2rem;display:block}.industry .note{font-size:.86rem;color:#53645e}.industry a.action{display:inline-block;padding:12px 20px;background:#1b544a;color:#fff;border-radius:8px;text-decoration:none;margin:12px 0}</style></head><body><header><nav class="nav container"><a class="brand" href="/"><span>Care <em>&amp;</em> Stay</span></a><a href="/stay-culture-360/">Stay Culture 360</a><a href="/client-portal/">Client Portal</a></nav></header><main class="industry"><p>STAY CULTURE 360 / QUICK-SERVICE RESTAURANTS</p><h1>What is employee turnover costing your restaurant?</h1><p>Develop stronger general managers, understand why employees choose to stay, and identify avoidable turnover without confusing it with predictable seasonal departures.</p><div class="industry-grid"><section class="industry-card"><strong class="figure">$2,706</strong>Average hard cost to replace a restaurant hourly employee</section><section class="industry-card"><strong class="figure">$11,940</strong>Average hard cost to replace a non-GM restaurant manager</section><section class="industry-card"><strong class="figure">$17,651</strong>Average hard cost to replace a restaurant general manager</section></div><p class="note">Source: <a href="https://blackboxintelligence.com/blog/state-of-the-restaurant-workforce-employee-turnover" target="_blank" rel="noopener noreferrer">Black Box Intelligence, State of Restaurant Workforce: Employee Turnover</a> (2025 data). Industry estimates of separation, replacement, and training costs; actual costs vary by employer. These figures are not guaranteed savings from Stay Culture 360.</p><h2>See the potential impact at your locations</h2><p>Use this illustrative calculator to estimate the replacement costs of departures you believe could reasonably have been avoided. Enter your own figures if your costs differ from industry averages.</p><div class="industry-grid"><label class="industry-card">Avoidable hourly departures per year<input id="hourly" type="number" min="0" max="100000" value="3" style="display:block;width:100%;padding:10px"></label><label class="industry-card">Avoidable non-GM manager departures per year<input id="manager" type="number" min="0" max="100000" value="0" style="display:block;width:100%;padding:10px"></label><label class="industry-card">Avoidable GM departures per year<input id="gm" type="number" min="0" max="100000" value="0" style="display:block;width:100%;padding:10px"></label></div><section class="industry-card"><p>Illustrative annual replacement-cost exposure</p><strong class="figure" id="total">$8,118</strong><p class="note">Estimate only. Counts should reflect departures that might be preventable, not all turnover. No assessment can guarantee these costs will be avoided.</p></section><script>(function(){const ids=["hourly","manager","gm"],costs=[2706,11940,17651];function calc(){let total=0;ids.forEach((id,i)=>{const x=Number(document.getElementById(id).value);total+=Math.max(0,Number.isFinite(x)?Math.min(x,100000):0)*costs[i]});document.getElementById("total").textContent=total.toLocaleString("en-US",{style:"currency",currency:"USD",maximumFractionDigits:0})}ids.forEach(id=>document.getElementById(id).addEventListener("input",calc));calc()})();</script><h2>QSR Stay Culture packages</h2><div class="industry-grid"><section class="industry-card"><h3>Essentials</h3><strong class="figure">From $495</strong>Per location. Assessment and results report.</section><section class="industry-card"><h3>Leadership</h3><strong class="figure">From $795</strong>Per location. Assessment and virtual GM debrief.</section><section class="industry-card"><h3>Multi-unit & franchise groups</h3><strong class="figure">Custom</strong>Volume pricing, cross-location insights, leadership development and coaching.</section></div><p class="note">Indicative pilot prices; scope, participation limits and final pricing are confirmed in a proposal. The QSR-specific edition is being prepared for pilot delivery. No payment is collected on this page.</p><h2>Build a restaurant where the right people choose to stay</h2><p>Let's discuss a pilot for your location or franchise group.</p><a class="action" href="/stay-culture-360/#consultation">Request a QSR demonstration</a></main></body></html>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="Stay Culture for Quick-Service Restaurants — Care & Stay"><title>Stay Culture for Quick-Service Restaurants | Care & Stay</title><link rel="stylesheet" href="/styles.css"><style>.industry{max-width:1050px;margin:5vh auto;padding:24px}.industry h1{font-size:clamp(2rem,5vw,3.5rem)}.industry-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px;margin:24px 0}.industry-card{padding:24px;border:1px solid #d6dedb;border-radius:14px;background:#fff;line-height:1.6}.industry-card strong.figure{font-size:2rem;display:block}.industry .note{font-size:.86rem;color:#53645e}.industry a.action{display:inline-block;padding:12px 20px;background:#1b544a;color:#fff;border-radius:8px;text-decoration:none;margin:12px 0}
+.turnover-fields label{display:block;margin-top:16px;font-weight:600}
+.turnover-fields input{display:block;box-sizing:border-box;width:100%;margin-top:6px;padding:10px;font:inherit;border:1px solid #aebfb3;border-radius:6px}
+.turnover-fields h3{margin-top:0}
+.calculation-details{margin-top:24px}
+.calculation-details summary{cursor:pointer;font-weight:700}
+.calculation-details li{margin:12px 0}
+</style></head><body><header><nav class="nav container"><a class="brand" href="/"><span>Care <em>&amp;</em> Stay</span></a><a href="/stay-culture-360/">Stay Culture 360</a><a href="/client-portal/">Client Portal</a></nav></header><main class="industry"><p>STAY CULTURE 360 / QUICK-SERVICE RESTAURANTS</p><h1>What is employee turnover costing your restaurant?</h1><p>Develop stronger general managers, understand why employees choose to stay, and identify avoidable turnover without confusing it with predictable seasonal departures.</p><div class="industry-grid"><section class="industry-card"><strong class="figure">$2,706</strong>Average hard cost to replace a restaurant hourly employee</section><section class="industry-card"><strong class="figure">$11,940</strong>Average hard cost to replace a non-GM restaurant manager</section><section class="industry-card"><strong class="figure">$17,651</strong>Average hard cost to replace a restaurant general manager</section></div><p class="note">Source: <a href="https://blackboxintelligence.com/blog/state-of-the-restaurant-workforce-employee-turnover" target="_blank" rel="noopener noreferrer">Black Box Intelligence, State of Restaurant Workforce: Employee Turnover</a> (2025 data). Industry estimates of separation, replacement, and training costs; actual costs vary by employer. These figures are not guaranteed savings from Stay Culture 360.</p><h2>See the potential impact at your locations</h2><p>Estimate the annual replacement costs of departures you believe could reasonably have been avoided. Enter departure counts for the locations you want to assess, then adjust the cost per replacement to reflect your own experience.</p>
+<p class="note" id="cost-assumptions">Replacement costs start with the 2025 restaurant industry benchmarks shown above. You can edit each amount in US dollars. Enter whole numbers for departures and amounts of zero or more for costs.</p>
+<div class="industry-grid">
+<section class="industry-card turnover-fields" aria-labelledby="hourly-heading">
+  <h3 id="hourly-heading">Hourly employees</h3>
+  <label for="hourly">Avoidable departures per year</label>
+  <input id="hourly" type="number" min="0" max="100000" step="1" required value="3">
+  <label for="hourly-cost">Cost per replacement (USD)</label>
+  <input id="hourly-cost" type="number" min="0" max="10000000" step="0.01" required value="2706" aria-describedby="cost-assumptions">
+</section>
+<section class="industry-card turnover-fields" aria-labelledby="manager-heading">
+  <h3 id="manager-heading">Managers other than the GM</h3>
+  <label for="manager">Avoidable departures per year</label>
+  <input id="manager" type="number" min="0" max="100000" step="1" required value="0">
+  <label for="manager-cost">Cost per replacement (USD)</label>
+  <input id="manager-cost" type="number" min="0" max="10000000" step="0.01" required value="11940" aria-describedby="cost-assumptions">
+</section>
+<section class="industry-card turnover-fields" aria-labelledby="gm-heading">
+  <h3 id="gm-heading">General managers</h3>
+  <label for="gm">Avoidable departures per year</label>
+  <input id="gm" type="number" min="0" max="100000" step="1" required value="0">
+  <label for="gm-cost">Cost per replacement (USD)</label>
+  <input id="gm-cost" type="number" min="0" max="10000000" step="0.01" required value="17651" aria-describedby="cost-assumptions">
+</section>
+</div>
+<section class="industry-card">
+  <p>Illustrative annual replacement-cost exposure</p>
+  <strong class="figure" id="total" aria-live="polite" aria-atomic="true">$8,118</strong>
+  <p id="calculator-error" role="status" hidden>Please enter valid values in all six fields. Departure counts must be whole numbers from 0 to 100,000. Replacement costs must be between $0 and $10,000,000, with up to two decimal places.</p>
+  <p class="note">Use your estimate of potentially avoidable departures, accounting for predictable seasonal changes. Actual costs and opportunities to reduce turnover vary by location.</p>
+</section>
+<section class="calculation-details" aria-labelledby="calculation-heading">
+  <h2 id="calculation-heading">How this estimate is calculated</h2>
+  <p>For each employee role, we multiply the number of avoidable departures per year by the cost of replacing one employee. We then add the three amounts to estimate your annual replacement-cost exposure.</p>
+  <p>For example, three hourly departures at $2,706 per replacement produce an estimate of $8,118.</p>
+  <details class="industry-card">
+    <summary>What goes into turnover costs?</summary>
+    <p>The industry benchmarks cover separation, replacement, and training. When estimating your own costs, consider the following activities.</p>
+    <ul>
+      <li><strong>Separation.</strong> Staff time spent processing a departure, completing exit administration, and arranging the handover.</li>
+      <li><strong>Replacement.</strong> Recruiting expenses and staff time spent advertising, reviewing applications, interviewing, and completing hiring checks.</li>
+      <li><strong>Training.</strong> Onboarding materials, paid training time, and the time managers or experienced employees spend teaching a replacement.</li>
+    </ul>
+    <p>These examples can help you estimate your own costs. The cited source reports combined costs for these categories without an itemized dollar breakdown for each activity.</p>
+    <p>Broader effects can include disrupted service, lost sales, and strain on team morale. This calculator does not assign additional dollar amounts to those effects. Its total is based entirely on the departure counts and replacement costs entered above.</p>
+    <p class="note">The result is an illustrative cost estimate. Savings depend on which departures can actually be prevented and the costs your business would otherwise incur.</p>
+  </details>
+</section>
+<script>
+(function () {
+  const roles = ["hourly", "manager", "gm"];
+  const inputs = roles.flatMap(function (role) {
+    return [
+      document.getElementById(role),
+      document.getElementById(role + "-cost")
+    ];
+  });
+  const totalOutput = document.getElementById("total");
+  const errorOutput = document.getElementById("calculator-error");
+  const currency = new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2
+  });
+
+  function calculate() {
+    const valid = inputs.every(function (input) {
+      return input.validity.valid && Number.isFinite(input.valueAsNumber);
+    });
+    errorOutput.hidden = valid;
+    if (!valid) {
+      totalOutput.textContent = "Enter valid values";
+      return;
+    }
+
+    const totalCents = roles.reduce(function (total, role) {
+      const departures = document.getElementById(role).valueAsNumber;
+      const cost = document.getElementById(role + "-cost").valueAsNumber;
+      return total + departures * Math.round(cost * 100);
+    }, 0);
+    totalOutput.textContent = currency.format(totalCents / 100);
+  }
+
+  inputs.forEach(function (input) {
+    input.addEventListener("input", calculate);
+  });
+  calculate();
+})();
+</script>
+<h2>QSR Stay Culture packages</h2><div class="industry-grid"><section class="industry-card"><h3>Essentials</h3><strong class="figure">From $495</strong>Per location. Assessment and results report.</section><section class="industry-card"><h3>Leadership</h3><strong class="figure">From $795</strong>Per location. Assessment and virtual GM debrief.</section><section class="industry-card"><h3>Multi-unit & franchise groups</h3><strong class="figure">Custom</strong>Volume pricing, cross-location insights, leadership development and coaching.</section></div><p class="note">Indicative pilot prices; scope, participation limits and final pricing are confirmed in a proposal. The QSR-specific edition is being prepared for pilot delivery. No payment is collected on this page.</p><h2>Build a restaurant where the right people choose to stay</h2><p>Let's discuss a pilot for your location or franchise group.</p><a class="action" href="/stay-culture-360/#consultation">Request a QSR demonstration</a></main></body></html>
