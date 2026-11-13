@@ -4,12 +4,12 @@
 
 | Gate | Current state | Evidence needed |
 | --- | --- | --- |
-| Database isolation / RLS | Basic tests pass | Expanded negative tests, cross-record inserts, authorization review |
+| Database isolation / RLS | Live role-impersonation checks passed Nov 13, 2026: owner read; accepted supporter read but not update; unrelated account neither read nor update. All 8 DD tables have RLS enabled. | Expand cross-record insertion/forgery and storage-permission negative tests |
 | Invites and revocation | Transactional tests pass | End-to-end tests with distinct verified accounts, revoked access after refresh |
-| Tasks | Basic database tests pass | Real assigned-user browser test, role-specific restrictions |
+| Tasks | Live rollback test passed Nov 13, 2026: assigned supporter can update status, but trigger blocks task-title edits; fixture removed. Mocked Playwright create/update/delete passed. | Real assigned-user browser test against Supabase and post-revocation checks |
 | Documents metadata | Owner-only tests pass | Real object upload/download/delete and storage RLS tests using disposable fictional files |
-| Browser journeys | Playwright mocked tests committed, execution unverified | Successful GitHub Actions workflow run (Chromium) |
-| CI gating | Workflow committed, status unverified | Verified run and release blocking on failure |
+| Browser journeys | **7/7 mock-backed Playwright Chromium tests passed** Nov 13, 2026, GitHub Actions run 43465240566 | Staging browser tests against real Supabase Auth and Storage |
+| CI gating | GitHub Actions push/PR workflow passes (run 43465240566), pinned Ubuntu 24.04; manual dispatch enabled | Enforce branch protections and block releases on failed checks |
 | Deploy automation | Render shows autoDeploy=yes; manual deploys still needed | Commit-to-deploy evidence, deploy rollback plan |
 | Authentication | Basic sign-in observed | Signup/verification/recovery, expired sessions, brute-force protection |
 | Password protection | Supabase advisor warns disabled leaked-password protection | Enable and re-run security advisors |
