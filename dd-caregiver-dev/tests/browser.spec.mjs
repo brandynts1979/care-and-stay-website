@@ -122,3 +122,20 @@ test('owner can create a task and update its status',async({page})=>{
  await page.locator('#taskList select').selectOption('completed');
  await expect.poll(()=>db.tasks[0].status).toBe('completed');
 });
+
+test('owner can create and revoke a fictional family invitation',async({page})=>{
+ const db=await fakeBackend(page);await signin(page);
+ await page.locator('#openStrengths').click();
+ await page.locator('#personName').fill('Alex Sample');
+ await page.locator('#savePerson').click();
+ await page.locator('#backHome').click();
+ await page.locator('#openTeam').click();
+ await page.locator('#teamPerson').selectOption(db.people[0].id);
+ await page.locator('#teamEmail').fill('fictional-supporter@example.test');
+ await page.locator('#teamAuthority').check();
+ await page.locator('#sendTeamInvite').click();
+ await expect.poll(()=>db.invites.length).toBe(1);
+ expect(db.invites[0].invitee_email).toBe('fictional-supporter@example.test');
+ await page.getByRole('button',{name:'Revoke access'}).click();
+ await expect.poll(()=>db.invites.length).toBe(0);
+});
