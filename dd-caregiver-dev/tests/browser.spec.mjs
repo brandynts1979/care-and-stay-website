@@ -188,5 +188,5 @@ test('expired session immediately hides dashboard and requires sign in',async({p
  await expect(page.locator('#app')).toBeHidden();
  await expect(page.locator('#signedin')).toHaveText('');
  await expect(page.locator('#notice')).toContainText('Session expired');
- await expect(page.evaluate(()=>sessionStorage.getItem('dd_dev_session'))).resolves.toBeNull();
+ expect(await page.evaluate(()=>sessionStorage.getItem('dd_dev_session'))).toBeNull();
 });
