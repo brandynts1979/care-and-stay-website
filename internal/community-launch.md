@@ -1,23 +1,27 @@
 # Care & Stay community launch
 
-## Implemented in this branch
-- Community hub, distinct family caregiver and DD family entrances, shared guidelines.
-- Free basic membership positioning; no subscription or billing changes.
-- Public journal structure and one clearly labeled editorial draft.
-- Email inquiry links use the existing site contact. No data collection or enrollment is simulated.
-- Existing main navigation gains a Community & Journal dropdown.
+## Implemented on the draft branch
+- Community hub, separate family caregiver and DD family entrances, shared guidelines.
+- Free basic membership positioning, public Journal, and one labeled editorial draft.
+- Member application: Supabase email/password sign-in, verification resend, password recovery, explicit community opt-in with adult attestation, display names, text discussions/replies, pagination, reporting, own-message removal, and leave-community action.
+- Moderator report queue, hide/restore, resolve, suspend/reinstate, and audit trail.
+- Backend deployment candidate with private tables, RLS enabled, no direct table access for client roles, and one authenticated RPC gateway. Access requires verified non-anonymous users, community membership, and active membership status. Server defaults closed.
+- Browser defaults closed too; no keys or hosted database are configured.
 
-## Required before discussions open
-1. Select the community backend and authentication deployment. Keep care profiles, assessments, and family records separate from discussion data. Existing projects include production Beta, caregiver staging, DD development, and Individual 360; do not choose one by guesswork.
-2. Implement verified adult member registration, explicit community opt-in, editable display names, and membership terms acceptance.
-3. Enforce membership and moderation roles on the server/database, including direct API access. No public access to posts. Prevent cross-community access without enrollment.
-4. Add topics, posts, replies, pagination, reporting, moderator queue, removal/suspension, rate limits, and account/content deletion. Do not enable private messaging or uploads at initial launch.
-5. Set notification preferences; never place private post text in public pages or notification emails by default.
-6. Publish privacy notice and membership terms; designate the human moderator and publish actual coverage/reporting arrangements.
-7. Test anonymous denial, cross-member/community access, privilege escalation, suspension, deletion, malicious content, and reporting using fictional users.
-8. Obtain editorial review of the journal draft; invite founding members only once access controls and moderation pass verification.
+## Validation performed
+12 local PostgreSQL-compatible PGlite access tests passed, including anonymous/unverified rejection, membership boundaries, cross-community IDs, forged authors/roles, rate limits, hidden parents, private table denial, reports, suspension/rejoin, moderator scoping, deletion, and closed-state behavior. Build and JavaScript syntax checks passed. Browser inspected the closed member gate, community hub navigation, and DD entrance. Authenticated browser flows and hosted Supabase behavior have NOT yet been verified.
 
-## Launch cadence
-One host-led question per caregiver community weekly. Two journal articles monthly. Leadership discussion remains tied to future paid Academy/coaching groups.
+## Next deployment step
+Use a dedicated community staging Supabase project. Existing caregiver and assessment projects should not be repurposed by assumption. See `forum/README.md` for the configuration and test procedure. The candidate SQL has not been applied to any hosted project.
 
-No member discussions, authentication, subscriptions, or database changes are implemented by this foundation branch.
+## Required before inviting real members
+- Select/create staging, configure verified email auth, test redirects, SMTP delivery, CAPTCHA/rate limits and password recovery.
+- Apply the reviewed schema, run advisors and direct REST permission tests, then record a proper migration using the Supabase CLI workflow.
+- Bootstrap a verified human moderator separately for each community. Members cannot assign roles.
+- Publish final privacy/membership terms, coverage hours, report-response expectations, and an account/content deletion process. The current guidelines remain an editorial draft, not final membership terms.
+- Complete authenticated desktop/mobile browser tests with fictional users, including network failures, multi-tab account changes, suspended sessions, and public-search exclusion.
+- Confirm data retention and backups; test recovery and deletions. Own-message removal currently erases that message but hides rather than deletes replies beneath a removed root; moderators' reports/audit records are retained. No self-service account deletion is implemented.
+- Review Journal copy, then invite founding members. No invitations have been sent.
+
+## Scope deferred
+Uploads, private messages, email discussion notifications, digest preferences, self-service account deletion, leadership groups, and billing. No care profiles or assessment records are read or copied into the forum.
