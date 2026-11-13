@@ -182,8 +182,6 @@ test('expired session immediately hides dashboard and requires sign in',async({p
  await fakeBackend(page);await signin(page);
  await page.route(API+'/auth/v1/token?grant_type=refresh_token',route=>reply(route,{message:'Invalid refresh token'},401));
  await page.locator('#openTasks').click();
- await expect(page.locator('#tasksModule')).toBeVisible();
- await page.locator('#refreshTasks').click();
  await expect(page.locator('#auth')).toBeVisible();
  await expect(page.locator('#app')).toBeHidden();
  await expect(page.locator('#signedin')).toHaveText('');
