@@ -188,3 +188,25 @@ test('expired session immediately hides dashboard and requires sign in',async({p
  await expect(page.locator('#notice')).toContainText('Session expired');
  expect(await page.evaluate(()=>sessionStorage.getItem('dd_dev_session'))).toBeNull();
 });
+
+test('mobile viewport keeps signed-out login and warning usable without horizontal overflow',async({page})=>{
+ await page.setViewportSize({width:375,height:812});
+ await page.goto('/');
+ await expect(page.locator('#auth')).toBeVisible();
+ await expect(page.getByText('Development environment. Use only fictional profiles and test accounts.',{exact:false})).toBeVisible();
+ await expect(page.locator('#email')).toBeVisible();
+ await expect(page.locator('#password')).toBeVisible();
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth+1)).toBeTruthy();
+});
+test('keyboard users can reach sign-in controls',async({page})=>{
+ await page.goto('/');
+ await page.locator('body').click({position:{x:5,y:5}});
+ const visited=new Set();
+ for(let i=0;i<16;i++){
+  await page.keyboard.press('Tab');
+  visited.add(await page.evaluate(()=>document.activeElement?.id||''));
+ }
+ expect(visited.has('email')).toBeTruthy();
+ expect(visited.has('password')).toBeTruthy();
+ expect(visited.has('signin')).toBeTruthy();
+});
