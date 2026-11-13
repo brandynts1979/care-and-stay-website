@@ -37,7 +37,7 @@ const notify=s=>{$('notice').textContent=s};
 function make(tag,content,className){let el=document.createElement(tag);el.textContent=content;if(className)el.className=className;return el}
 function item(target,heading,sub){const d=make('div','', 'entry');d.append(make('strong',heading));if(sub)d.append(make('p',sub,'muted'));$(target).append(d);return d}
 async function request(path,method='GET',data=null,access=true){let h={'apikey':KEY,'Content-Type':'application/json'};if(method==='POST'&&path.startsWith('/rest/v1/'))h.Prefer='return=representation';if(access&&session)h.Authorization='Bearer '+session.access_token;let r=await fetch(URL+path,{method,headers:h,body:data?JSON.stringify(data):undefined});let raw=await r.text(),value;try{value=raw?JSON.parse(raw):null}catch{value=raw}if(!r.ok)throw Error(value?.msg||value?.message||value?.error_description||value?.error||('HTTP '+r.status));return value}
-async function authenticate(type){notify('');try{let email=$('email').value.trim(),password=$('password').value;if(!email||!password)throw Error('Enter email and password.');let path=type==='signin'?'/auth/v1/token?grant_type=password':'/auth/v1/signup';let value=await request(path,'POST',{email,password},false);if(type==='signup'&&!value.access_token){notify('Account created. Check your verification email before signing in.');return}session=value;await loggedIn()}catch(e){notify(e.message)}}
+async function authenticate(type){notify('');try{let email=$('email').value.trim(),password=$('password').value;if(!email||!password)throw Error('Enter email and password.');let path=type==='signin'?'/auth/v1/token?grant_type=password':'/auth/v1/signup?redirect_to='+encodeURIComponent(window.location.origin+'/');let value=await request(path,'POST',{email,password},false);if(type==='signup'&&!value.access_token){notify('Account created. Check your verification email before signing in.');return}session=value;await loggedIn()}catch(e){notify(e.message)}}
 async function loggedIn(){if(!session?.access_token)return;sessionStorage.setItem('dd_dev_session',JSON.stringify(session));$('auth').classList.add('hide');$('app').classList.remove('hide');$('signedin').textContent=session.user?.email||'Signed in';notify('Signed in to DD development. Use fictional records only.');await loadPeople()}
 async function refresh(){if(!session?.refresh_token)return;try{let v=await request('/auth/v1/token?grant_type=refresh_token','POST',{refresh_token:session.refresh_token},false);session=v;sessionStorage.setItem('dd_dev_session',JSON.stringify(session))}catch{session=null;sessionStorage.removeItem('dd_dev_session')}}
 async function retry(action){try{await refresh();if(!session)throw Error('Session expired. Please sign in again.');await action()}catch(e){notify(e.message)}}
@@ -57,5 +57,23 @@ $('signin').onclick=()=>authenticate('signin');$('signup').onclick=()=>authentic
 $('signout').onclick=async()=>{try{await request('/auth/v1/logout','POST',{},true)}catch{}session=null;person=null;sessionStorage.removeItem('dd_dev_session');$('app').classList.add('hide');$('auth').classList.remove('hide');notify('Signed out.')};
 wire('savePerson',savePerson);wire('addStrength',addStrength);wire('addGoal',addGoal);wire('addStep',addStep);wire('addNote',addNote);
 $('people').onchange=()=>retry(selectPerson);$('activeGoal').onchange=()=>retry(loadProgress);
-(async()=>{try{session=JSON.parse(sessionStorage.getItem('dd_dev_session')||'null');if(session){await refresh();if(session)await loggedIn()}}catch{session=null}})();
+(async()=>{
+  const query=new URLSearchParams(window.location.search);
+  const fragment=new URLSearchParams(window.location.hash.replace(/^#/,''));
+  const error=query.get('error_description')||fragment.get('error_description')||query.get('error')||fragment.get('error');
+  const hasConfirmation=fragment.has('access_token') || query.has('code') || fragment.get('type')==='signup';
+  if(error||hasConfirmation){
+    history.replaceState(null,'',window.location.pathname);
+    sessionStorage.removeItem('dd_dev_session');
+    session=null;
+    $('app').classList.add('hide');
+    $('auth').classList.remove('hide');
+    notify(error?'Verification link could not be completed: '+error+'. Please request a new confirmation link if needed.':'Email verified. You can now sign in to the Care & Stay DD development app.');
+    return;
+  }
+  try{
+    session=JSON.parse(sessionStorage.getItem('dd_dev_session')||'null');
+    if(session){await refresh();if(session)await loggedIn()}
+  }catch{session=null}
+})();
 </script></body></html>
