@@ -139,3 +139,29 @@ test('owner can create and revoke a fictional family invitation',async({page})=>
  await page.getByRole('button',{name:'Revoke access'}).click();
  await expect.poll(()=>db.invites.length).toBe(0);
 });
+
+test('documents reject unsupported formats and oversize files before upload',async({page})=>{
+ const db=await fakeBackend(page);await signin(page);
+ await page.locator('#openStrengths').click();
+ await page.locator('#personName').fill('Alex Sample');
+ await page.locator('#savePerson').click();
+ await page.locator('#backHome').click();
+ await page.locator('#openDocuments').click();
+ await page.locator('#docPerson').selectOption(db.people[0].id);
+ await page.locator('#docName').fill('Test document');
+ await page.locator('#docFile').setInputFiles({name:'test.txt',mimeType:'text/plain',buffer:Buffer.from('fictional')});
+ await page.locator('#uploadDocument').click();
+ await expect(page.locator('#notice')).toContainText('Only PDF, PNG and JPEG');
+ expect(db.docs).toHaveLength(0);
+ await page.locator('#docFile').setInputFiles({name:'huge.pdf',mimeType:'application/pdf',buffer:Buffer.alloc(10485761)});
+ await page.locator('#uploadDocument').click();
+ await expect(page.locator('#notice')).toContainText('10 MB');
+ expect(db.docs).toHaveLength(0);
+});
+test('shared document library does not expose files through the UI',async({page})=>{
+ const db=await fakeBackend(page);await signin(page);
+ await page.locator('#openDocuments').click();
+ await expect(page.locator('#documentsModule')).toContainText('Only the profile owner');
+ await expect(page.locator('#docList')).toContainText('No documents saved yet');
+ expect(db.files.size).toBe(0);
+});
