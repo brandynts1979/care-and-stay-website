@@ -130,9 +130,9 @@ async function loadDocuments(){
   download.addEventListener('click',()=>retry(async()=>{
    const res=await docStorage(d.file_path);
    const blob=await res.blob();
-   const u=URL.createObjectURL(blob),link=document.createElement('a');
+   const u=window.URL.createObjectURL(blob),link=document.createElement('a');
    link.href=u;link.download=d.document_name;document.body.append(link);link.click();link.remove();
-   setTimeout(()=>URL.revokeObjectURL(u),30000);
+   setTimeout(()=>window.URL.revokeObjectURL(u),30000);
    notify('Document downloaded.');
   }));
   const remove=make('button','Delete','secondary');remove.type='button';
