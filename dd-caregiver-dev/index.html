@@ -14,13 +14,24 @@
 <div class="card flex"><div><strong id="signedin"></strong><p class="muted">Only you can see records you create in this first development version.</p></div><div style="text-align:right"><button id="signout" class="secondary">Sign out</button></div></div>
 <section id="dashboard"><div class="card"><h2>Family Care Dashboard</h2><p>Helping children and adults with developmental disabilities build on strengths, choices, autonomy and quality of life.</p><p class="muted">Select a module. Planned features are not yet available. Use fictional information only.</p></div><div class="dashboard-grid"><button type="button" class="dashboard-tile ready" id="openStrengths"><strong>🌱 Strengths & Possibilities</strong><span>Personal goals, interests, practice steps and progress notes.</span><span class="tag">Available now</span></button>
 <button type="button" class="dashboard-tile ready" id="openTeam"><strong>👥 My Care Team</strong><span>Invite supporters and accept read-only access to a shared profile.</span><span class="tag">Development preview</span></button>
-<button type="button" class="dashboard-tile" disabled><strong>📅 Care Calendar & Tasks</strong><span>Daily routines, appointments, respite and task assignments.</span><em>Planned</em></button>
+<button type="button" class="dashboard-tile ready" id="openTasks"><strong>📅 Shared Care Tasks</strong><span>Assign tasks to accepted supporters and track their progress.</span><span class="tag">Development preview</span></button>
 <button type="button" class="dashboard-tile" disabled><strong>📁 Documents & Records</strong><span>IEPs, care plans, therapy records and important documents.</span><em>Planned</em></button>
 <button type="button" class="dashboard-tile" disabled><strong>💊 Health & Medications</strong><span>Care information, medications and allergies.</span><em>Planned</em></button>
 <button type="button" class="dashboard-tile" disabled><strong>🎓 Education & Therapies</strong><span>IEP goals, services, appointments and progress.</span><em>Planned</em></button>
 <button type="button" class="dashboard-tile" disabled><strong>🧭 Benefits & Resources</strong><span>Medicaid waivers, respite and community supports.</span><em>Planned</em></button>
 <button type="button" class="dashboard-tile" disabled><strong>🌤️ Future & Transitions</strong><span>Adulthood, employment, housing and supported decisions.</span><em>Planned</em></button>
-<button type="button" class="dashboard-tile" disabled><strong>💬 AI Family Care Coach</strong><span>Strengths-based coaching and practical guidance.</span><em>Planned</em></button></div></section><div id="teamModule" class="hide">
+<button type="button" class="dashboard-tile" disabled><strong>💬 AI Family Care Coach</strong><span>Strengths-based coaching and practical guidance.</span><em>Planned</em></button></div></section><div id="tasksModule" class="hide">
+<button type="button" id="tasksBackHome" class="secondary">← Back to Dashboard</button>
+<section class="card"><h2>Shared Care Tasks</h2><p>Create a fictional care task, optionally assign it to an accepted supporter, and track its completion. Assigned supporters can update the status of their own tasks only.</p>
+<div id="taskOwnerInputs"><label for="taskPerson">Profile</label><select id="taskPerson"><option value="">Choose a profile</option></select>
+<label for="taskTitle">Task description</label><input id="taskTitle" maxlength="300" placeholder="Example: Practice choosing a snack">
+<label for="taskDetails">Helpful instructions</label><textarea id="taskDetails" placeholder="Example: Offer visual choices, encourage independent decisions"></textarea>
+<label for="taskDue">Target date (optional)</label><input id="taskDue" type="date">
+<label for="taskAssignee">Assign to accepted supporter (optional)</label><select id="taskAssignee"><option value="">Unassigned</option></select>
+<button type="button" id="createTask">Save task</button></div>
+<h3>Tasks available to your account</h3><div id="taskList"></div><button type="button" id="refreshTasks" class="secondary">Refresh tasks</button>
+<p class="muted"><small>Development testing only. A full scheduling calendar, recurring tasks, alerts and broader editing permissions are not yet implemented.</small></p>
+</section></div><div id="teamModule" class="hide">
 <button type="button" id="teamBackHome" class="secondary">← Back to Dashboard</button>
 <section class="card"><h2>My Care Team</h2><p>Invite a registered supporter to see a fictional profile, strengths, goals and progress. Access begins only when the invited account accepts. This first version is read-only for invitees.</p>
 <label for="teamPerson">Choose your fictional profile</label><select id="teamPerson"><option value="">Choose a profile</option></select>
@@ -54,7 +65,7 @@ const URL='https://iqgytijuufgkvnzolvqz.supabase.co';
 const KEY='sb_publishable_RJjUabuM_LOanY9YqLRXLw_-TdQo4rA';
 const $=id=>document.getElementById(id); let session=null,person=null,strengths=[],goals=[],peopleCache=[];
 const notify=s=>{$('notice').textContent=s};
-function navigate(section){$('dashboard').classList.toggle('hide',section!=='home');$('strengthsModule').classList.toggle('hide',section!=='strengths');$('teamModule').classList.toggle('hide',section!=='team');if(section==='home')notify('');window.scrollTo(0,0);}
+function navigate(section){$('dashboard').classList.toggle('hide',section!=='home');$('strengthsModule').classList.toggle('hide',section!=='strengths');$('teamModule').classList.toggle('hide',section!=='team');$('tasksModule').classList.toggle('hide',section!=='tasks');if(section==='home')notify('');window.scrollTo(0,0);}
 function make(tag,content,className){let el=document.createElement(tag);el.textContent=content;if(className)el.className=className;return el}
 function item(target,heading,sub){const d=make('div','', 'entry');d.append(make('strong',heading));if(sub)d.append(make('p',sub,'muted'));$(target).append(d);return d}
 async function request(path,method='GET',data=null,access=true){let h={'apikey':KEY,'Content-Type':'application/json'};if(method==='POST'&&path.startsWith('/rest/v1/'))h.Prefer='return=representation';if(access&&session)h.Authorization='Bearer '+session.access_token;let r=await fetch(URL+path,{method,headers:h,body:data?JSON.stringify(data):undefined});let raw=await r.text(),value;try{value=raw?JSON.parse(raw):null}catch{value=raw}if(!r.ok)throw Error(value?.msg||value?.message||value?.error_description||value?.error||('HTTP '+r.status));return value}
@@ -76,6 +87,52 @@ async function addStep(){let goal_id=selectedGoal(),step_text=$('step').value.tr
 async function addNote(){let goal_id=selectedGoal(),observation=$('observation').value.trim();if(!observation)throw Error('Enter an observation.');await request('/rest/v1/dd_progress_notes','POST',{person_id:person.id,goal_id,observation,person_feedback:$('feedback').value.trim(),support_level:$('supportLevel').value});$('observation').value='';$('feedback').value='';await loadProgress();notify('Progress note saved.')}
 $('openStrengths').addEventListener('click',()=>navigate('strengths'));
 $('backHome').addEventListener('click',()=>navigate('home'));
+
+
+async function loadTasks(){
+ const [profiles,invites,tasks]=await Promise.all([
+ request('/rest/v1/dd_people?select=id,display_name,owner_id&order=created_at.desc'),
+ request('/rest/v1/dd_team_invitations?select=id,person_id,invitee_email,role,status&status=eq.accepted'),
+ request('/rest/v1/dd_care_tasks?select=id,person_id,owner_id,title,details,due_date,status,assigned_invitation_id&order=created_at.desc')
+ ]);
+ const owned=profiles.filter(p=>p.owner_id===session?.user?.id);
+ $('taskPerson').replaceChildren(new Option('Choose a profile',''));
+ owned.forEach(p=>$('taskPerson').add(new Option(p.display_name,p.id)));
+ $('taskAssignee').replaceChildren(new Option('Unassigned',''));
+ const known=Object.fromEntries(profiles.map(p=>[p.id,p.display_name]));
+ const listed=$('taskList');listed.replaceChildren();
+ for(const task of tasks){
+  const mine=task.owner_id===session?.user?.id;
+  const assigned=invites.find(i=>i.id===task.assigned_invitation_id);
+  const d=item('taskList',task.title,(known[task.person_id]||'Shared profile')+' · '+(assigned?.invitee_email||'Unassigned')+' · '+(task.due_date||'No due date'));
+  if(task.details)d.append(make('p',task.details,'muted'));
+  const label=make('label','Task status');d.append(label);
+  const status=document.createElement('select');
+  for(const [value,text] of [['open','Open'],['in_progress','In progress'],['completed','Completed']])status.add(new Option(text,value));
+  status.value=task.status;
+  status.setAttribute('aria-label','Status for '+task.title);
+  status.addEventListener('change',()=>retry(async()=>{await request('/rest/v1/dd_care_tasks?id=eq.'+enc(task.id),'PATCH',{status:status.value});await loadTasks();notify('Task status updated.')}));
+  d.append(status);
+  if(mine){
+   const btn=make('button','Delete task','secondary');
+   btn.type='button';btn.addEventListener('click',()=>retry(async()=>{if(!window.confirm('Delete this fictional task?'))return;await request('/rest/v1/dd_care_tasks?id=eq.'+enc(task.id),'DELETE');await loadTasks();notify('Task deleted.')}));
+   d.append(btn);
+  }
+ }
+ if(!tasks.length)listed.append(make('p','No tasks available yet.','muted'));
+ $('taskPerson').onchange=()=>{const person=$('taskPerson').value;const accepted=invites.filter(i=>i.person_id===person && i.role!=='professional');$('taskAssignee').replaceChildren(new Option('Unassigned',''));accepted.forEach(i=>$('taskAssignee').add(new Option(i.invitee_email+' ('+i.role+')',i.id)))};
+}
+async function createTask(){
+ const person_id=$('taskPerson').value,title=$('taskTitle').value.trim();
+ if(!person_id)throw Error('Choose a profile you own.');
+ if(!title)throw Error('Enter a task description.');
+ const assigned_invitation_id=$('taskAssignee').value||null;
+ await request('/rest/v1/dd_care_tasks','POST',{person_id,title,details:$('taskDetails').value.trim()||null,due_date:$('taskDue').value||null,assigned_invitation_id});
+ $('taskTitle').value='';$('taskDetails').value='';$('taskDue').value='';
+ await loadTasks();notify('Shared care task created.');
+}
+$('openTasks').addEventListener('click',()=>retry(async()=>{navigate('tasks');await loadTasks()}));
+$('tasksBackHome').addEventListener('click',()=>navigate('home'));
 
 async function loadTeam(){
  const [invites,profiles]=await Promise.all([
@@ -119,7 +176,7 @@ async function inviteTeam(){
 $('openTeam').addEventListener('click',()=>retry(async()=>{navigate('team');await loadTeam()}));
 $('teamBackHome').addEventListener('click',()=>navigate('home'));
 wire('sendTeamInvite',inviteTeam);
-wire('reloadTeam',loadTeam);
+wire('reloadTeam',loadTeam);wire('createTask',createTask);wire('refreshTasks',loadTasks);
 function wire(id,fn){$(id).addEventListener('click',()=>retry(fn))}
 $('signin').onclick=()=>authenticate('signin');$('signup').onclick=()=>authenticate('signup');
 $('signout').onclick=async()=>{try{await request('/auth/v1/logout','POST',{},true)}catch{}session=null;person=null;sessionStorage.removeItem('dd_dev_session');$('app').classList.add('hide');$('auth').classList.remove('hide');navigate('home');notify('Signed out.')};
