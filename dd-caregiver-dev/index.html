@@ -107,8 +107,19 @@ const DOC_TYPES=new Set(['application/pdf','image/png','image/jpeg']);
 async function docStorage(path,method='GET',file=null,type=''){
  const h={'apikey':KEY,'Authorization':'Bearer '+session.access_token};
  if(file){h['Content-Type']=type;h['x-upsert']='false';}
- const response=await fetch(URL+'/storage/v1/object/'+DOC_BUCKET+'/'+path.split('/').map(encodeURIComponent).join('/'),{method,headers:h,body:file||undefined});
+ const encoded=path.split('/').map(encodeURIComponent).join('/');
+ const url=URL+'/storage/v1/object/'+(method==='GET'?'authenticated/':'')+DOC_BUCKET+'/'+encoded;
+ const response=await fetch(url,{method,headers:h,body:file||undefined});
  if(!response.ok){const raw=await response.text();throw Error('Document storage error: '+response.status+' '+raw.slice(0,150));}
+ return response;
+}
+async function deleteDocStorage(path){
+ const response=await fetch(URL+'/storage/v1/object/'+DOC_BUCKET,{
+  method:'DELETE',
+  headers:{apikey:KEY,Authorization:'Bearer '+session.access_token,'Content-Type':'application/json'},
+  body:JSON.stringify({prefixes:[path]})
+ });
+ if(!response.ok){const raw=await response.text();throw Error('Document deletion error: '+response.status+' '+raw.slice(0,150));}
  return response;
 }
 async function loadDocuments(){
@@ -138,7 +149,7 @@ async function loadDocuments(){
   const remove=make('button','Delete','secondary');remove.type='button';
   remove.addEventListener('click',()=>retry(async()=>{
    if(!window.confirm('Permanently delete this fictional test document?'))return;
-   await docStorage(d.file_path,'DELETE');
+   await deleteDocStorage(d.file_path);
    await request('/rest/v1/dd_documents?id=eq.'+enc(d.id),'DELETE');
    await loadDocuments();notify('Test document deleted.');
   }));
@@ -160,7 +171,7 @@ async function uploadDocument(){
  await docStorage(storagePath,'POST',file,file.type);
  try{
   await request('/rest/v1/dd_documents','POST',{person_id,document_name:title,category:$('docCategory').value,file_path:storagePath,media_type:file.type,file_size:file.size,notes:$('docNotes').value.trim()||null});
- }catch(e){try{await docStorage(storagePath,'DELETE')}catch{}throw e}
+ }catch(e){try{await deleteDocStorage(storagePath)}catch{}throw e}
  $('docName').value='';$('docNotes').value='';$('docFile').value='';
  await loadDocuments();notify('Private test document saved.');
 }
