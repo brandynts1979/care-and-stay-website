@@ -18,9 +18,11 @@ async function refreshAccount(){
  if(ticket!==generation)return;
  user=data.user;
  if(!user){clearPrivate();$('auth').hidden=false;return;}
- const me=await api('me');if(ticket!==generation)return;
- memberships=me.memberships;terms=me.terms_version;
  $('auth').hidden=true;$('account').hidden=false;$('identity').textContent=`Signed in as ${user.email}`;
+ $('membership').replaceChildren();$('workspace').hidden=true;$('community').disabled=true;
+ let me;try{me=await api('me');}catch(e){if(ticket!==generation)return;if(e.code==='42501'){status(user.email_confirmed_at?'Your email is verified and you are signed in. Discussion access is still being prepared.':e.message);return;}throw e;}
+ if(ticket!==generation)return;
+ memberships=me.memberships;terms=me.terms_version;$('community').disabled=false;
  await showCommunity();
 }
 async function showCommunity(){
