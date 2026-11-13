@@ -1,0 +1,40 @@
+-- Reusable DD shared-care task permission regression; no persistent writes.
+BEGIN;
+SELECT set_config('ddt.owner',id::text,true),set_config('ddt.owner_email',email,true) FROM (SELECT id,email FROM auth.users WHERE email IS NOT NULL ORDER BY created_at LIMIT 1) t;
+SELECT set_config('ddt.member',id::text,true),set_config('ddt.member_email',email,true) FROM (SELECT id,email FROM auth.users WHERE email IS NOT NULL ORDER BY created_at OFFSET 1 LIMIT 1) t;
+SET LOCAL ROLE authenticated;
+DO $tests$
+DECLARE a uuid:=current_setting('ddt.owner')::uuid; b uuid:=current_setting('ddt.member')::uuid; ae text:=current_setting('ddt.owner_email'); be text:=current_setting('ddt.member_email'); p uuid;i uuid;t uuid;n int;blocked boolean;
+BEGIN
+ IF a=b THEN RAISE EXCEPTION 'Requires two identities'; END IF;
+ PERFORM set_config('request.jwt.claims',json_build_object('sub',a,'email',ae,'role','authenticated')::text,true);
+ INSERT INTO public.dd_people(owner_id,display_name) VALUES(a,'AUTOTEST task family') RETURNING id INTO p;
+ INSERT INTO public.dd_team_invitations(owner_id,person_id,invitee_email,role,authority_confirmed) VALUES(a,p,be,'family_supporter',true) RETURNING id INTO i;
+ blocked:=false;
+ BEGIN INSERT INTO public.dd_care_tasks(owner_id,person_id,title,assigned_invitation_id) VALUES(a,p,'Choose recipe',i);
+ EXCEPTION WHEN OTHERS THEN blocked:=true; END;
+ IF NOT blocked THEN RAISE EXCEPTION 'Pending invitation assigned'; END IF;
+ PERFORM set_config('request.jwt.claims',json_build_object('sub',b,'email',be,'role','authenticated')::text,true);
+ UPDATE public.dd_team_invitations SET status='accepted',invitee_user_id=b WHERE id=i;
+ IF NOT FOUND THEN RAISE EXCEPTION 'Acceptance failed'; END IF;
+ PERFORM set_config('request.jwt.claims',json_build_object('sub',a,'email',ae,'role','authenticated')::text,true);
+ INSERT INTO public.dd_care_tasks(owner_id,person_id,title,details,assigned_invitation_id) VALUES(a,p,'Prepare snack','Use pictures',i) RETURNING id INTO t;
+ PERFORM set_config('request.jwt.claims',json_build_object('sub',b,'email',be,'role','authenticated')::text,true);
+ SELECT count(*) INTO n FROM public.dd_care_tasks WHERE id=t;
+ IF n<>1 THEN RAISE EXCEPTION 'Task not visible'; END IF;
+ UPDATE public.dd_care_tasks SET status='completed' WHERE id=t;
+ IF NOT FOUND THEN RAISE EXCEPTION 'Status update failed'; END IF;
+ blocked:=false;
+ BEGIN UPDATE public.dd_care_tasks SET title='ILLEGAL CHANGE' WHERE id=t;
+ EXCEPTION WHEN OTHERS THEN blocked:=true; END;
+ IF NOT blocked THEN RAISE EXCEPTION 'Description edit allowed'; END IF;
+ PERFORM set_config('request.jwt.claims',json_build_object('sub',a,'email',ae,'role','authenticated')::text,true);
+ DELETE FROM public.dd_team_invitations WHERE id=i;
+ PERFORM set_config('request.jwt.claims',json_build_object('sub',b,'email',be,'role','authenticated')::text,true);
+ SELECT count(*) INTO n FROM public.dd_care_tasks WHERE id=t;
+ IF n<>0 THEN RAISE EXCEPTION 'Revoked recipient retained task access'; END IF;
+ UPDATE public.dd_care_tasks SET status='open' WHERE id=t;
+ IF FOUND THEN RAISE EXCEPTION 'Revoked recipient updated task'; END IF;
+END $tests$;
+ROLLBACK;
+SELECT 'PASS: shared care tasks regression (rolled back)' AS result;
