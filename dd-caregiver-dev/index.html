@@ -208,7 +208,7 @@ async function loadTasks(){
    btn.addEventListener('click',()=>{
     if(btn.dataset.confirm!=='yes'){
      btn.dataset.confirm='yes';btn.textContent='Confirm delete task';
-     btn.setAttribute('aria-label','Confirm delete '+task.title);
+     btn.setAttribute('aria-label','Confirm delete task');
      notify('Click Confirm delete task to permanently remove this fictional task.');
      return;
     }
