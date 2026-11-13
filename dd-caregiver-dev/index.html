@@ -15,12 +15,24 @@
 <section id="dashboard"><div class="card"><h2>Family Care Dashboard</h2><p>Helping children and adults with developmental disabilities build on strengths, choices, autonomy and quality of life.</p><p class="muted">Select a module. Planned features are not yet available. Use fictional information only.</p></div><div class="dashboard-grid"><button type="button" class="dashboard-tile ready" id="openStrengths"><strong>🌱 Strengths & Possibilities</strong><span>Personal goals, interests, practice steps and progress notes.</span><span class="tag">Available now</span></button>
 <button type="button" class="dashboard-tile ready" id="openTeam"><strong>👥 My Care Team</strong><span>Invite supporters and accept read-only access to a shared profile.</span><span class="tag">Development preview</span></button>
 <button type="button" class="dashboard-tile ready" id="openTasks"><strong>📅 Shared Care Tasks</strong><span>Assign tasks to accepted supporters and track their progress.</span><span class="tag">Development preview</span></button>
-<button type="button" class="dashboard-tile" disabled><strong>📁 Documents & Records</strong><span>IEPs, care plans, therapy records and important documents.</span><em>Planned</em></button>
+<button type="button" class="dashboard-tile ready" id="openDocuments"><strong>📁 Documents & Records</strong><span>Upload and download private fictional test documents.</span><span class="tag">Development preview</span></button>
 <button type="button" class="dashboard-tile" disabled><strong>💊 Health & Medications</strong><span>Care information, medications and allergies.</span><em>Planned</em></button>
 <button type="button" class="dashboard-tile" disabled><strong>🎓 Education & Therapies</strong><span>IEP goals, services, appointments and progress.</span><em>Planned</em></button>
 <button type="button" class="dashboard-tile" disabled><strong>🧭 Benefits & Resources</strong><span>Medicaid waivers, respite and community supports.</span><em>Planned</em></button>
 <button type="button" class="dashboard-tile" disabled><strong>🌤️ Future & Transitions</strong><span>Adulthood, employment, housing and supported decisions.</span><em>Planned</em></button>
-<button type="button" class="dashboard-tile" disabled><strong>💬 AI Family Care Coach</strong><span>Strengths-based coaching and practical guidance.</span><em>Planned</em></button></div></section><div id="tasksModule" class="hide">
+<button type="button" class="dashboard-tile" disabled><strong>💬 AI Family Care Coach</strong><span>Strengths-based coaching and practical guidance.</span><em>Planned</em></button></div></section><div id="documentsModule" class="hide">
+<button type="button" id="documentsBackHome" class="secondary">← Back to Dashboard</button>
+<section class="card"><h2>Documents & Records</h2><p>Organize private records for a fictional profile. Only the profile owner can currently upload, view, or delete files. Shared family access does <strong>not</strong> include documents in this version.</p>
+<p class="warn">Fictional/test documents only. Do not upload actual IEPs, medical records, identifiers or sensitive personal information.</p>
+<label for="docPerson">Choose a profile you own</label><select id="docPerson"><option value="">Choose a profile</option></select>
+<label for="docCategory">Document category</label><select id="docCategory">
+<option value="education_iep">Education / IEP</option><option value="therapy">Therapy</option><option value="medical">Medical</option><option value="benefits">Benefits / Funding</option><option value="legal">Legal</option><option value="other">Other</option></select>
+<label for="docName">Display name</label><input id="docName" maxlength="200" placeholder="Example: Fictional Sample IEP">
+<label for="docNotes">Notes (optional)</label><textarea id="docNotes" maxlength="1000" placeholder="Describe why this document matters"></textarea>
+<label for="docFile">Select a PDF, PNG or JPEG (10 MB maximum)</label><input id="docFile" type="file" accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg">
+<button type="button" id="uploadDocument">Upload private test document</button>
+<h3>Saved documents</h3><div id="docList"></div><button type="button" id="refreshDocuments" class="secondary">Refresh documents</button>
+</section></div><div id="tasksModule" class="hide">
 <button type="button" id="tasksBackHome" class="secondary">← Back to Dashboard</button>
 <section class="card"><h2>Shared Care Tasks</h2><p>Create a fictional care task, optionally assign it to an accepted supporter, and track its completion. Assigned supporters can update the status of their own tasks only.</p>
 <div id="taskOwnerInputs"><label for="taskPerson">Profile</label><select id="taskPerson"><option value="">Choose a profile</option></select>
@@ -65,7 +77,7 @@ const URL='https://iqgytijuufgkvnzolvqz.supabase.co';
 const KEY='sb_publishable_RJjUabuM_LOanY9YqLRXLw_-TdQo4rA';
 const $=id=>document.getElementById(id); let session=null,person=null,strengths=[],goals=[],peopleCache=[];
 const notify=s=>{$('notice').textContent=s};
-function navigate(section){$('dashboard').classList.toggle('hide',section!=='home');$('strengthsModule').classList.toggle('hide',section!=='strengths');$('teamModule').classList.toggle('hide',section!=='team');$('tasksModule').classList.toggle('hide',section!=='tasks');if(section==='home')notify('');window.scrollTo(0,0);}
+function navigate(section){$('dashboard').classList.toggle('hide',section!=='home');$('strengthsModule').classList.toggle('hide',section!=='strengths');$('teamModule').classList.toggle('hide',section!=='team');$('tasksModule').classList.toggle('hide',section!=='tasks');$('documentsModule').classList.toggle('hide',section!=='documents');if(section==='home')notify('');window.scrollTo(0,0);}
 function make(tag,content,className){let el=document.createElement(tag);el.textContent=content;if(className)el.className=className;return el}
 function item(target,heading,sub){const d=make('div','', 'entry');d.append(make('strong',heading));if(sub)d.append(make('p',sub,'muted'));$(target).append(d);return d}
 async function request(path,method='GET',data=null,access=true){let h={'apikey':KEY,'Content-Type':'application/json'};if(method==='POST'&&path.startsWith('/rest/v1/'))h.Prefer='return=representation';if(access&&session)h.Authorization='Bearer '+session.access_token;let r=await fetch(URL+path,{method,headers:h,body:data?JSON.stringify(data):undefined});let raw=await r.text(),value;try{value=raw?JSON.parse(raw):null}catch{value=raw}if(!r.ok)throw Error(value?.msg||value?.message||value?.error_description||value?.error||('HTTP '+r.status));return value}
@@ -88,6 +100,72 @@ async function addNote(){let goal_id=selectedGoal(),observation=$('observation')
 $('openStrengths').addEventListener('click',()=>navigate('strengths'));
 $('backHome').addEventListener('click',()=>navigate('home'));
 
+
+
+const DOC_BUCKET='dd-private-documents';
+const DOC_TYPES=new Set(['application/pdf','image/png','image/jpeg']);
+async function docStorage(path,method='GET',file=null,type=''){
+ const h={'apikey':KEY,'Authorization':'Bearer '+session.access_token};
+ if(file){h['Content-Type']=type;h['x-upsert']='false';}
+ const response=await fetch(URL+'/storage/v1/object/'+DOC_BUCKET+'/'+path.split('/').map(encodeURIComponent).join('/'),{method,headers:h,body:file||undefined});
+ if(!response.ok){const raw=await response.text();throw Error('Document storage error: '+response.status+' '+raw.slice(0,150));}
+ return response;
+}
+async function loadDocuments(){
+ const [profiles,docs]=await Promise.all([
+  request('/rest/v1/dd_people?select=id,owner_id,display_name&order=created_at.desc'),
+  request('/rest/v1/dd_documents?select=id,person_id,owner_id,document_name,category,file_path,media_type,file_size,notes,created_at&order=created_at.desc')
+ ]);
+ const mine=profiles.filter(p=>p.owner_id===session?.user?.id);
+ const previous=$('docPerson').value;
+ $('docPerson').replaceChildren(new Option('Choose a profile',''));
+ mine.forEach(p=>$('docPerson').add(new Option(p.display_name,p.id)));
+ if(mine.some(p=>p.id===previous))$('docPerson').value=previous;
+ const names=Object.fromEntries(profiles.map(p=>[p.id,p.display_name]));
+ const target=$('docList');target.replaceChildren();
+ for(const d of docs){
+  const block=item('docList',d.document_name,(names[d.person_id]||'Profile')+' · '+d.category.replace(/_/g,' / ')+' · '+Math.round(d.file_size/1024)+' KB');
+  if(d.notes)block.append(make('p',d.notes,'muted'));
+  const download=make('button','Download','secondary');download.type='button';
+  download.addEventListener('click',()=>retry(async()=>{
+   const res=await docStorage(d.file_path);
+   const blob=await res.blob();
+   const u=URL.createObjectURL(blob),link=document.createElement('a');
+   link.href=u;link.download=d.document_name;document.body.append(link);link.click();link.remove();
+   setTimeout(()=>URL.revokeObjectURL(u),30000);
+   notify('Document downloaded.');
+  }));
+  const remove=make('button','Delete','secondary');remove.type='button';
+  remove.addEventListener('click',()=>retry(async()=>{
+   if(!window.confirm('Permanently delete this fictional test document?'))return;
+   await docStorage(d.file_path,'DELETE');
+   await request('/rest/v1/dd_documents?id=eq.'+enc(d.id),'DELETE');
+   await loadDocuments();notify('Test document deleted.');
+  }));
+  block.append(download,remove);
+ }
+ if(!docs.length)target.append(make('p','No documents saved yet.','muted'));
+}
+async function uploadDocument(){
+ const person_id=$('docPerson').value,file=$('docFile').files[0];
+ const title=$('docName').value.trim();
+ if(!person_id)throw Error('Choose a profile you own.');
+ if(!file)throw Error('Choose a test PDF or image.');
+ if(!DOC_TYPES.has(file.type))throw Error('Only PDF, PNG and JPEG files are allowed.');
+ if(file.size<1||file.size>10485760)throw Error('File must be 1 byte to 10 MB.');
+ if(!title)throw Error('Enter a document display name.');
+ if(title.length>200)throw Error('Document name is too long.');
+ const extension=file.type==='application/pdf'?'pdf':file.type==='image/png'?'png':'jpg';
+ const storagePath=session.user.id+'/'+person_id+'/'+crypto.randomUUID()+'.'+extension;
+ await docStorage(storagePath,'POST',file,file.type);
+ try{
+  await request('/rest/v1/dd_documents','POST',{person_id,document_name:title,category:$('docCategory').value,file_path:storagePath,media_type:file.type,file_size:file.size,notes:$('docNotes').value.trim()||null});
+ }catch(e){try{await docStorage(storagePath,'DELETE')}catch{}throw e}
+ $('docName').value='';$('docNotes').value='';$('docFile').value='';
+ await loadDocuments();notify('Private test document saved.');
+}
+$('openDocuments').addEventListener('click',()=>retry(async()=>{navigate('documents');await loadDocuments()}));
+$('documentsBackHome').addEventListener('click',()=>navigate('home'));
 
 async function loadTasks(){
  const [profiles,invites,tasks]=await Promise.all([
@@ -176,7 +254,7 @@ async function inviteTeam(){
 $('openTeam').addEventListener('click',()=>retry(async()=>{navigate('team');await loadTeam()}));
 $('teamBackHome').addEventListener('click',()=>navigate('home'));
 wire('sendTeamInvite',inviteTeam);
-wire('reloadTeam',loadTeam);wire('createTask',createTask);wire('refreshTasks',loadTasks);
+wire('reloadTeam',loadTeam);wire('createTask',createTask);wire('refreshTasks',loadTasks);wire('uploadDocument',uploadDocument);wire('refreshDocuments',loadDocuments);
 function wire(id,fn){$(id).addEventListener('click',()=>retry(fn))}
 $('signin').onclick=()=>authenticate('signin');$('signup').onclick=()=>authenticate('signup');
 $('signout').onclick=async()=>{try{await request('/auth/v1/logout','POST',{},true)}catch{}session=null;person=null;sessionStorage.removeItem('dd_dev_session');$('app').classList.add('hide');$('auth').classList.remove('hide');navigate('home');notify('Signed out.')};
