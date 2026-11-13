@@ -204,7 +204,19 @@ async function loadTasks(){
   d.append(status);
   if(mine){
    const btn=make('button','Delete task','secondary');
-   btn.type='button';btn.addEventListener('click',()=>retry(async()=>{if(!window.confirm('Delete this fictional task?'))return;await request('/rest/v1/dd_care_tasks?id=eq.'+enc(task.id),'DELETE');await loadTasks();notify('Task deleted.')}));
+   btn.type='button';
+   btn.addEventListener('click',()=>{
+    if(btn.dataset.confirm!=='yes'){
+     btn.dataset.confirm='yes';btn.textContent='Confirm delete task';
+     btn.setAttribute('aria-label','Confirm delete '+task.title);
+     notify('Click Confirm delete task to permanently remove this fictional task.');
+     return;
+    }
+    retry(async()=>{
+     await request('/rest/v1/dd_care_tasks?id=eq.'+enc(task.id),'DELETE');
+     await loadTasks();notify('Task deleted.');
+    });
+   });
    d.append(btn);
   }
  }
