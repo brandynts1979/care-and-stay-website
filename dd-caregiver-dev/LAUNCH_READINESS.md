@@ -5,9 +5,9 @@
 | Gate | Current state | Evidence needed |
 | --- | --- | --- |
 | Database isolation / RLS | Live role-impersonation checks passed Nov 13, 2026: owner read; accepted supporter read but not update; unrelated account neither read nor update. All 8 DD tables have RLS enabled. | Expand cross-record insertion/forgery and storage-permission negative tests |
-| Invites and revocation | Transactional tests pass | End-to-end tests with distinct verified accounts, revoked access after refresh |
+| Invites and revocation | **Live rollback check passed Nov 13, 2026:** removing an accepted invitation immediately hides profile, strengths, goals, goal steps, progress notes, and shared tasks; original invitation restored by ROLLBACK and confirmed. | Real end-to-end browser test of revocation, including after refresh and stale sessions |
 | Tasks | Live rollback test passed Nov 13, 2026: assigned supporter can update status, but trigger blocks task-title edits; fixture removed. Mocked Playwright create/update/delete passed. | Real assigned-user browser test against Supabase and post-revocation checks |
-| Documents metadata | Owner-only tests pass | Real object upload/download/delete and storage RLS tests using disposable fictional files |
+| Documents metadata | Owner-only checks plus **live cross-owner document forgery rejection** verified Nov 13, 2026; rollback, zero retained test metadata. | Real file object upload/download/delete via Storage REST, authenticated cross-account denial, cleanup verification |
 | Browser journeys | **7/7 mock-backed Playwright Chromium tests passed** Nov 13, 2026, GitHub Actions run 43465240566 | Staging browser tests against real Supabase Auth and Storage |
 | CI gating | GitHub Actions push/PR workflow passes (run 43465240566), pinned Ubuntu 24.04; manual dispatch enabled | Enforce branch protections and block releases on failed checks |
 | Deploy automation | Render shows autoDeploy=yes; manual deploys still needed | Commit-to-deploy evidence, deploy rollback plan |
