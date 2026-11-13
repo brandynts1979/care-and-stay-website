@@ -13,14 +13,26 @@
 <div id="app" class="hide">
 <div class="card flex"><div><strong id="signedin"></strong><p class="muted">Only you can see records you create in this first development version.</p></div><div style="text-align:right"><button id="signout" class="secondary">Sign out</button></div></div>
 <section id="dashboard"><div class="card"><h2>Family Care Dashboard</h2><p>Helping children and adults with developmental disabilities build on strengths, choices, autonomy and quality of life.</p><p class="muted">Select a module. Planned features are not yet available. Use fictional information only.</p></div><div class="dashboard-grid"><button type="button" class="dashboard-tile ready" id="openStrengths"><strong>🌱 Strengths & Possibilities</strong><span>Personal goals, interests, practice steps and progress notes.</span><span class="tag">Available now</span></button>
-<button type="button" class="dashboard-tile" disabled><strong>👥 My Care Team</strong><span>Invitations, family roles, caregiver permissions and communication.</span><em>Planned — next</em></button>
+<button type="button" class="dashboard-tile ready" id="openTeam"><strong>👥 My Care Team</strong><span>Invite supporters and accept read-only access to a shared profile.</span><span class="tag">Development preview</span></button>
 <button type="button" class="dashboard-tile" disabled><strong>📅 Care Calendar & Tasks</strong><span>Daily routines, appointments, respite and task assignments.</span><em>Planned</em></button>
 <button type="button" class="dashboard-tile" disabled><strong>📁 Documents & Records</strong><span>IEPs, care plans, therapy records and important documents.</span><em>Planned</em></button>
 <button type="button" class="dashboard-tile" disabled><strong>💊 Health & Medications</strong><span>Care information, medications and allergies.</span><em>Planned</em></button>
 <button type="button" class="dashboard-tile" disabled><strong>🎓 Education & Therapies</strong><span>IEP goals, services, appointments and progress.</span><em>Planned</em></button>
 <button type="button" class="dashboard-tile" disabled><strong>🧭 Benefits & Resources</strong><span>Medicaid waivers, respite and community supports.</span><em>Planned</em></button>
 <button type="button" class="dashboard-tile" disabled><strong>🌤️ Future & Transitions</strong><span>Adulthood, employment, housing and supported decisions.</span><em>Planned</em></button>
-<button type="button" class="dashboard-tile" disabled><strong>💬 AI Family Care Coach</strong><span>Strengths-based coaching and practical guidance.</span><em>Planned</em></button></div></section><div id="strengthsModule" class="hide"><button type="button" id="backHome" class="secondary">← Back to Dashboard</button><section class="card"><h2>1. Person's voice and preferences</h2><label for="personName">Preferred name (fictional during testing)</label><input id="personName" maxlength="120" placeholder="Example: Alex">
+<button type="button" class="dashboard-tile" disabled><strong>💬 AI Family Care Coach</strong><span>Strengths-based coaching and practical guidance.</span><em>Planned</em></button></div></section><div id="teamModule" class="hide">
+<button type="button" id="teamBackHome" class="secondary">← Back to Dashboard</button>
+<section class="card"><h2>My Care Team</h2><p>Invite a registered supporter to see a fictional profile, strengths, goals and progress. Access begins only when the invited account accepts. This first version is read-only for invitees.</p>
+<label for="teamPerson">Choose your fictional profile</label><select id="teamPerson"><option value="">Choose a profile</option></select>
+<label for="teamEmail">Supporter's registered email</label><input type="email" id="teamEmail" placeholder="test-supporter@example.com" autocomplete="off">
+<label for="teamRole">Support role</label><select id="teamRole"><option value="family_supporter">Family supporter</option><option value="caregiver">Caregiver</option><option value="professional">Professional</option><option value="individual">Individual receiving support</option></select>
+<label style="font-weight:400"><input type="checkbox" id="teamAuthority" style="width:auto;margin-right:8px">I confirm I have the person's consent or appropriate legal authority to share this profile.</label>
+<button id="sendTeamInvite">Create invitation</button>
+<p class="muted"><small>This does not send an email automatically. Ask the invited tester to create or sign in to their own account using the exact email you entered, then open My Care Team to accept. Do not invite real people or use real health information.</small></p>
+<h3>Invitations you manage</h3><div id="teamSent"></div>
+<h3>Invitations for your account</h3><div id="teamReceived"></div>
+<button id="reloadTeam" class="secondary">Refresh invitations</button></section></div>
+<div id="strengthsModule" class="hide"><button type="button" id="backHome" class="secondary">← Back to Dashboard</button><section class="card"><h2>1. Person's voice and preferences</h2><label for="personName">Preferred name (fictional during testing)</label><input id="personName" maxlength="120" placeholder="Example: Alex">
 <label for="communication">How does this person prefer to communicate?</label><textarea id="communication" placeholder="Verbal, visual choices, gestures, communication device..."></textarea>
 <label for="matters">What matters most to this person?</label><textarea id="matters" placeholder="What brings them joy, belonging and a meaningful day?"></textarea>
 <button id="savePerson">Save new profile</button><label for="people">Select existing profile</label><select id="people"><option value="">Choose a profile</option></select></section>
@@ -40,21 +52,22 @@
 </main><script>
 const URL='https://iqgytijuufgkvnzolvqz.supabase.co';
 const KEY='sb_publishable_RJjUabuM_LOanY9YqLRXLw_-TdQo4rA';
-const $=id=>document.getElementById(id); let session=null,person=null,strengths=[],goals=[];
+const $=id=>document.getElementById(id); let session=null,person=null,strengths=[],goals=[],peopleCache=[];
 const notify=s=>{$('notice').textContent=s};
-function navigate(section){const home=section==='home';$('dashboard').classList.toggle('hide',!home);$('strengthsModule').classList.toggle('hide',home);if(home)notify('');window.scrollTo(0,0);}
+function navigate(section){$('dashboard').classList.toggle('hide',section!=='home');$('strengthsModule').classList.toggle('hide',section!=='strengths');$('teamModule').classList.toggle('hide',section!=='team');if(section==='home')notify('');window.scrollTo(0,0);}
 function make(tag,content,className){let el=document.createElement(tag);el.textContent=content;if(className)el.className=className;return el}
 function item(target,heading,sub){const d=make('div','', 'entry');d.append(make('strong',heading));if(sub)d.append(make('p',sub,'muted'));$(target).append(d);return d}
 async function request(path,method='GET',data=null,access=true){let h={'apikey':KEY,'Content-Type':'application/json'};if(method==='POST'&&path.startsWith('/rest/v1/'))h.Prefer='return=representation';if(access&&session)h.Authorization='Bearer '+session.access_token;let r=await fetch(URL+path,{method,headers:h,body:data?JSON.stringify(data):undefined});let raw=await r.text(),value;try{value=raw?JSON.parse(raw):null}catch{value=raw}if(!r.ok)throw Error(value?.msg||value?.message||value?.error_description||value?.error||('HTTP '+r.status));return value}
 async function authenticate(type){notify('');try{let email=$('email').value.trim(),password=$('password').value;if(!email||!password)throw Error('Enter email and password.');let path=type==='signin'?'/auth/v1/token?grant_type=password':'/auth/v1/signup?redirect_to='+encodeURIComponent(window.location.origin+'/');let value=await request(path,'POST',{email,password},false);if(type==='signup'&&!value.access_token){notify('Account created. Check your verification email before signing in.');return}session=value;await loggedIn()}catch(e){notify(e.message)}}
-async function loggedIn(){if(!session?.access_token)return;sessionStorage.setItem('dd_dev_session',JSON.stringify(session));$('auth').classList.add('hide');$('app').classList.remove('hide');$('signedin').textContent=session.user?.email||'Signed in';notify('Signed in to DD development. Use fictional records only.');navigate('home');await loadPeople()}
+async function loggedIn(){if(!session?.access_token)return;sessionStorage.setItem('dd_dev_session',JSON.stringify(session));$('auth').classList.add('hide');$('app').classList.remove('hide');$('signedin').textContent=session.user?.email||'Signed in';notify('Signed in to DD development. Use fictional records only.');navigate('home');await loadPeople();await loadTeam()}
 async function refresh(){if(!session?.refresh_token)return;try{let v=await request('/auth/v1/token?grant_type=refresh_token','POST',{refresh_token:session.refresh_token},false);session=v;sessionStorage.setItem('dd_dev_session',JSON.stringify(session))}catch{session=null;sessionStorage.removeItem('dd_dev_session')}}
 async function retry(action){try{await refresh();if(!session)throw Error('Session expired. Please sign in again.');await action()}catch(e){notify(e.message)}}
 const enc=encodeURIComponent;
-async function loadPeople(){let list=await request('/rest/v1/dd_people?select=id,display_name,preferred_communication,what_matters_to_me&order=created_at.desc');let s=$('people');s.replaceChildren(new Option('Choose a profile',''));list.forEach(p=>s.add(new Option(p.display_name,p.id)));if(person&&list.some(p=>p.id===person.id)){s.value=person.id;person=list.find(p=>p.id===person.id)}else{person=null;$('details').classList.add('hide')}return list}
-async function savePerson(){let name=$('personName').value.trim();if(!name)throw Error('Enter the person\'s preferred name.');let p=await request('/rest/v1/dd_people?select=*','POST',{display_name:name,preferred_communication:$('communication').value.trim(),what_matters_to_me:$('matters').value.trim()});person=p[0];await loadPeople();$('people').value=person.id;await loadDetails();notify('Profile saved.')}
-async function selectPerson(){let selected=$('people').value;let list=await loadPeople();person=list.find(p=>p.id===selected)||null;if(person){$('people').value=person.id;$('personName').value=person.display_name;$('communication').value=person.preferred_communication||'';$('matters').value=person.what_matters_to_me||'';await loadDetails()}}
+async function loadPeople(){let list=await request('/rest/v1/dd_people?select=id,owner_id,display_name,preferred_communication,what_matters_to_me&order=created_at.desc');peopleCache=list;let s=$('people');s.replaceChildren(new Option('Choose a profile',''));list.forEach(p=>s.add(new Option(p.display_name,p.id)));if(person&&list.some(p=>p.id===person.id)){s.value=person.id;person=list.find(p=>p.id===person.id)}else{person=null;$('details').classList.add('hide')}return list}
+async function savePerson(){let name=$('personName').value.trim();if(!name)throw Error('Enter the person\'s preferred name.');let p=await request('/rest/v1/dd_people?select=*','POST',{display_name:name,preferred_communication:$('communication').value.trim(),what_matters_to_me:$('matters').value.trim()});person=p[0];await loadPeople();$('people').value=person.id;await loadDetails();applyProfilePermission();notify('Profile saved.')}
+async function selectPerson(){let selected=$('people').value;let list=await loadPeople();person=list.find(p=>p.id===selected)||null;if(person){$('people').value=person.id;$('personName').value=person.display_name;$('communication').value=person.preferred_communication||'';$('matters').value=person.what_matters_to_me||'';await loadDetails();applyProfilePermission()}}
 async function loadDetails(){if(!person)return;$('details').classList.remove('hide');let pid=enc(person.id);[strengths,goals]=await Promise.all([request('/rest/v1/dd_strengths?select=*&person_id=eq.'+pid+'&order=created_at.desc'),request('/rest/v1/dd_goals?select=*&person_id=eq.'+pid+'&order=created_at.desc')]);$('strengthList').replaceChildren();strengths.forEach(s=>item('strengthList',s.description,s.category));$('goalList').replaceChildren();let sel=$('activeGoal');sel.replaceChildren(new Option('Select a goal',''));goals.forEach(g=>{item('goalList',g.goal_text,'Choice: '+g.person_choice+' · Status: '+g.status);sel.add(new Option(g.goal_text,g.id))});$('stepList').replaceChildren();$('noteList').replaceChildren()}
+function applyProfilePermission(){const own=person&&person.owner_id===session?.user?.id;['addStrength','addGoal','addStep','addNote','savePerson'].forEach(id=>{$(id).disabled=!!person&&!own});$('personName').disabled=!!person&&!own;$('communication').disabled=!!person&&!own;$('matters').disabled=!!person&&!own;}
 async function addStrength(){let description=$('strength').value.trim();if(!description)throw Error('Enter a strength.');await request('/rest/v1/dd_strengths','POST',{person_id:person.id,description,category:$('category').value});await loadDetails();notify('Strength saved.')}
 async function addGoal(){let goal_text=$('goal').value.trim(),person_choice=$('choice').value;if(!goal_text)throw Error('Enter a goal.');await request('/rest/v1/dd_goals','POST',{person_id:person.id,goal_text,person_choice,support_plan:$('support').value.trim(),success_looks_like:$('success').value.trim(),status:person_choice==='declined'?'declined':'exploring'});await loadDetails();notify('Goal saved.')}
 function selectedGoal(){let id=$('activeGoal').value;if(!id)throw Error('Select a goal first.');return id}
@@ -63,6 +76,50 @@ async function addStep(){let goal_id=selectedGoal(),step_text=$('step').value.tr
 async function addNote(){let goal_id=selectedGoal(),observation=$('observation').value.trim();if(!observation)throw Error('Enter an observation.');await request('/rest/v1/dd_progress_notes','POST',{person_id:person.id,goal_id,observation,person_feedback:$('feedback').value.trim(),support_level:$('supportLevel').value});$('observation').value='';$('feedback').value='';await loadProgress();notify('Progress note saved.')}
 $('openStrengths').addEventListener('click',()=>navigate('strengths'));
 $('backHome').addEventListener('click',()=>navigate('home'));
+
+async function loadTeam(){
+ const [invites,profiles]=await Promise.all([
+  request('/rest/v1/dd_team_invitations?select=id,person_id,owner_id,invitee_email,role,status,created_at&order=created_at.desc'),
+  request('/rest/v1/dd_people?select=id,display_name,owner_id&order=created_at.desc')
+ ]);
+ const mine=profiles.filter(p=>p.owner_id===session?.user?.id), names=Object.fromEntries(profiles.map(p=>[p.id,p.display_name]));
+ $('teamPerson').replaceChildren(new Option('Choose a profile',''));mine.forEach(p=>$('teamPerson').add(new Option(p.display_name,p.id)));
+ $('teamSent').replaceChildren();$('teamReceived').replaceChildren();
+ for(const invite of invites){
+  const owned=invite.owner_id===session?.user?.id;
+  const container=owned?'teamSent':'teamReceived';
+  const d=item(container,(names[invite.person_id]||'Shared profile')+' · '+invite.role,invite.invitee_email+' · '+invite.status);
+  if(owned){
+   const btn=make('button','Revoke access','secondary');
+   btn.type='button';btn.onclick=()=>retry(async()=>{await request('/rest/v1/dd_team_invitations?id=eq.'+enc(invite.id),'DELETE');await loadTeam();notify('Invitation or access revoked.')});
+   d.append(btn);
+  }else if(invite.status==='pending'){
+   for(const [status,label] of [['accepted','Accept invitation'],['declined','Decline']]){
+    const btn=make('button',label,status==='declined'?'secondary':'');
+    btn.type='button';btn.onclick=()=>retry(async()=>{
+     await request('/rest/v1/dd_team_invitations?id=eq.'+enc(invite.id),'PATCH',{status,invitee_user_id:session.user.id});
+     await loadTeam();await loadPeople();notify(status==='accepted'?'Invitation accepted. Shared profile is now available under Strengths & Possibilities.':'Invitation declined.');
+    });d.append(btn);
+   }
+  }
+ }
+ if(!$('teamSent').children.length)$('teamSent').append(make('p','No invitations created yet.','muted'));
+ if(!$('teamReceived').children.length)$('teamReceived').append(make('p','No invitations for this account.','muted'));
+}
+async function inviteTeam(){
+ const person_id=$('teamPerson').value,email=$('teamEmail').value.trim().toLowerCase(),role=$('teamRole').value;
+ if(!person_id)throw Error('Choose a profile that you own.');
+ if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))throw Error('Enter a valid test email.');
+ if(!$('teamAuthority').checked)throw Error('Please confirm consent or appropriate authority before sharing.');
+ await request('/rest/v1/dd_team_invitations','POST',{person_id,invitee_email:email,role,authority_confirmed:true});
+ $('teamEmail').value='';$('teamAuthority').checked=false;await loadTeam();
+ notify('Invitation created. Ask the test supporter to sign in with '+email+' and accept under My Care Team. No email was sent.');
+}
+
+$('openTeam').addEventListener('click',()=>retry(async()=>{navigate('team');await loadTeam()}));
+$('teamBackHome').addEventListener('click',()=>navigate('home'));
+wire('sendTeamInvite',inviteTeam);
+wire('reloadTeam',loadTeam);
 function wire(id,fn){$(id).addEventListener('click',()=>retry(fn))}
 $('signin').onclick=()=>authenticate('signin');$('signup').onclick=()=>authenticate('signup');
 $('signout').onclick=async()=>{try{await request('/auth/v1/logout','POST',{},true)}catch{}session=null;person=null;sessionStorage.removeItem('dd_dev_session');$('app').classList.add('hide');$('auth').classList.remove('hide');navigate('home');notify('Signed out.')};
