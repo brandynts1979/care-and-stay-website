@@ -125,6 +125,11 @@ test('owner can create a task and update its status',async({page})=>{
  await expect.poll(()=>db.tasks.length).toBe(1);
  await page.locator('#taskList select').selectOption('completed');
  await expect.poll(()=>db.tasks[0].status).toBe('completed');
+ await page.getByRole('button',{name:'Delete task'}).click();
+ await expect(page.getByRole('button',{name:'Confirm delete task'})).toBeVisible();
+ expect(db.tasks).toHaveLength(1);
+ await page.getByRole('button',{name:'Confirm delete task'}).click();
+ await expect.poll(()=>db.tasks.length).toBe(0);
 });
 
 test('owner can create and revoke a fictional family invitation',async({page})=>{
