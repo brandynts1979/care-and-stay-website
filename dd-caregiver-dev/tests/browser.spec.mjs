@@ -16,10 +16,14 @@ async function fakeBackend(page){
   const req=route.request(),url=new URL(req.url()),pathname=url.pathname,method=req.method();
   if(pathname.startsWith('/auth/v1/token'))return reply(route,session);
   if(pathname==='/auth/v1/logout')return reply(route,{});
-  if(pathname.startsWith('/storage/v1/object/dd-private-documents/')){
+  if(pathname==='/storage/v1/object/dd-private-documents' && method==='DELETE'){
+   const {prefixes}=JSON.parse(req.postData());
+   for(const key of prefixes)state.files.delete(key);
+   return reply(route,{});
+  }
+  if(pathname.startsWith('/storage/v1/object/dd-private-documents/') || pathname.startsWith('/storage/v1/object/authenticated/dd-private-documents/')){
    const key=decodeURIComponent(pathname.split('/dd-private-documents/')[1]);
    if(method==='POST'){state.files.set(key,await req.postDataBuffer());return reply(route,{Key:key});}
-   if(method==='DELETE'){state.files.delete(key);return reply(route,{});}
    if(method==='GET'){const bytes=state.files.get(key);return bytes?route.fulfill({status:200,body:bytes,contentType:'application/pdf'}):reply(route,{message:'Missing'},404);}
   }
   const table=pathname.split('/rest/v1/')[1];
