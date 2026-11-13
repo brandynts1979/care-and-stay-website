@@ -8,7 +8,7 @@
 | Invites and revocation | **Live rollback check passed Nov 13, 2026:** removing an accepted invitation immediately hides profile, strengths, goals, goal steps, progress notes, and shared tasks; original invitation restored by ROLLBACK and confirmed. | Real end-to-end browser test of revocation, including after refresh and stale sessions |
 | Tasks | Live rollback test passed Nov 13, 2026: assigned supporter can update status, but trigger blocks task-title edits; fixture removed. Mocked Playwright create/update/delete passed. | Real assigned-user browser test against Supabase and post-revocation checks |
 | Documents metadata | Owner-only checks plus **live cross-owner document forgery rejection** verified Nov 13, 2026; rollback, zero retained test metadata. | Real file object upload/download/delete via Storage REST, authenticated cross-account denial, cleanup verification |
-| Browser journeys | **7/7 mock-backed Playwright Chromium tests passed**, including revised two-click document deletion, GitHub Actions run 43467471703 Nov 13, 2026 | Staging browser tests against real Supabase Auth and Storage |
+| Browser journeys | **10/10 mock-backed Playwright Chromium tests passed** including expiry, mobile and keyboard smoke checks, GitHub Actions run 43530739159 Nov 13, 2026 | Staging browser tests against real Supabase Auth and Storage |
 | CI gating | GitHub Actions push/PR workflow passes (run 43465240566), pinned Ubuntu 24.04; manual dispatch enabled | Enforce branch protections and block releases on failed checks |
 | Deploy automation | Render currently live at commit `a0c8451` (Nov 13, 2026), matching latest document-deletion fix; service configured `autoDeploy=yes`/`commit`, but latest deploy was manual. | Verify an automatic commit-to-live deployment and rehearse rollback |
 | Authentication | Basic sign-in observed | Signup/verification/recovery, expired sessions, brute-force protection |
@@ -16,7 +16,7 @@
 | File security | Live config reviewed Nov 13, 2026: bucket private, 10 MB limit, PDF/PNG/JPEG only. Storage path-policy predicates tested for owner/profile binding; forged owner, cross-family person, extra nesting rejected. Bucket currently empty. | Real file upload/download/delete with authenticated owner token, negative account tests, malware/content checks and backup strategy |
 | Privacy and compliance | Not approved | Data minimization, consent and guardian authority, retention/deletion, breach plan, appropriate legal review |
 | Reliability | Incomplete | Automated E2E against staging, load/performance testing, logging and recovery |
-| Accessibility and mobile UX | Incomplete | Keyboard/screen-reader checks and real-device evaluation |
+| Accessibility and mobile UX | Automated Chromium baseline passed Nov 13, 2026: 375px mobile signed-out login has no horizontal overflow; keyboard Tab reaches email/password/sign-in controls (GitHub Actions run 43530739159) | Screen-reader testing, keyboard coverage of signed-in modules and real mobile devices |
 | Human acceptance | Outstanding | Product owner signs off on realistic family scenarios |
 
 ## Rules
