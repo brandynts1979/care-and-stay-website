@@ -1,5 +1,6 @@
 name: DD caregiver checks
 on:
+  workflow_dispatch:
   push:
     paths:
       - 'dd-caregiver-dev/**'
