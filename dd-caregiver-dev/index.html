@@ -146,13 +146,21 @@ async function loadDocuments(){
    setTimeout(()=>window.URL.revokeObjectURL(u),30000);
    notify('Document downloaded.');
   }));
-  const remove=make('button','Delete','secondary');remove.type='button';
-  remove.addEventListener('click',()=>retry(async()=>{
-   if(!window.confirm('Permanently delete this fictional test document?'))return;
-   await deleteDocStorage(d.file_path);
-   await request('/rest/v1/dd_documents?id=eq.'+enc(d.id),'DELETE');
-   await loadDocuments();notify('Test document deleted.');
-  }));
+  const remove=make('button','Delete document','secondary');remove.type='button';
+  remove.addEventListener('click',()=>{
+   if(remove.dataset.confirm!=='yes'){
+    remove.dataset.confirm='yes';
+    remove.textContent='Confirm delete document';
+    remove.setAttribute('aria-label','Confirm delete document');
+    notify('Click Confirm delete document to permanently remove this fictional document.');
+    return;
+   }
+   retry(async()=>{
+    await deleteDocStorage(d.file_path);
+    await request('/rest/v1/dd_documents?id=eq.'+enc(d.id),'DELETE');
+    await loadDocuments();notify('Test document deleted.');
+   });
+  });
   block.append(download,remove);
  }
  if(!docs.length)target.append(make('p','No documents saved yet.','muted'));
