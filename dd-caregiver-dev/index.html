@@ -61,14 +61,28 @@ $('people').onchange=()=>retry(selectPerson);$('activeGoal').onchange=()=>retry(
   const query=new URLSearchParams(window.location.search);
   const fragment=new URLSearchParams(window.location.hash.replace(/^#/,''));
   const error=query.get('error_description')||fragment.get('error_description')||query.get('error')||fragment.get('error');
-  const hasConfirmation=fragment.has('access_token') || query.has('code') || fragment.get('type')==='signup';
+  const token=fragment.get('access_token');
+  const hasConfirmation=Boolean(token||query.get('code')||fragment.get('type')==='signup');
   if(error||hasConfirmation){
+    let message='';
+    if(error){
+      message='Verification link could not be completed: '+error+'. Please request a new confirmation link if needed.';
+    }else if(token){
+      try{
+        const response=await fetch(URL+'/auth/v1/user',{headers:{apikey:KEY,Authorization:'Bearer '+token}});
+        if(!response.ok)throw Error('Confirmation session could not be validated');
+        const verifiedUser=await response.json();
+        message=verifiedUser.email_confirmed_at?'Email verified. You can now sign in to the Care & Stay DD development app.':'Email confirmation is not complete. Please sign in to check your account.';
+      }catch{message='Unable to verify this confirmation link. Please sign in to check your account.';}
+    }else{
+      message='Confirmation link returned to the app. Please sign in to confirm your email was verified.';
+    }
     history.replaceState(null,'',window.location.pathname);
     sessionStorage.removeItem('dd_dev_session');
     session=null;
     $('app').classList.add('hide');
     $('auth').classList.remove('hide');
-    notify(error?'Verification link could not be completed: '+error+'. Please request a new confirmation link if needed.':'Email verified. You can now sign in to the Care & Stay DD development app.');
+    notify(message);
     return;
   }
   try{
