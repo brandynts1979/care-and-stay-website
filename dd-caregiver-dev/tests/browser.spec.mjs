@@ -107,8 +107,11 @@ test('fictional file can upload download and delete through documents interface'
  await page.getByRole('button',{name:'Download'}).click();
  const download=await downloadPromise;
  expect(download.suggestedFilename()).toBe('Sample.pdf');
- page.once('dialog',dialog=>dialog.accept());
- await page.getByRole('button',{name:'Delete',exact:true}).click();
+ await page.getByRole('button',{name:'Delete document'}).click();
+ await expect(page.getByRole('button',{name:'Confirm delete document'})).toBeVisible();
+ expect(db.docs).toHaveLength(1);
+ expect(db.files.size).toBe(1);
+ await page.getByRole('button',{name:'Confirm delete document'}).click();
  await expect.poll(()=>db.docs.length).toBe(0);
  await expect.poll(()=>db.files.size).toBe(0);
 });
