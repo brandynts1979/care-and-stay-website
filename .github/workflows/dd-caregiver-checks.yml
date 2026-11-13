@@ -1,4 +1,4 @@
-name: DD caregiver static checks
+name: DD caregiver checks
 on:
   push:
     paths:
@@ -9,13 +9,19 @@ on:
       - 'dd-caregiver-dev/**'
       - '.github/workflows/dd-caregiver-checks.yml'
 jobs:
-  smoke-test:
+  static-and-browser:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Check DD application syntax and required modules
+      - name: Check application syntax and expected modules
         run: node dd-caregiver-dev/tests/check-app.mjs
+      - name: Install Playwright test runner
+        run: npm install --no-save --no-package-lock @playwright/test@1.56.1
+      - name: Install Chromium for Playwright
+        run: npx playwright install --with-deps chromium
+      - name: Run mocked-browser customer journey tests
+        run: npx playwright test dd-caregiver-dev/tests/browser.spec.mjs --config=dd-caregiver-dev/tests/playwright.config.mjs
