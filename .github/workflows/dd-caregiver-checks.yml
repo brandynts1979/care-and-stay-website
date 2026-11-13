@@ -11,7 +11,7 @@ on:
       - '.github/workflows/dd-caregiver-checks.yml'
 jobs:
   static-and-browser:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
