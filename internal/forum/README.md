@@ -1,6 +1,6 @@
 # Community membership and discussion candidate
 
-This code is saved for review and local testing. It is not deployed and is not ready for real family information. Default browser and database gates are closed.
+The backend is deployed to dedicated community staging; see `staging-status.md`. It is not ready for real family information. Browser and database gates remain closed, and the public website is unchanged.
 
 ## Reproduce checks
 
@@ -33,4 +33,4 @@ A deleted or banned Auth user is denied by the user lookup. Supabase access toke
 5. Run the twelve access scenarios via real REST calls as anonymous, two unrelated members, and moderators. Verify that a private schema request and direct table paths cannot disclose records. Inspect security advisors and fix new issues. Test pagination, user-authored HTML rendering as text, sign-out, and lost-network recovery in browsers.
 6. Capture a proper migration with the Supabase CLI workflow when verified. Complete privacy/terms, moderator coverage, account deletion, retention and backup decisions before public activation.
 
-Keep both gates closed for the public website until the launch checklist is complete. No backend deployment or paid Supabase resource was created by this change.
+Keep both gates closed for the public website until the launch checklist is complete. The community staging resource was subsequently created at the explicitly approved $10/month; see `staging-status.md`.

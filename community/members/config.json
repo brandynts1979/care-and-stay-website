@@ -1,6 +1,6 @@
 {
   "enabled": false,
-  "supabaseUrl": "",
-  "publishableKey": "",
+  "supabaseUrl": "https://nyakemltohexpuoygtgh.supabase.co",
+  "publishableKey": "sb_publishable_lDJ4kX2LszDs3FxJukYrUA_GlQ1hdH2",
   "notice": "Member discussions are being prepared. Registration and posting are not open yet."
 }

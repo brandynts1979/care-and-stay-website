@@ -6,13 +6,13 @@
 - Member application: Supabase email/password sign-in, verification resend, password recovery, explicit community opt-in with adult attestation, display names, text discussions/replies, pagination, reporting, own-message removal, and leave-community action.
 - Moderator report queue, hide/restore, resolve, suspend/reinstate, and audit trail.
 - Backend deployment candidate with private tables, RLS enabled, no direct table access for client roles, and one authenticated RPC gateway. Access requires verified non-anonymous users, community membership, and active membership status. Server defaults closed.
-- Browser defaults closed too; no keys or hosted database are configured.
+- Browser and database access remain closed. The dedicated staging database is now provisioned and the browser has its URL and publishable key; see `forum/staging-status.md`.
 
 ## Validation performed
 12 local PostgreSQL-compatible PGlite access tests passed, including anonymous/unverified rejection, membership boundaries, cross-community IDs, forged authors/roles, rate limits, hidden parents, private table denial, reports, suspension/rejoin, moderator scoping, deletion, and closed-state behavior. Build and JavaScript syntax checks passed. Browser inspected the closed member gate, community hub navigation, and DD entrance. Authenticated browser flows and hosted Supabase behavior have NOT yet been verified.
 
 ## Next deployment step
-Use a dedicated community staging Supabase project. Existing caregiver and assessment projects should not be repurposed by assumption. See `forum/README.md` for the configuration and test procedure. The candidate SQL has not been applied to any hosted project.
+Use a dedicated community staging Supabase project. Existing caregiver and assessment projects should not be repurposed by assumption. See `forum/README.md` for the configuration and test procedure. The reviewed schema has now been applied to `care-and-stay-community-staging`; see `forum/staging-status.md` for verification and remaining setup.
 
 ## Required before inviting real members
 - Select/create staging, configure verified email auth, test redirects, SMTP delivery, CAPTCHA/rate limits and password recovery.
