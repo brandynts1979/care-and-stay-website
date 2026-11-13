@@ -83,8 +83,22 @@ function item(target,heading,sub){const d=make('div','', 'entry');d.append(make(
 async function request(path,method='GET',data=null,access=true){let h={'apikey':KEY,'Content-Type':'application/json'};if(method==='POST'&&path.startsWith('/rest/v1/'))h.Prefer='return=representation';if(access&&session)h.Authorization='Bearer '+session.access_token;let r=await fetch(URL+path,{method,headers:h,body:data?JSON.stringify(data):undefined});let raw=await r.text(),value;try{value=raw?JSON.parse(raw):null}catch{value=raw}if(!r.ok)throw Error(value?.msg||value?.message||value?.error_description||value?.error||('HTTP '+r.status));return value}
 async function authenticate(type){notify('');try{let email=$('email').value.trim(),password=$('password').value;if(!email||!password)throw Error('Enter email and password.');let path=type==='signin'?'/auth/v1/token?grant_type=password':'/auth/v1/signup?redirect_to='+encodeURIComponent(window.location.origin+'/');let value=await request(path,'POST',{email,password},false);if(type==='signup'&&!value.access_token){notify('Account created. Check your verification email before signing in.');return}session=value;await loggedIn()}catch(e){notify(e.message)}}
 async function loggedIn(){if(!session?.access_token)return;sessionStorage.setItem('dd_dev_session',JSON.stringify(session));$('auth').classList.add('hide');$('app').classList.remove('hide');$('signedin').textContent=session.user?.email||'Signed in';notify('Signed in to DD development. Use fictional records only.');navigate('home');await loadPeople();await loadTeam()}
-async function refresh(){if(!session?.refresh_token)return;try{let v=await request('/auth/v1/token?grant_type=refresh_token','POST',{refresh_token:session.refresh_token},false);session=v;sessionStorage.setItem('dd_dev_session',JSON.stringify(session))}catch{session=null;sessionStorage.removeItem('dd_dev_session')}}
-async function retry(action){try{await refresh();if(!session)throw Error('Session expired. Please sign in again.');await action()}catch(e){notify(e.message)}}
+function clearSession(message='Session expired. Please sign in again.'){
+ session=null;person=null;strengths=[];goals=[];peopleCache=[];
+ sessionStorage.removeItem('dd_dev_session');
+ $('app').classList.add('hide');$('auth').classList.remove('hide');
+ $('signedin').textContent='';$('password').value='';
+ for(const id of ['people','strengthList','goalList','progressList','teamList','taskList','docList'])$(id)?.replaceChildren();
+ navigate('home');notify(message);
+}
+async function refresh(){
+ if(!session?.refresh_token){clearSession();return}
+ try{
+  let v=await request('/auth/v1/token?grant_type=refresh_token','POST',{refresh_token:session.refresh_token},false);
+  session=v;sessionStorage.setItem('dd_dev_session',JSON.stringify(session));
+ }catch{clearSession()}
+}
+async function retry(action){try{await refresh();if(!session)return;await action()}catch(e){notify(e.message)}}
 const enc=encodeURIComponent;
 async function loadPeople(){let list=await request('/rest/v1/dd_people?select=id,owner_id,display_name,preferred_communication,what_matters_to_me&order=created_at.desc');peopleCache=list;let s=$('people');s.replaceChildren(new Option('Choose a profile',''));list.forEach(p=>s.add(new Option(p.display_name,p.id)));if(person&&list.some(p=>p.id===person.id)){s.value=person.id;person=list.find(p=>p.id===person.id)}else{person=null;$('details').classList.add('hide')}return list}
 async function savePerson(){let name=$('personName').value.trim();if(!name)throw Error('Enter the person\'s preferred name.');let p=await request('/rest/v1/dd_people?select=*','POST',{display_name:name,preferred_communication:$('communication').value.trim(),what_matters_to_me:$('matters').value.trim()});person=p[0];await loadPeople();$('people').value=person.id;await loadDetails();applyProfilePermission();notify('Profile saved.')}
@@ -288,7 +302,7 @@ wire('sendTeamInvite',inviteTeam);
 wire('reloadTeam',loadTeam);wire('createTask',createTask);wire('refreshTasks',loadTasks);wire('uploadDocument',uploadDocument);wire('refreshDocuments',loadDocuments);
 function wire(id,fn){$(id).addEventListener('click',()=>retry(fn))}
 $('signin').onclick=()=>authenticate('signin');$('signup').onclick=()=>authenticate('signup');
-$('signout').onclick=async()=>{try{await request('/auth/v1/logout','POST',{},true)}catch{}session=null;person=null;sessionStorage.removeItem('dd_dev_session');$('app').classList.add('hide');$('auth').classList.remove('hide');navigate('home');notify('Signed out.')};
+$('signout').onclick=async()=>{try{await request('/auth/v1/logout','POST',{},true)}catch{}clearSession('Signed out.')};
 wire('savePerson',savePerson);wire('addStrength',addStrength);wire('addGoal',addGoal);wire('addStep',addStep);wire('addNote',addNote);
 $('people').onchange=()=>retry(selectPerson);$('activeGoal').onchange=()=>retry(loadProgress);
 (async()=>{
