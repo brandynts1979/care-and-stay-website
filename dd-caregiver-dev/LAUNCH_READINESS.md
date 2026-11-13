@@ -12,8 +12,8 @@
 | CI gating | GitHub Actions push/PR workflow passes (run 43465240566), pinned Ubuntu 24.04; manual dispatch enabled | Enforce branch protections and block releases on failed checks |
 | Deploy automation | Render shows autoDeploy=yes; manual deploys still needed | Commit-to-deploy evidence, deploy rollback plan |
 | Authentication | Basic sign-in observed | Signup/verification/recovery, expired sessions, brute-force protection |
-| Password protection | Supabase advisor warns disabled leaked-password protection | Enable and re-run security advisors |
-| File security | Private bucket, MIME and size restrictions | Malware/content validation strategy, upload/download abuse tests, backups |
+| Password protection | **Open warning re-confirmed Nov 13, 2026:** Supabase Security Advisor reports `auth_leaked_password_protection` disabled | Enable leaked-password protection in Supabase Auth settings and re-run Security Advisor; https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection |
+| File security | Live config reviewed Nov 13, 2026: bucket private, 10 MB limit, PDF/PNG/JPEG only. Storage path-policy predicates tested for owner/profile binding; forged owner, cross-family person, extra nesting rejected. Bucket currently empty. | Real file upload/download/delete with authenticated owner token, negative account tests, malware/content checks and backup strategy |
 | Privacy and compliance | Not approved | Data minimization, consent and guardian authority, retention/deletion, breach plan, appropriate legal review |
 | Reliability | Incomplete | Automated E2E against staging, load/performance testing, logging and recovery |
 | Accessibility and mobile UX | Incomplete | Keyboard/screen-reader checks and real-device evaluation |
