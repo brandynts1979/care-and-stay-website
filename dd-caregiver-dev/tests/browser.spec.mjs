@@ -10,7 +10,7 @@ function reply(route, body, status=200){
  return route.fulfill({status,contentType:'application/json',headers:{'access-control-allow-origin':'*'},body:JSON.stringify(body)});
 }
 async function fakeBackend(page){
- const state={people:[],strengths:[],goals:[],steps:[],notes:[],invites:[],tasks:[],docs:[],files:new Map(),next:0};
+ const state={people:[],strengths:[],goals:[],steps:[],notes:[],invites:[],tasks:[],docs:[],supportRecords:[],files:new Map(),next:0};
  const id=()=>('00000000-0000-4000-8000-'+String(++state.next).padStart(12,'0'));
  await page.route(API+'/**', async route=>{
   const req=route.request(),url=new URL(req.url()),pathname=url.pathname,method=req.method();
@@ -27,12 +27,12 @@ async function fakeBackend(page){
    if(method==='GET'){const bytes=state.files.get(key);return bytes?route.fulfill({status:200,body:bytes,contentType:'application/pdf'}):reply(route,{message:'Missing'},404);}
   }
   const table=pathname.split('/rest/v1/')[1];
-  const mapping={dd_people:'people',dd_strengths:'strengths',dd_goals:'goals',dd_goal_steps:'steps',dd_progress_notes:'notes',dd_team_invitations:'invites',dd_care_tasks:'tasks',dd_documents:'docs'};
+  const mapping={dd_people:'people',dd_strengths:'strengths',dd_goals:'goals',dd_goal_steps:'steps',dd_progress_notes:'notes',dd_team_invitations:'invites',dd_care_tasks:'tasks',dd_documents:'docs',dd_support_records:'supportRecords'};
   if(!mapping[table])return reply(route,{message:'Unexpected API call: '+pathname},404);
   const rows=state[mapping[table]];
   if(method==='GET'){
     let result=[...rows];
-    for(const key of ['person_id','goal_id','id','status']){
+    for(const key of ['person_id','goal_id','id','status','category']){
       const value=url.searchParams.get(key);
       if(value?.startsWith('eq.'))result=result.filter(r=>r[key]===value.slice(3));
     }
