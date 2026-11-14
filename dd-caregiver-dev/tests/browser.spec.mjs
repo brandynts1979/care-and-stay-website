@@ -150,6 +150,9 @@ test('owner can create and revoke a fictional family invitation',async({page})=>
  await expect.poll(()=>db.invites.length).toBe(1);
  expect(db.invites[0].invitee_email).toBe('fictional-supporter@example.test');
  await page.getByRole('button',{name:'Revoke access'}).click();
+ await expect(page.getByRole('button',{name:'Confirm revoke access'})).toBeVisible();
+ expect(db.invites).toHaveLength(1);
+ await page.getByRole('button',{name:'Confirm revoke access'}).click();
  await expect.poll(()=>db.invites.length).toBe(0);
 });
 
