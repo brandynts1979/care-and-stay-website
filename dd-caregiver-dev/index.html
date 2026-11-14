@@ -298,7 +298,20 @@ async function loadTeam(){
   const d=item(container,(names[invite.person_id]||'Shared profile')+' · '+invite.role,invite.invitee_email+' · '+invite.status);
   if(owned){
    const btn=make('button','Revoke access','secondary');
-   btn.type='button';btn.onclick=()=>retry(async()=>{await request('/rest/v1/dd_team_invitations?id=eq.'+enc(invite.id),'DELETE');await loadTeam();notify('Invitation or access revoked.')});
+   btn.type='button';
+   btn.addEventListener('click',()=>{
+    if(btn.dataset.confirm!=='yes'){
+     btn.dataset.confirm='yes';
+     btn.textContent='Confirm revoke access';
+     btn.setAttribute('aria-label','Confirm revoke access');
+     notify('Click Confirm revoke access to remove this supporter's access to this fictional profile.');
+     return;
+    }
+    retry(async()=>{
+     await request('/rest/v1/dd_team_invitations?id=eq.'+enc(invite.id),'DELETE');
+     await loadTeam();notify('Invitation or access revoked.');
+    });
+   });
    d.append(btn);
   }else if(invite.status==='pending'){
    for(const [status,label] of [['accepted','Accept invitation'],['declined','Decline']]){
