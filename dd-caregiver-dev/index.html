@@ -46,7 +46,7 @@
 <label for="docName">Display name</label><input id="docName" maxlength="200" placeholder="Example: Fictional Sample IEP">
 <label for="docNotes">Notes (optional)</label><textarea id="docNotes" maxlength="1000" placeholder="Describe why this document matters"></textarea>
 <label for="docFile">Select a PDF, PNG or JPEG (10 MB maximum)</label><input id="docFile" type="file" accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg">
-<button type="button" id="uploadDocument">Upload private test document</button>
+<button type="button" id="uploadDocument">Upload private test document</button><button type="button" id="createDisposableQA" class="secondary">Create disposable QA image (development testing)</button>
 <h3>Saved documents</h3><div id="docList"></div><button type="button" id="refreshDocuments" class="secondary">Refresh documents</button>
 </section></div><div id="tasksModule" class="hide">
 <button type="button" id="tasksBackHome" class="secondary">← Back to Dashboard</button>
@@ -324,6 +324,26 @@ async function uploadDocument(){
  $('docName').value='';$('docNotes').value='';$('docFile').value='';
  await loadDocuments();notify('Private test document saved.');
 }
+
+async function createDisposableQA(){
+ const person_id=$('docPerson').value;
+ if(!person_id)throw Error('Select a fictional profile you own.');
+ const bytes=Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLttAAAAABJRU5ErkJggg=='),x=>x.charCodeAt(0));
+ const file=new File([bytes],'care-stay-disposable-qa.png',{type:'image/png'});
+ const storagePath=session.user.id+'/'+person_id+'/'+crypto.randomUUID()+'.png';
+ await docStorage(storagePath,'POST',file,'image/png');
+ try{
+  await request('/rest/v1/dd_documents','POST',{
+   person_id,document_name:'DISPOSABLE QA TEST IMAGE',category:'other',
+   file_path:storagePath,media_type:'image/png',file_size:file.size,
+   notes:'Synthetic 1-pixel test file. Delete after verifying upload and download.'
+  });
+ }catch(e){try{await deleteDocStorage(storagePath)}catch{}throw e}
+ await loadDocuments();
+ notify('Fictional QA image uploaded. Verify Download, then confirm Delete document.');
+}
+$('createDisposableQA').addEventListener('click',()=>retry(createDisposableQA));
+
 $('openDocuments').addEventListener('click',()=>retry(async()=>{navigate('documents');await loadDocuments()}));
 $('documentsBackHome').addEventListener('click',()=>navigate('home'));
 
