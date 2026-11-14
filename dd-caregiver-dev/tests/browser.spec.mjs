@@ -415,3 +415,23 @@ test('four new care-planning modules support fictional records',async({page})=>{
   await page.locator('#supportRecordsBackHome').click();
  }
 });
+
+test('development QA fixture performs full mocked private PNG upload and delete',async({page})=>{
+ const db=await fakeBackend(page);await signin(page);
+ await page.locator('#openStrengths').click();
+ await page.locator('#personName').fill('Fictional QA');
+ await page.locator('#savePerson').click();
+ await expect.poll(()=>db.people.length).toBe(1);
+ await page.locator('#backHome').click();
+ await page.locator('#openDocuments').click();
+ await page.locator('#docPerson').selectOption(db.people[0].id);
+ await page.locator('#createDisposableQA').click();
+ await expect.poll(()=>db.docs.length).toBe(1);
+ expect(db.docs[0].media_type).toBe('image/png');
+ expect(db.files.size).toBe(1);
+ await expect(page.locator('#docList')).toContainText('DISPOSABLE QA TEST IMAGE');
+ await page.getByRole('button',{name:'Delete document'}).click();
+ await page.getByRole('button',{name:'Confirm delete document'}).click();
+ await expect.poll(()=>db.docs.length).toBe(0);
+ await expect.poll(()=>db.files.size).toBe(0);
+});
