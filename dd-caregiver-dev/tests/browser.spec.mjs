@@ -317,3 +317,52 @@ test('document uploader rejects a text payload disguised as an allowed PDF or im
   expect(db.docs).toHaveLength(0);
  }
 });
+
+test('incomplete password-recovery link is safely rejected without opening account data',async({page})=>{
+ await page.goto('/#type=recovery');
+ await expect(page.locator('#auth')).toBeVisible();
+ await expect(page.locator('#passwordReset')).toBeHidden();
+ await expect(page.locator('#app')).toBeHidden();
+ await expect(page.locator('#notice')).toContainText('Password recovery link is incomplete');
+ expect(await page.evaluate(()=>location.hash)).toBe('');
+ expect(await page.evaluate(()=>sessionStorage.getItem('dd_dev_session'))).toBeNull();
+});
+test('expired password-recovery link is rejected without exposing reset form',async({page})=>{
+ await page.route(API+'/auth/v1/user',route=>reply(route,{message:'Invalid JWT'},401));
+ await page.goto('/#type=recovery&access_token=invalid-fictional-jwt');
+ await expect(page.locator('#passwordReset')).toBeHidden();
+ await expect(page.locator('#auth')).toBeVisible();
+ await expect(page.locator('#notice')).toContainText('Recovery link is expired or invalid');
+ expect(await page.evaluate(()=>location.hash)).toBe('');
+});
+test('rejected recovered-password update clears recovery form and requires another link',async({page})=>{
+ await page.route(API+'/auth/v1/user',route=>
+  route.request().method()==='GET'
+  ?reply(route,{email:'fictional-owner@example.test'})
+  :reply(route,{message:'Expired token'},401)
+ );
+ await page.goto('/#type=recovery&access_token=fictional-expired-on-update');
+ await expect(page.locator('#passwordReset')).toBeVisible();
+ await page.locator('#resetPassword').fill('FictionalTest1234!');
+ await page.locator('#resetPasswordConfirm').fill('FictionalTest1234!');
+ await page.locator('#saveResetPassword').click();
+ await expect(page.locator('#passwordReset')).toBeHidden();
+ await expect(page.locator('#auth')).toBeVisible();
+ await expect(page.locator('#notice')).toContainText('Request a new password-reset link');
+ expect(await page.locator('#resetPassword').inputValue()).toBe('');
+ expect(await page.evaluate(()=>sessionStorage.getItem('dd_dev_session'))).toBeNull();
+});
+test('mismatched new passwords cannot be submitted for recovery',async({page})=>{
+ let putRequests=0;
+ await page.route(API+'/auth/v1/user',route=>{
+  if(route.request().method()==='PUT')putRequests++;
+  return reply(route,{email:'fictional-owner@example.test'});
+ });
+ await page.goto('/#type=recovery&access_token=fictional-jwt');
+ await page.locator('#resetPassword').fill('FictionalTest1234!');
+ await page.locator('#resetPasswordConfirm').fill('Different1234567!');
+ await page.locator('#saveResetPassword').click();
+ await expect(page.locator('#notice')).toContainText('The new passwords do not match');
+ expect(putRequests).toBe(0);
+ await expect(page.locator('#passwordReset')).toBeVisible();
+});
