@@ -298,3 +298,22 @@ test('failed storage deletion preserves document metadata for retry',async({page
  expect(db.docs).toHaveLength(1);
  expect(db.files.size).toBe(1);
 });
+
+test('document uploader rejects a text payload disguised as an allowed PDF or image',async({page})=>{
+ const db=await fakeBackend(page);await signin(page);
+ await page.locator('#openStrengths').click();
+ await page.locator('#personName').fill('Fictional signature check');
+ await page.locator('#savePerson').click();
+ await expect.poll(()=>db.people.length).toBe(1);
+ await page.locator('#backHome').click();
+ await page.locator('#openDocuments').click();
+ await page.locator('#docPerson').selectOption(db.people[0].id);
+ await page.locator('#docName').fill('Disguised file');
+ for(const [name,mimeType] of [['renamed.pdf','application/pdf'],['renamed.png','image/png'],['renamed.jpg','image/jpeg']]){
+  await page.locator('#docFile').setInputFiles({name,mimeType,buffer:Buffer.from('Not a real PDF or image file')});
+  await page.locator('#uploadDocument').click();
+  await expect(page.locator('#notice')).toContainText('File content does not match');
+  expect(db.files.size).toBe(0);
+  expect(db.docs).toHaveLength(0);
+ }
+});
