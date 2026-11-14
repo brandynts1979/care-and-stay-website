@@ -29,3 +29,13 @@ The 90-day purge has NOT been implemented; it is a proposed operating decision.
 ## Verified account-removal tests
 Read-only preview; client roles cannot execute removal; test account removed; authored content scrubbed; other replies preserved; requests using deleted identity denied. All fixture changes rolled back.
 Operator-only function deployed to the existing community staging database. No real account deleted. This is not yet a public launch approval.
+
+## Launch readiness update — November 13, 2026 (Mountain Time)
+- Authenticated owner-session browser QA passed: sign-in, both communities, report queue access, fictional thread creation, reply with posting rate limit, report, report resolution, own-thread removal, and community switching.
+- Desktop-only responsive inspection passed; 390px mobile viewport was not available in the browser automation. Mobile remains unverified.
+- Public signed-out inspection found an account-creation button and draft launch copy on the deployed staging revision; staging GitHub changes hiding registration have not yet appeared in Render deploy history. Do not imply the new revision is live.
+- Two clearly marked **draft-only** documents were added to the staging branch at community/privacy/ and community/terms/. Final privacy/membership terms, retention details, support monitoring and owner approval still remain open.
+- Hosted Supabase advisor: leaked password protection disabled (WARN). Five private schema RLS/no-policy INFO findings are intentional default-deny; all five private tables have RLS and deny direct SELECT to anon and authenticated.
+- Confirmed cs_forum_private.settings.enabled=false; the moderator access exception supports owner testing, but broad participation is still blocked.
+- Backups and restore test not verified; current Supabase plan and backup inventory not independently verified. Do not announce recovery capability.
+- Public launch NOT authorized as complete until support inbox and alternate moderator are verified, security warning reviewed, legal copy finalized, a working deploy is checked, and email recovery/mobile tests pass.
