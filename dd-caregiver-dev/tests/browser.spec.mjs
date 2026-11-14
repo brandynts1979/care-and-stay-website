@@ -17,10 +17,14 @@ async function fakeBackend(page){
   if(pathname.startsWith('/auth/v1/token'))return reply(route,session);
   if(pathname==='/auth/v1/logout')return reply(route,{});
   if(pathname==='/functions/v1/dd-validated-document-upload' && method==='POST'){
-   const raw=req.postData()||'';
-   const field=name=>raw.match(new RegExp('name="'+name+'"\\r?\\n\\r?\\n([^\\r\\n]*)'))?.[1]||'';
+   const raw=req.postDataBuffer()?.toString('latin1')||'';
+   const field=name=>{
+    const section=raw.split('name="'+name+'"')[1];
+    return section?.split('\\r\\n\\r\\n')[1]?.split('\\r\\n')[0]||'';
+   };
    const profile=field('person_id'),name=field('document_name'),category=field('category'),notes=field('notes');
-   const type=raw.match(/name="file";[^\\r\\n]*[\\s\\S]*?Content-Type: ([^\\r\\n]+)/i)?.[1]||'';
+   const fileSection=raw.split('name="file"')[1]||'';
+   const type=fileSection.split('Content-Type: ')[1]?.split('\\r\\n')[0]||'';
    if(!state.people.some(p=>p.id===profile))return reply(route,{message:'You cannot upload to this profile.'},403);
    if(!name||!type)return reply(route,{message:'Bad upload form'},400);
    const ext=type==='image/png'?'png':type==='image/jpeg'?'jpg':'pdf';
