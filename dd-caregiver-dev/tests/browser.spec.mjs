@@ -389,3 +389,29 @@ test('signout clears fictional profile fields and rendered private content',asyn
  await expect(page.locator('#teamReceived')).toBeEmpty();
  expect(await page.evaluate(()=>sessionStorage.getItem('dd_dev_session'))).toBeNull();
 });
+
+test('four new care-planning modules support fictional records',async({page})=>{
+ const db=await fakeBackend(page);await signin(page);
+ await page.locator('#openStrengths').click();
+ await page.locator('#personName').fill('Fictional QA Person');
+ await page.locator('#savePerson').click();
+ await expect.poll(()=>db.people.length).toBe(1);
+ await page.locator('#backHome').click();
+ for(const [id,category] of [['openHealth','health'],['openEducation','education'],['openBenefits','benefits'],['openTransitions','transitions']]){
+  await page.locator('#'+id).click();
+  await expect(page.locator('#supportRecordsModule')).toBeVisible();
+  await page.locator('#supportPerson').selectOption(db.people[0].id);
+  await page.locator('#supportTitle').fill('QA '+category);
+  await page.locator('#addSupportRecord').click();
+  await expect.poll(()=>db.supportRecords.filter(x=>x.category===category).length).toBe(1);
+  const row=db.supportRecords.find(x=>x.category===category);
+  await page.locator('#supportRecordsList select').selectOption('completed');
+  await expect.poll(()=>row.status).toBe('completed');
+  await page.getByRole('button',{name:'Delete record'}).click();
+  await expect(page.getByRole('button',{name:'Confirm delete record'})).toBeVisible();
+  expect(db.supportRecords.filter(x=>x.category===category)).toHaveLength(1);
+  await page.getByRole('button',{name:'Confirm delete record'}).click();
+  await expect.poll(()=>db.supportRecords.filter(x=>x.category===category).length).toBe(0);
+  await page.locator('#supportRecordsBackHome').click();
+ }
+});
