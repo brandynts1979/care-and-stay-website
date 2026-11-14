@@ -10,12 +10,29 @@ function reply(route, body, status=200){
  return route.fulfill({status,contentType:'application/json',headers:{'access-control-allow-origin':'*'},body:JSON.stringify(body)});
 }
 async function fakeBackend(page){
- const state={people:[],strengths:[],goals:[],steps:[],notes:[],invites:[],tasks:[],docs:[],supportRecords:[],files:new Map(),next:0};
+ const state={people:[],strengths:[],goals:[],steps:[],notes:[],invites:[],tasks:[],docs:[],supportRecords:[],files:new Map(),next:0,uploads:0,removals:0,failMetadataOnce:false};
  const id=()=>('00000000-0000-4000-8000-'+String(++state.next).padStart(12,'0'));
  await page.route(API+'/**', async route=>{
   const req=route.request(),url=new URL(req.url()),pathname=url.pathname,method=req.method();
   if(pathname.startsWith('/auth/v1/token'))return reply(route,session);
   if(pathname==='/auth/v1/logout')return reply(route,{});
+  if(pathname==='/functions/v1/dd-validated-document-upload' && method==='POST'){
+   const raw=req.postData()||'';
+   const field=name=>raw.match(new RegExp('name="'+name+'"\\r?\\n\\r?\\n([^\\r\\n]*)'))?.[1]||'';
+   const profile=field('person_id'),name=field('document_name'),category=field('category'),notes=field('notes');
+   const type=raw.match(/name="file";[^\\r\\n]*[\\s\\S]*?Content-Type: ([^\\r\\n]+)/i)?.[1]||'';
+   if(!state.people.some(p=>p.id===profile))return reply(route,{message:'You cannot upload to this profile.'},403);
+   if(!name||!type)return reply(route,{message:'Bad upload form'},400);
+   const ext=type==='image/png'?'png':type==='image/jpeg'?'jpg':'pdf';
+   const key=owner+'/'+profile+'/'+id()+'.'+ext;
+   state.uploads++;state.files.set(key,Buffer.from('%PDF-1.4\\nfictional test content\\n'));
+   if(state.failMetadataOnce){
+    state.failMetadataOnce=false;state.files.delete(key);state.removals++;
+    return reply(route,{message:'Document metadata could not be saved.'},502);
+   }
+   state.docs.push({id:id(),owner_id:owner,person_id:profile,document_name:name,category,file_path:key,media_type:type,file_size:50,notes});
+   return reply(route,{ok:true},201);
+  }
   if(pathname==='/storage/v1/object/dd-private-documents' && method==='DELETE'){
    const {prefixes}=JSON.parse(req.postData());
    for(const key of prefixes)state.files.delete(key);
@@ -251,7 +268,7 @@ test('recovery token opens password update form and never persists token in brow
  expect(await page.evaluate(()=>sessionStorage.getItem('dd_dev_session'))).toBeNull();
 });
 
-test('failed document metadata insert removes already-uploaded private object',async({page})=>{
+test('server upload handler cleans up on metadata rejection',async({page})=>{
  const db=await fakeBackend(page);await signin(page);
  await page.locator('#openStrengths').click();
  await page.locator('#personName').fill('Fictional metadata failure');
@@ -261,20 +278,11 @@ test('failed document metadata insert removes already-uploaded private object',a
  await page.locator('#docPerson').selectOption(db.people[0].id);
  await page.locator('#docName').fill('Disposable test document');
  await page.locator('#docFile').setInputFiles({name:'test.pdf',mimeType:'application/pdf',buffer:Buffer.from('%PDF-1.4\\nfictional\\n')});
- let uploads=0,removals=0;
- await page.route(API+'/storage/v1/object/dd-private-documents/**',async route=>{
-  if(route.request().method()==='POST')uploads++;
-  await route.fallback();
- });
- await page.route(API+'/storage/v1/object/dd-private-documents',async route=>{
-  if(route.request().method()==='DELETE')removals++;
-  await route.fallback();
- });
- await page.route(API+'/rest/v1/dd_documents',route=>route.request().method()==='POST'?reply(route,{message:'Synthetic metadata write rejection'},400):route.fallback());
+ db.failMetadataOnce=true;
  await page.locator('#uploadDocument').click();
- await expect(page.locator('#notice')).toContainText('Synthetic metadata write rejection');
- expect(uploads).toBe(1);
- expect(removals).toBe(1);
+ await expect(page.locator('#notice')).toContainText('Document metadata could not be saved');
+ expect(db.uploads).toBe(1);
+ expect(db.removals).toBe(1);
  expect(db.files.size).toBe(0);
  expect(db.docs).toHaveLength(0);
 });
