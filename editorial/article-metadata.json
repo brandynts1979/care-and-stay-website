@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "description": "Draft-only editorial metadata for future topic filters and related-article recommendations; not a publishing system.",
+  "articles": [
+    {
+      "slug": "what-is-a-stay-culture",
+      "section": "leadership",
+      "tags": [
+        "stay-culture",
+        "retention",
+        "seven-pillars",
+        "organizational-development"
+      ],
+      "type": "feature"
+    },
+    {
+      "slug": "keeping-the-right-people",
+      "section": "leadership",
+      "tags": [
+        "retention",
+        "accountability",
+        "employee-experience"
+      ],
+      "type": "feature"
+    },
+    {
+      "slug": "the-conversation-before-the-resignation",
+      "section": "leadership",
+      "tags": [
+        "coaching",
+        "appreciative-inquiry",
+        "stay-interviews"
+      ],
+      "type": "reflection"
+    },
+    {
+      "slug": "the-hidden-cost-of-losing-a-caregiver",
+      "section": "healthcare",
+      "tags": [
+        "healthcare",
+        "senior-living",
+        "caregivers",
+        "turnover-costs"
+      ],
+      "type": "feature"
+    },
+    {
+      "slug": "from-shift-lead-to-leader",
+      "section": "qsr",
+      "tags": [
+        "qsr",
+        "first-time-managers",
+        "coaching",
+        "franchising"
+      ],
+      "type": "feature"
+    },
+    {
+      "slug": "what-the-quits-rate-can-and-cannot-tell-us",
+      "section": "research",
+      "tags": [
+        "jolts",
+        "workforce-data",
+        "healthcare",
+        "qsr"
+      ],
+      "type": "research-insight",
+      "primarySource": "https://www.bls.gov/news.release/jolts.t22.htm"
+    }
+  ]
+}

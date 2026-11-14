@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "publication": "Stay Culture Journal",
+  "policy": "No publication without explicit owner authorization. Staging previews are not publication approvals.",
+  "entries": [
+    {
+      "slug": "what-is-a-stay-culture",
+      "title": "What Is a Stay Culture?",
+      "category": "Leadership & Culture",
+      "status": "draft",
+      "ownerApproved": false,
+      "approvalDate": null,
+      "approvedBy": null
+    },
+    {
+      "slug": "keeping-the-right-people",
+      "title": "Keeping the Right People: Retention and a Healthy Culture",
+      "category": "Leadership & Culture",
+      "status": "draft",
+      "ownerApproved": false,
+      "approvalDate": null,
+      "approvedBy": null
+    },
+    {
+      "slug": "the-conversation-before-the-resignation",
+      "title": "The Conversation Before the Resignation",
+      "category": "Leadership & Culture",
+      "status": "draft",
+      "ownerApproved": false,
+      "approvalDate": null,
+      "approvedBy": null
+    },
+    {
+      "slug": "the-hidden-cost-of-losing-a-caregiver",
+      "title": "The Hidden Cost of Losing a Caregiver",
+      "category": "Healthcare & Senior Living",
+      "status": "draft",
+      "ownerApproved": false,
+      "approvalDate": null,
+      "approvedBy": null
+    },
+    {
+      "slug": "from-shift-lead-to-leader",
+      "title": "From Shift Lead to Leader",
+      "category": "QSR & Franchising",
+      "status": "draft",
+      "ownerApproved": false,
+      "approvalDate": null,
+      "approvedBy": null
+    },
+    {
+      "slug": "what-the-quits-rate-can-and-cannot-tell-us",
+      "title": "What the Quits Rate Can—and Cannot—Tell Us",
+      "category": "Research & Insights",
+      "status": "draft",
+      "ownerApproved": false,
+      "approvalDate": null,
+      "approvedBy": null
+    }
+  ]
+}
