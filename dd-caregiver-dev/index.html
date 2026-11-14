@@ -315,12 +315,17 @@ async function uploadDocument(){
  if(!await hasExpectedFileSignature(file))throw Error('File content does not match its PDF or image type.');
  if(!title)throw Error('Enter a document display name.');
  if(title.length>200)throw Error('Document name is too long.');
- const extension=file.type==='application/pdf'?'pdf':file.type==='image/png'?'png':'jpg';
- const storagePath=session.user.id+'/'+person_id+'/'+crypto.randomUUID()+'.'+extension;
- await docStorage(storagePath,'POST',file,file.type);
- try{
-  await request('/rest/v1/dd_documents','POST',{person_id,document_name:title,category:$('docCategory').value,file_path:storagePath,media_type:file.type,file_size:file.size,notes:$('docNotes').value.trim()||null});
- }catch(e){try{await deleteDocStorage(storagePath)}catch{}throw e}
+ const form=new FormData();
+ form.append('person_id',person_id);
+ form.append('document_name',title);
+ form.append('category',$('docCategory').value);
+ form.append('notes',$('docNotes').value.trim());
+ form.append('file',file,file.name);
+ const response=await fetch(URL+'/functions/v1/dd-validated-document-upload',{
+  method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+session.access_token},body:form
+ });
+ let data={};try{data=await response.json()}catch{}
+ if(!response.ok)throw Error(data.message||('Upload rejected: HTTP '+response.status));
  $('docName').value='';$('docNotes').value='';$('docFile').value='';
  await loadDocuments();notify('Private test document saved.');
 }
