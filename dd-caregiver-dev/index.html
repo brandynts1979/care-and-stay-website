@@ -122,7 +122,15 @@ function clearSession(message='Session expired. Please sign in again.'){
  sessionStorage.removeItem('dd_dev_session');
  $('app').classList.add('hide');$('auth').classList.remove('hide');
  $('signedin').textContent='';$('password').value='';
- for(const id of ['people','strengthList','goalList','progressList','teamList','taskList','docList'])$(id)?.replaceChildren();
+ // Remove all account-specific values and rendered records, even though the app is hidden.
+ for(const field of document.querySelectorAll('#app input, #app textarea, #app select')){
+  if(field.type==='checkbox'||field.type==='radio')field.checked=false;
+  else if(field.tagName==='SELECT')field.selectedIndex=-1;
+  else field.value='';
+ }
+ for(const id of ['people','activeGoal','docPerson','taskPerson','taskAssignee','teamPerson',
+  'strengthList','goalList','stepList','noteList','teamSent','teamReceived','taskList','docList'])$(id)?.replaceChildren();
+ $('details')?.classList.add('hide');
  navigate('home');notify(message);
 }
 async function refresh(){
