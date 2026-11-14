@@ -210,3 +210,39 @@ test('keyboard users can reach sign-in controls',async({page})=>{
  expect(visited.has('password')).toBeTruthy();
  expect(visited.has('signin')).toBeTruthy();
 });
+
+test('password recovery request uses configured app redirect and neutral email message',async({page})=>{
+ let sent=null;
+ await page.route(API+'/auth/v1/recover**',async route=>{sent={url:route.request().url(),body:route.request().postDataJSON()};return reply(route,{})});
+ await page.goto('/');
+ await page.locator('#email').fill('fictional-owner@example.test');
+ await page.locator('#forgotPassword').click();
+ await expect(page.locator('#notice')).toContainText('If this address has an account');
+ expect(sent.body.email).toBe('fictional-owner@example.test');
+ expect(new URL(sent.url).searchParams.get('redirect_to')).toBe('http://127.0.0.1:4173/');
+});
+test('recovery token opens password update form and never persists token in browser storage',async({page})=>{
+ await page.route(API+'/auth/v1/user',async route=>{
+  if(route.request().method()==='GET')return reply(route,{email:'fictional-owner@example.test'});
+  if(route.request().method()==='PUT')return reply(route,{id:'11111111-1111-4111-8111-111111111111'});
+  return reply(route,{},405);
+ });
+ await page.goto('/#type=recovery&access_token=fictional-recovery-jwt');
+ await expect(page.locator('#passwordReset')).toBeVisible();
+ await expect(page.locator('#app')).toBeHidden();
+ expect(await page.evaluate(()=>location.hash)).toBe('');
+ expect(await page.evaluate(()=>sessionStorage.getItem('dd_dev_session'))).toBeNull();
+ await page.locator('#resetPassword').fill('differentPassword123!');
+ await page.locator('#resetPasswordConfirm').fill('differentPassword123!');
+ let changed=null;
+ await page.route(API+'/auth/v1/user',async route=>{
+  if(route.request().method()==='PUT'){changed=route.request().postDataJSON();return reply(route,{id:'11111111-1111-4111-8111-111111111111'})}
+  return reply(route,{email:'fictional-owner@example.test'});
+ });
+ await page.locator('#saveResetPassword').click();
+ await expect(page.locator('#auth')).toBeVisible();
+ await expect(page.locator('#passwordReset')).toBeHidden();
+ await expect(page.locator('#notice')).toContainText('Password updated');
+ expect(changed.password).toBe('differentPassword123!');
+ expect(await page.evaluate(()=>sessionStorage.getItem('dd_dev_session'))).toBeNull();
+});
