@@ -247,3 +247,51 @@ test('recovery token opens password update form and never persists token in brow
  expect(changed.password).toBe('differentPassword123!');
  expect(await page.evaluate(()=>sessionStorage.getItem('dd_dev_session'))).toBeNull();
 });
+
+test('failed document metadata insert removes already-uploaded private object',async({page})=>{
+ const db=await fakeBackend(page);await signin(page);
+ await page.locator('#openStrengths').click();
+ await page.locator('#personName').fill('Fictional metadata failure');
+ await page.locator('#savePerson').click();
+ await page.locator('#backHome').click();
+ await page.locator('#openDocuments').click();
+ await page.locator('#docPerson').selectOption(db.people[0].id);
+ await page.locator('#docName').fill('Disposable test document');
+ await page.locator('#docFile').setInputFiles({name:'test.pdf',mimeType:'application/pdf',buffer:Buffer.from('%PDF-1.4\\nfictional\\n')});
+ let uploads=0,removals=0;
+ await page.route(API+'/storage/v1/object/dd-private-documents/**',async route=>{
+  if(route.request().method()==='POST')uploads++;
+  await route.fallback();
+ });
+ await page.route(API+'/storage/v1/object/dd-private-documents',async route=>{
+  if(route.request().method()==='DELETE')removals++;
+  await route.fallback();
+ });
+ await page.route(API+'/rest/v1/dd_documents',route=>route.request().method()==='POST'?reply(route,{message:'Synthetic metadata write rejection'},400):route.fallback());
+ await page.locator('#uploadDocument').click();
+ await expect(page.locator('#notice')).toContainText('Synthetic metadata write rejection');
+ expect(uploads).toBe(1);
+ expect(removals).toBe(1);
+ expect(db.files.size).toBe(0);
+ expect(db.docs).toHaveLength(0);
+});
+test('failed storage deletion preserves document metadata for retry',async({page})=>{
+ const db=await fakeBackend(page);await signin(page);
+ await page.locator('#openStrengths').click();
+ await page.locator('#personName').fill('Fictional delete failure');
+ await page.locator('#savePerson').click();
+ await page.locator('#backHome').click();
+ await page.locator('#openDocuments').click();
+ await page.locator('#docPerson').selectOption(db.people[0].id);
+ await page.locator('#docName').fill('Keep if storage fails');
+ await page.locator('#docFile').setInputFiles({name:'test.pdf',mimeType:'application/pdf',buffer:Buffer.from('%PDF-1.4\\nfictional\\n')});
+ await page.locator('#uploadDocument').click();
+ await expect.poll(()=>db.docs.length).toBe(1);
+ expect(db.files.size).toBe(1);
+ await page.route(API+'/storage/v1/object/dd-private-documents',route=>route.request().method()==='DELETE'?reply(route,{message:'Synthetic storage delete rejection'},403):route.fallback());
+ await page.getByRole('button',{name:'Delete document'}).click();
+ await page.getByRole('button',{name:'Confirm delete document'}).click();
+ await expect(page.locator('#notice')).toContainText('Document deletion error: 403');
+ expect(db.docs).toHaveLength(1);
+ expect(db.files.size).toBe(1);
+});
