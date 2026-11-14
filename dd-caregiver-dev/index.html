@@ -20,11 +20,23 @@
 <button type="button" class="dashboard-tile ready" id="openTeam"><strong>👥 My Care Team</strong><span>Invite supporters and accept read-only access to a shared profile.</span><span class="tag">Development preview</span></button>
 <button type="button" class="dashboard-tile ready" id="openTasks"><strong>📅 Shared Care Tasks</strong><span>Assign tasks to accepted supporters and track their progress.</span><span class="tag">Development preview</span></button>
 <button type="button" class="dashboard-tile ready" id="openDocuments"><strong>📁 Documents & Records</strong><span>Upload and download private fictional test documents.</span><span class="tag">Development preview</span></button>
-<button type="button" class="dashboard-tile" disabled><strong>💊 Health & Medications</strong><span>Care information, medications and allergies.</span><em>Planned</em></button>
-<button type="button" class="dashboard-tile" disabled><strong>🎓 Education & Therapies</strong><span>IEP goals, services, appointments and progress.</span><em>Planned</em></button>
-<button type="button" class="dashboard-tile" disabled><strong>🧭 Benefits & Resources</strong><span>Medicaid waivers, respite and community supports.</span><em>Planned</em></button>
-<button type="button" class="dashboard-tile" disabled><strong>🌤️ Future & Transitions</strong><span>Adulthood, employment, housing and supported decisions.</span><em>Planned</em></button>
-<button type="button" class="dashboard-tile" disabled><strong>💬 AI Family Care Coach</strong><span>Strengths-based coaching and practical guidance.</span><em>Planned</em></button></div></section><div id="documentsModule" class="hide">
+<button type="button" class="dashboard-tile ready" id="openHealth"><strong>💊 Health & Medications</strong><span>Care notes, medication reminders and allergy summaries.</span><span class="tag">Development preview</span></button>
+<button type="button" class="dashboard-tile ready" id="openEducation"><strong>🎓 Education & Therapies</strong><span>IEP milestones, therapy appointments and services.</span><span class="tag">Development preview</span></button>
+<button type="button" class="dashboard-tile ready" id="openBenefits"><strong>🧭 Benefits & Resources</strong><span>Waiver applications, respite and community resources.</span><span class="tag">Development preview</span></button>
+<button type="button" class="dashboard-tile ready" id="openTransitions"><strong>🌤️ Future & Transitions</strong><span>Employment, housing, adulthood and supported decisions.</span><span class="tag">Development preview</span></button>
+<button type="button" class="dashboard-tile" disabled><strong>💬 AI Family Care Coach</strong><span>Strengths-based coaching and practical guidance.</span><em>Planned</em></button></div></section><div id="supportRecordsModule" class="hide">
+<button type="button" id="supportRecordsBackHome" class="secondary">← Back to Dashboard</button><section class="card">
+<h2 id="supportRecordsHeading">Care records</h2><p id="supportRecordsIntro" class="muted"></p>
+<p class="warn">Fictional records only. Do not enter real medical information, IEPs, identifiers or sensitive family information.</p>
+<label for="supportPerson">Fictional profile you own</label><select id="supportPerson"><option value="">Choose a profile</option></select>
+<label for="supportType">Record type</label><select id="supportType"></select>
+<label for="supportTitle">Short title</label><input id="supportTitle" maxlength="200" placeholder="Example: Fictional plan or appointment">
+<label for="supportDetails">Details</label><textarea id="supportDetails" maxlength="3000" placeholder="Fictional notes and next steps"></textarea>
+<label for="supportTargetDate">Date or deadline (optional)</label><input id="supportTargetDate" type="date">
+<label for="supportStatus">Status</label><select id="supportStatus"><option value="active">Active</option><option value="planned">Planned</option><option value="completed">Completed</option><option value="paused">Paused</option></select>
+<button type="button" id="addSupportRecord">Save fictional record</button>
+<h3>Saved records</h3><div id="supportRecordsList"></div><button type="button" id="refreshSupportRecords" class="secondary">Refresh records</button>
+</section></div><div id="documentsModule" class="hide">
 <button type="button" id="documentsBackHome" class="secondary">← Back to Dashboard</button>
 <section class="card"><h2>Documents & Records</h2><p>Organize private records for a fictional profile. Only the profile owner can currently upload, view, or delete files. Shared family access does <strong>not</strong> include documents in this version.</p>
 <p class="warn">Fictional/test documents only. Do not upload actual IEPs, medical records, identifiers or sensitive personal information.</p>
@@ -81,7 +93,7 @@ const URL='https://iqgytijuufgkvnzolvqz.supabase.co';
 const KEY='sb_publishable_RJjUabuM_LOanY9YqLRXLw_-TdQo4rA';
 const $=id=>document.getElementById(id); let session=null,person=null,strengths=[],goals=[],peopleCache=[],recoveryToken=null;
 const notify=s=>{$('notice').textContent=s};
-function navigate(section){$('dashboard').classList.toggle('hide',section!=='home');$('strengthsModule').classList.toggle('hide',section!=='strengths');$('teamModule').classList.toggle('hide',section!=='team');$('tasksModule').classList.toggle('hide',section!=='tasks');$('documentsModule').classList.toggle('hide',section!=='documents');if(section==='home')notify('');window.scrollTo(0,0);}
+function navigate(section){$('dashboard').classList.toggle('hide',section!=='home');$('strengthsModule').classList.toggle('hide',section!=='strengths');$('teamModule').classList.toggle('hide',section!=='team');$('tasksModule').classList.toggle('hide',section!=='tasks');$('documentsModule').classList.toggle('hide',section!=='documents');$('supportRecordsModule').classList.toggle('hide',section!=='supportRecords');if(section==='home')notify('');window.scrollTo(0,0);}
 function make(tag,content,className){let el=document.createElement(tag);el.textContent=content;if(className)el.className=className;return el}
 function item(target,heading,sub){const d=make('div','', 'entry');d.append(make('strong',heading));if(sub)d.append(make('p',sub,'muted'));$(target).append(d);return d}
 async function request(path,method='GET',data=null,access=true){let h={'apikey':KEY,'Content-Type':'application/json'};if(method==='POST'&&path.startsWith('/rest/v1/'))h.Prefer='return=representation';if(access&&session)h.Authorization='Bearer '+session.access_token;let r=await fetch(URL+path,{method,headers:h,body:data?JSON.stringify(data):undefined});let raw=await r.text(),value;try{value=raw?JSON.parse(raw):null}catch{value=raw}if(!r.ok)throw Error(value?.msg||value?.message||value?.error_description||value?.error||('HTTP '+r.status));return value}
@@ -129,7 +141,7 @@ function clearSession(message='Session expired. Please sign in again.'){
   else field.value='';
  }
  for(const id of ['people','activeGoal','docPerson','taskPerson','taskAssignee','teamPerson',
-  'strengthList','goalList','stepList','noteList','teamSent','teamReceived','taskList','docList'])$(id)?.replaceChildren();
+  'strengthList','goalList','stepList','noteList','teamSent','teamReceived','taskList','docList','supportRecordsList'])$(id)?.replaceChildren();
  $('details')?.classList.add('hide');
  navigate('home');notify(message);
 }
@@ -167,6 +179,71 @@ async function hasExpectedFileSignature(file){
  if(file.type==='image/jpeg')return b.length>=3&&b[0]===255&&b[1]===216&&b[2]===255;
  return false;
 }
+
+const SUPPORT_RECORD_CONFIG={
+ health:{heading:'Health & Medications',intro:'Track fictional care summaries, medication reminders, allergies and appointments. Not a prescribing or emergency tool.',types:[['care_note','Care note'],['medication','Medication reminder'],['allergy','Allergy summary'],['appointment','Appointment'],['question','Question for clinician']]},
+ education:{heading:'Education & Therapies',intro:'Organize fictional IEP goals, therapy visits and coordination. Not an official education record.',types:[['iep_goal','IEP goal'],['therapy','Therapy'],['meeting','IEP meeting'],['service','Service'],['progress','Progress update']]},
+ benefits:{heading:'Benefits & Resources',intro:'Track fictional waivers, respite, benefit applications and resources.',types:[['waiver','Waiver'],['respite','Respite'],['benefit','Benefit'],['resource','Community resource'],['application','Application']]},
+ transitions:{heading:'Future & Transitions',intro:'Plan fictional transitions to adulthood, employment, housing and supported decisions.',types:[['employment','Employment'],['housing','Housing'],['education','Education'],['decision','Supported decision'],['milestone','Milestone']]}
+};
+let supportRecordCategory='education';
+async function loadSupportRecords(){
+ const [profiles,records]=await Promise.all([
+  request('/rest/v1/dd_people?select=id,owner_id,display_name&order=created_at.desc'),
+  request('/rest/v1/dd_support_records?select=id,person_id,owner_id,category,record_type,title,details,target_date,status,created_at&category=eq.'+enc(supportRecordCategory)+'&order=created_at.desc')
+ ]);
+ const owned=profiles.filter(p=>p.owner_id===session?.user?.id);
+ const previous=$('supportPerson').value;
+ $('supportPerson').replaceChildren(new Option('Choose a profile',''));
+ owned.forEach(p=>$('supportPerson').add(new Option(p.display_name,p.id)));
+ if(owned.some(p=>p.id===previous))$('supportPerson').value=previous;
+ const names=Object.fromEntries(owned.map(p=>[p.id,p.display_name]));
+ const target=$('supportRecordsList');target.replaceChildren();
+ for(const record of records){
+  const block=item('supportRecordsList',record.title,(names[record.person_id]||'Fictional profile')+' · '+record.record_type.replace(/_/g,' ')+' · '+(record.target_date||'No date'));
+  if(record.details)block.append(make('p',record.details,'muted'));
+  const label=make('label','Status');block.append(label);
+  const status=document.createElement('select');status.setAttribute('aria-label','Status for '+record.title);
+  for(const [value,name] of [['active','Active'],['planned','Planned'],['completed','Completed'],['paused','Paused']])status.add(new Option(name,value));
+  status.value=record.status;
+  status.addEventListener('change',()=>retry(async()=>{
+   await request('/rest/v1/dd_support_records?id=eq.'+enc(record.id),'PATCH',{status:status.value});
+   await loadSupportRecords();notify('Record status updated.');
+  }));
+  block.append(status);
+  const del=make('button','Delete record','secondary');del.type='button';
+  del.addEventListener('click',()=>{
+   if(del.dataset.confirm!=='yes'){
+    del.dataset.confirm='yes';del.textContent='Confirm delete record';del.setAttribute('aria-label','Confirm delete record');
+    notify('Click Confirm delete record to permanently remove this fictional entry.');return;
+   }
+   retry(async()=>{await request('/rest/v1/dd_support_records?id=eq.'+enc(record.id),'DELETE');await loadSupportRecords();notify('Fictional record deleted.');});
+  });
+  block.append(del);
+ }
+ if(!records.length)target.append(make('p','No records in this area yet.','muted'));
+}
+async function openSupportRecords(category){
+ supportRecordCategory=category;const cfg=SUPPORT_RECORD_CONFIG[category];
+ $('supportRecordsHeading').textContent=cfg.heading;$('supportRecordsIntro').textContent=cfg.intro;
+ $('supportType').replaceChildren();cfg.types.forEach(([value,name])=>$('supportType').add(new Option(name,value)));
+ navigate('supportRecords');await loadSupportRecords();
+}
+async function saveSupportRecord(){
+ const person_id=$('supportPerson').value,title=$('supportTitle').value.trim(),record_type=$('supportType').value;
+ if(!person_id)throw Error('Choose a fictional profile you own.');
+ if(!title)throw Error('Enter a short title.');
+ await request('/rest/v1/dd_support_records','POST',{person_id,category:supportRecordCategory,record_type,title,details:$('supportDetails').value.trim()||null,target_date:$('supportTargetDate').value||null,status:$('supportStatus').value});
+ $('supportTitle').value='';$('supportDetails').value='';$('supportTargetDate').value='';$('supportStatus').value='active';
+ await loadSupportRecords();notify('Fictional record saved.');
+}
+for(const [id,category] of [['openHealth','health'],['openEducation','education'],['openBenefits','benefits'],['openTransitions','transitions']]){
+ $(id).addEventListener('click',()=>retry(()=>openSupportRecords(category)));
+}
+$('supportRecordsBackHome').addEventListener('click',()=>navigate('home'));
+$('addSupportRecord').addEventListener('click',()=>retry(saveSupportRecord));
+$('refreshSupportRecords').addEventListener('click',()=>retry(loadSupportRecords));
+
 async function docStorage(path,method='GET',file=null,type=''){
  const h={'apikey':KEY,'Authorization':'Bearer '+session.access_token};
  if(file){h['Content-Type']=type;h['x-upsert']='false';}
