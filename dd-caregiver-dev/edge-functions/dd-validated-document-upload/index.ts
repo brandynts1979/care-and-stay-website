@@ -37,7 +37,8 @@ Deno.serve(async (request: Request) => {
   if (!token?.startsWith("Bearer ")) return respond(401, "Sign in required.");
   const url = Deno.env.get("SUPABASE_URL");
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
-  if (!url || !anonKey) return respond(503, "Upload service configuration unavailable.");
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!url || !anonKey || !serviceKey) return respond(503, "Upload service configuration unavailable.");
 
   try {
     const userResponse = await fetch(url + "/auth/v1/user", {
@@ -69,6 +70,10 @@ Deno.serve(async (request: Request) => {
     if (!hasSignature(content, file.type)) return respond(415, "File contents do not match its declared type.");
 
     const headers = { apikey: anonKey, authorization: token };
+    // Service role is used ONLY after authenticating the user and verifying ownership,
+    // and ONLY for storing/cleaning up the exact validated object path.
+    // This avoids direct authenticated Storage INSERT access bypassing validation.
+    const storageHeaders = { apikey: serviceKey, authorization: "Bearer " + serviceKey };
     const profileResponse = await fetch(url + "/rest/v1/dd_people?select=id&owner_id=eq." + user.id + "&id=eq." + personId, { headers });
     if (!profileResponse.ok) return respond(503, "Unable to verify profile access.");
     const owned = await profileResponse.json();
@@ -77,7 +82,7 @@ Deno.serve(async (request: Request) => {
     const path = user.id + "/" + personId + "/" + crypto.randomUUID() + "." + TYPES[file.type];
     const upload = await fetch(url + "/storage/v1/object/" + BUCKET + "/" + path, {
       method: "POST",
-      headers: { ...headers, "Content-Type": file.type, "x-upsert": "false" },
+      headers: { ...storageHeaders, "Content-Type": file.type, "x-upsert": "false" },
       body: content
     });
     if (!upload.ok) return respond(502, "File storage rejected the upload.");
@@ -98,7 +103,7 @@ Deno.serve(async (request: Request) => {
     if (!recordResponse.ok) {
       const cleanup = await fetch(url + "/storage/v1/object/" + BUCKET, {
         method: "DELETE",
-        headers: { ...headers, "Content-Type": "application/json" },
+        headers: { ...storageHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({ prefixes: [path] })
       });
       if (!cleanup.ok) console.error("DD upload metadata failure: orphan cleanup unsuccessful");
