@@ -140,6 +140,7 @@ test('owner can create and revoke a fictional family invitation',async({page})=>
  await page.locator('#openStrengths').click();
  await page.locator('#personName').fill('Alex Sample');
  await page.locator('#savePerson').click();
+ await expect.poll(()=>db.people.length).toBe(1);
  await page.locator('#backHome').click();
  await page.locator('#openTeam').click();
  await page.locator('#teamPerson').selectOption(db.people[0].id);
