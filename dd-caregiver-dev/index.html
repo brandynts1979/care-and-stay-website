@@ -333,6 +333,16 @@ async function uploadDocument(){
 async function qaServerValidatedUpload(){
  const person_id=$('docPerson').value;
  if(!person_id)throw Error('Choose the fictional Alex profile.');
+ const rejected=new FormData();
+ rejected.append('person_id',person_id);
+ rejected.append('document_name','QA MIME SPOOF SHOULD NOT SAVE');
+ rejected.append('category','other');
+ rejected.append('notes','Spoof rejection QA; should never be saved.');
+ rejected.append('file',new File(['This is not PNG image data'],'spoof.png',{type:'image/png'}));
+ const rejectedResponse=await fetch(URL+'/functions/v1/dd-validated-document-upload',{
+  method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+session.access_token},body:rejected
+ });
+ if(rejectedResponse.status!==415)throw Error('SECURITY TEST FAILED: disguised PNG was not rejected with HTTP 415. Status '+rejectedResponse.status);
  const bytes=Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLttAAAAABJRU5ErkJggg=='),x=>x.charCodeAt(0));
  const file=new File([bytes],'dd-synthetic-qa.png',{type:'image/png'});
  const form=new FormData();
@@ -346,7 +356,7 @@ async function qaServerValidatedUpload(){
  });
  const body=await response.json().catch(()=>({}));
  if(!response.ok)throw Error(body.message||('Server rejected QA upload: HTTP '+response.status));
- await loadDocuments();notify('Server-validated QA PNG saved. Verify download, then delete this test item.');
+ await loadDocuments();notify('Spoofed PNG correctly rejected (HTTP 415). Valid QA PNG saved. Verify download, then delete this test item.');
 }
 $('qaServerValidatedUpload').addEventListener('click',()=>retry(qaServerValidatedUpload));
 
