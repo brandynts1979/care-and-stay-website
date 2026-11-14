@@ -366,3 +366,26 @@ test('mismatched new passwords cannot be submitted for recovery',async({page})=>
  expect(putRequests).toBe(0);
  await expect(page.locator('#passwordReset')).toBeVisible();
 });
+
+test('signout clears fictional profile fields and rendered private content',async({page})=>{
+ const db=await fakeBackend(page);await signin(page);
+ await page.locator('#openStrengths').click();
+ await page.locator('#personName').fill('Private fictional profile');
+ await page.locator('#communication').fill('Visual schedule');
+ await page.locator('#matters').fill('Fictional private preference');
+ await page.locator('#savePerson').click();
+ await expect.poll(()=>db.people.length).toBe(1);
+ await page.locator('#backHome').click();
+ await page.locator('#signout').click();
+ await expect(page.locator('#auth')).toBeVisible();
+ await expect(page.locator('#app')).toBeHidden();
+ expect(await page.locator('#personName').inputValue()).toBe('');
+ expect(await page.locator('#communication').inputValue()).toBe('');
+ expect(await page.locator('#matters').inputValue()).toBe('');
+ await expect(page.locator('#details')).toBeHidden();
+ await expect(page.locator('#strengthList')).toBeEmpty();
+ await expect(page.locator('#goalList')).toBeEmpty();
+ await expect(page.locator('#teamSent')).toBeEmpty();
+ await expect(page.locator('#teamReceived')).toBeEmpty();
+ expect(await page.evaluate(()=>sessionStorage.getItem('dd_dev_session'))).toBeNull();
+});
