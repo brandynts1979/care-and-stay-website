@@ -8,8 +8,12 @@
 <section id="auth" class="card"><h2>Secure sign-in</h2><p class="muted">This is a separate DD Caregiver development database. Your original Caregiver App is unaffected.</p>
 <label for="email">Email</label><input id="email" type="email" autocomplete="email">
 <label for="password">Password</label><input id="password" type="password" minlength="8" autocomplete="current-password">
-<button id="signin">Sign in</button><button class="secondary" id="signup">Create test account</button>
+<button id="signin">Sign in</button><button class="secondary" id="signup">Create test account</button><button type="button" class="secondary" id="forgotPassword">Forgot password?</button>
 <p><small>Email confirmation may be required. If the confirmation link opens the wrong page, the project's Auth redirect URLs must be configured before testing verification.</small></p></section>
+<section id="passwordReset" class="card hide"><h2>Set a new password</h2><p class="muted">Use a new password of at least 12 characters for your DD development account.</p>
+<label for="resetPassword">New password</label><input id="resetPassword" type="password" minlength="12" autocomplete="new-password">
+<label for="resetPasswordConfirm">Confirm new password</label><input id="resetPasswordConfirm" type="password" minlength="12" autocomplete="new-password">
+<button type="button" id="saveResetPassword">Save new password</button><button type="button" id="cancelPasswordReset" class="secondary">Return to sign-in</button></section>
 <div id="app" class="hide">
 <div class="card flex"><div><strong id="signedin"></strong><p class="muted">Only you can see records you create in this first development version.</p></div><div style="text-align:right"><button id="signout" class="secondary">Sign out</button></div></div>
 <section id="dashboard"><div class="card"><h2>Family Care Dashboard</h2><p>Helping children and adults with developmental disabilities build on strengths, choices, autonomy and quality of life.</p><p class="muted">Select a module. Planned features are not yet available. Use fictional information only.</p></div><div class="dashboard-grid"><button type="button" class="dashboard-tile ready" id="openStrengths"><strong>🌱 Strengths & Possibilities</strong><span>Personal goals, interests, practice steps and progress notes.</span><span class="tag">Available now</span></button>
@@ -75,13 +79,36 @@
 </main><script>
 const URL='https://iqgytijuufgkvnzolvqz.supabase.co';
 const KEY='sb_publishable_RJjUabuM_LOanY9YqLRXLw_-TdQo4rA';
-const $=id=>document.getElementById(id); let session=null,person=null,strengths=[],goals=[],peopleCache=[];
+const $=id=>document.getElementById(id); let session=null,person=null,strengths=[],goals=[],peopleCache=[],recoveryToken=null;
 const notify=s=>{$('notice').textContent=s};
 function navigate(section){$('dashboard').classList.toggle('hide',section!=='home');$('strengthsModule').classList.toggle('hide',section!=='strengths');$('teamModule').classList.toggle('hide',section!=='team');$('tasksModule').classList.toggle('hide',section!=='tasks');$('documentsModule').classList.toggle('hide',section!=='documents');if(section==='home')notify('');window.scrollTo(0,0);}
 function make(tag,content,className){let el=document.createElement(tag);el.textContent=content;if(className)el.className=className;return el}
 function item(target,heading,sub){const d=make('div','', 'entry');d.append(make('strong',heading));if(sub)d.append(make('p',sub,'muted'));$(target).append(d);return d}
 async function request(path,method='GET',data=null,access=true){let h={'apikey':KEY,'Content-Type':'application/json'};if(method==='POST'&&path.startsWith('/rest/v1/'))h.Prefer='return=representation';if(access&&session)h.Authorization='Bearer '+session.access_token;let r=await fetch(URL+path,{method,headers:h,body:data?JSON.stringify(data):undefined});let raw=await r.text(),value;try{value=raw?JSON.parse(raw):null}catch{value=raw}if(!r.ok)throw Error(value?.msg||value?.message||value?.error_description||value?.error||('HTTP '+r.status));return value}
 async function authenticate(type){notify('');try{let email=$('email').value.trim(),password=$('password').value;if(!email||!password)throw Error('Enter email and password.');let path=type==='signin'?'/auth/v1/token?grant_type=password':'/auth/v1/signup?redirect_to='+encodeURIComponent(window.location.origin+'/');let value=await request(path,'POST',{email,password},false);if(type==='signup'&&!value.access_token){notify('Account created. Check your verification email before signing in.');return}session=value;await loggedIn()}catch(e){notify(e.message)}}
+async function requestPasswordReset(){
+ const email=$('email').value.trim();
+ if(!email||!$('email').checkValidity()){notify('Enter a valid account email address first.');return}
+ try{
+  await request('/auth/v1/recover?redirect_to='+encodeURIComponent(window.location.origin+'/'),'POST',{email},false);
+  notify('If this address has an account, a password-reset link will arrive by email. Check your inbox and spam folder.');
+ }catch(e){notify('Unable to request password reset: '+e.message)}
+}
+async function updateRecoveredPassword(){
+ if(!recoveryToken){notify('Your reset link is no longer active. Request a new one.');return}
+ const password=$('resetPassword').value;
+ if(password.length<12){notify('Choose a password of at least 12 characters.');return}
+ if(password!==$('resetPasswordConfirm').value){notify('The new passwords do not match.');return}
+ try{
+  const response=await fetch(URL+'/auth/v1/user',{method:'PUT',headers:{apikey:KEY,Authorization:'Bearer '+recoveryToken,'Content-Type':'application/json'},body:JSON.stringify({password})});
+  const raw=await response.text();let body;try{body=JSON.parse(raw)}catch{body={}}
+  if(!response.ok)throw Error(body.msg||body.message||body.error_description||body.error||('HTTP '+response.status));
+  recoveryToken=null;$('resetPassword').value='';$('resetPasswordConfirm').value='';
+  $('passwordReset').classList.add('hide');$('auth').classList.remove('hide');
+  sessionStorage.removeItem('dd_dev_session');
+  notify('Password updated. Sign in with your new password.');
+ }catch(e){notify('Password could not be updated: '+e.message)}
+}
 async function loggedIn(){if(!session?.access_token)return;sessionStorage.setItem('dd_dev_session',JSON.stringify(session));$('auth').classList.add('hide');$('app').classList.remove('hide');$('signedin').textContent=session.user?.email||'Signed in';notify('Signed in to DD development. Use fictional records only.');navigate('home');await loadPeople();await loadTeam()}
 function clearSession(message='Session expired. Please sign in again.'){
  session=null;person=null;strengths=[];goals=[];peopleCache=[];
@@ -302,6 +329,9 @@ wire('sendTeamInvite',inviteTeam);
 wire('reloadTeam',loadTeam);wire('createTask',createTask);wire('refreshTasks',loadTasks);wire('uploadDocument',uploadDocument);wire('refreshDocuments',loadDocuments);
 function wire(id,fn){$(id).addEventListener('click',()=>retry(fn))}
 $('signin').onclick=()=>authenticate('signin');$('signup').onclick=()=>authenticate('signup');
+$('forgotPassword').onclick=requestPasswordReset;
+$('saveResetPassword').onclick=updateRecoveredPassword;
+$('cancelPasswordReset').onclick=()=>{recoveryToken=null;$('resetPassword').value='';$('resetPasswordConfirm').value='';$('passwordReset').classList.add('hide');$('auth').classList.remove('hide');notify('Return to sign-in or request a new reset link.');};
 $('signout').onclick=async()=>{try{await request('/auth/v1/logout','POST',{},true)}catch{}clearSession('Signed out.')};
 wire('savePerson',savePerson);wire('addStrength',addStrength);wire('addGoal',addGoal);wire('addStep',addStep);wire('addNote',addNote);
 $('people').onchange=()=>retry(selectPerson);$('activeGoal').onchange=()=>retry(loadProgress);
@@ -311,6 +341,18 @@ $('people').onchange=()=>retry(selectPerson);$('activeGoal').onchange=()=>retry(
   const error=query.get('error_description')||fragment.get('error_description')||query.get('error')||fragment.get('error');
   const token=fragment.get('access_token');
   const hasConfirmation=Boolean(token||query.get('code')||fragment.get('type')==='signup');
+  if(fragment.get('type')==='recovery'&&token&&!error){
+    history.replaceState(null,'',window.location.pathname);
+    sessionStorage.removeItem('dd_dev_session');session=null;
+    try{
+      const response=await fetch(URL+'/auth/v1/user',{headers:{apikey:KEY,Authorization:'Bearer '+token}});
+      if(!response.ok)throw Error('Recovery link is expired or invalid');
+      recoveryToken=token;
+      $('auth').classList.add('hide');$('app').classList.add('hide');$('passwordReset').classList.remove('hide');
+      notify('Recovery link verified. Choose a new password.');$('resetPassword').focus();
+    }catch(e){recoveryToken=null;notify(e.message+'. Request a new link.')}
+    return;
+  }
   if(error||hasConfirmation){
     let message='';
     if(error){
