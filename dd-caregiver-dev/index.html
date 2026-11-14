@@ -145,6 +145,13 @@ $('backHome').addEventListener('click',()=>navigate('home'));
 
 const DOC_BUCKET='dd-private-documents';
 const DOC_TYPES=new Set(['application/pdf','image/png','image/jpeg']);
+async function hasExpectedFileSignature(file){
+ const b=new Uint8Array(await file.slice(0,8).arrayBuffer());
+ if(file.type==='application/pdf')return b.length>=5&&b[0]===37&&b[1]===80&&b[2]===68&&b[3]===70&&b[4]===45;
+ if(file.type==='image/png')return b.length>=8&&[137,80,78,71,13,10,26,10].every((n,i)=>b[i]===n);
+ if(file.type==='image/jpeg')return b.length>=3&&b[0]===255&&b[1]===216&&b[2]===255;
+ return false;
+}
 async function docStorage(path,method='GET',file=null,type=''){
  const h={'apikey':KEY,'Authorization':'Bearer '+session.access_token};
  if(file){h['Content-Type']=type;h['x-upsert']='false';}
@@ -213,6 +220,7 @@ async function uploadDocument(){
  if(!file)throw Error('Choose a test PDF or image.');
  if(!DOC_TYPES.has(file.type))throw Error('Only PDF, PNG and JPEG files are allowed.');
  if(file.size<1||file.size>10485760)throw Error('File must be 1 byte to 10 MB.');
+ if(!await hasExpectedFileSignature(file))throw Error('File content does not match its PDF or image type.');
  if(!title)throw Error('Enter a document display name.');
  if(title.length>200)throw Error('Document name is too long.');
  const extension=file.type==='application/pdf'?'pdf':file.type==='image/png'?'png':'jpg';
