@@ -46,7 +46,7 @@
 <label for="docName">Display name</label><input id="docName" maxlength="200" placeholder="Example: Fictional Sample IEP">
 <label for="docNotes">Notes (optional)</label><textarea id="docNotes" maxlength="1000" placeholder="Describe why this document matters"></textarea>
 <label for="docFile">Select a PDF, PNG or JPEG (10 MB maximum)</label><input id="docFile" type="file" accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg">
-<button type="button" id="uploadDocument">Upload private test document</button>
+<button type="button" id="uploadDocument">Upload private test document</button><button type="button" id="qaSecureUpload" class="secondary">Run fictional secure upload QA</button>
 <h3>Saved documents</h3><div id="docList"></div><button type="button" id="refreshDocuments" class="secondary">Refresh documents</button>
 </section></div><div id="tasksModule" class="hide">
 <button type="button" id="tasksBackHome" class="secondary">← Back to Dashboard</button>
@@ -329,6 +329,24 @@ async function uploadDocument(){
  $('docName').value='';$('docNotes').value='';$('docFile').value='';
  await loadDocuments();notify('Private test document saved.');
 }
+
+async function qaSecureUpload(){
+ const person_id=$('docPerson').value;
+ if(!person_id)throw Error('Choose your fictional profile first.');
+ const bytes=Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLttAAAAABJRU5ErkJggg=='),x=>x.charCodeAt(0));
+ const form=new FormData();
+ form.append('person_id',person_id);
+ form.append('document_name','QA SECURE STORAGE TEST');
+ form.append('category','other');
+ form.append('notes','Temporary synthetic one-pixel QA image; delete immediately.');
+ form.append('file',new File([bytes],'dd-qa.png',{type:'image/png'}));
+ const res=await fetch(URL+'/functions/v1/dd-validated-document-upload',{method:'POST',
+  headers:{apikey:KEY,Authorization:'Bearer '+session.access_token},body:form});
+ const data=await res.json().catch(()=>({}));
+ if(!res.ok)throw Error(data.message||('QA upload HTTP '+res.status));
+ await loadDocuments();notify('Synthetic QA upload passed. Download and delete QA SECURE STORAGE TEST.');
+}
+$('qaSecureUpload').addEventListener('click',()=>retry(qaSecureUpload));
 
 $('openDocuments').addEventListener('click',()=>retry(async()=>{navigate('documents');await loadDocuments()}));
 $('documentsBackHome').addEventListener('click',()=>navigate('home'));
