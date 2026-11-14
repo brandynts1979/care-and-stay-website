@@ -441,3 +441,14 @@ test('DD care records clear on sign out and remain mobile usable',async({page})=
  expect(await page.locator('#supportDetails').inputValue()).toBe('');
  expect(await page.evaluate(()=>sessionStorage.getItem('dd_dev_session'))).toBeNull();
 });
+
+test('new DD test accounts require a 12-character password before network request',async({page})=>{
+ let calls=0;
+ await page.route(API+'/auth/v1/signup**',route=>{calls++;return reply(route,{})});
+ await page.goto('/');
+ await page.locator('#email').fill('qa-fictional@example.test');
+ await page.locator('#password').fill('short123');
+ await page.locator('#signup').click();
+ await expect(page.locator('#notice')).toContainText('at least 12 characters');
+ expect(calls).toBe(0);
+});
