@@ -46,7 +46,7 @@
 <label for="docName">Display name</label><input id="docName" maxlength="200" placeholder="Example: Fictional Sample IEP">
 <label for="docNotes">Notes (optional)</label><textarea id="docNotes" maxlength="1000" placeholder="Describe why this document matters"></textarea>
 <label for="docFile">Select a PDF, PNG or JPEG (10 MB maximum)</label><input id="docFile" type="file" accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg">
-<button type="button" id="uploadDocument">Upload private test document</button><button type="button" id="qaServerValidatedUpload" class="secondary">QA server upload (temporary)</button>
+<button type="button" id="uploadDocument">Upload private test document</button>
 <h3>Saved documents</h3><div id="docList"></div><button type="button" id="refreshDocuments" class="secondary">Refresh documents</button>
 </section></div><div id="tasksModule" class="hide">
 <button type="button" id="tasksBackHome" class="secondary">← Back to Dashboard</button>
@@ -329,36 +329,6 @@ async function uploadDocument(){
  $('docName').value='';$('docNotes').value='';$('docFile').value='';
  await loadDocuments();notify('Private test document saved.');
 }
-
-async function qaServerValidatedUpload(){
- const person_id=$('docPerson').value;
- if(!person_id)throw Error('Choose the fictional Alex profile.');
- const rejected=new FormData();
- rejected.append('person_id',person_id);
- rejected.append('document_name','QA MIME SPOOF SHOULD NOT SAVE');
- rejected.append('category','other');
- rejected.append('notes','Spoof rejection QA; should never be saved.');
- rejected.append('file',new File(['This is not PNG image data'],'spoof.png',{type:'image/png'}));
- const rejectedResponse=await fetch(URL+'/functions/v1/dd-validated-document-upload',{
-  method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+session.access_token},body:rejected
- });
- if(rejectedResponse.status!==415)throw Error('SECURITY TEST FAILED: disguised PNG was not rejected with HTTP 415. Status '+rejectedResponse.status);
- const bytes=Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLttAAAAABJRU5ErkJggg=='),x=>x.charCodeAt(0));
- const file=new File([bytes],'dd-synthetic-qa.png',{type:'image/png'});
- const form=new FormData();
- form.append('person_id',person_id);
- form.append('document_name','QA SERVER VERIFIED FILE');
- form.append('category','other');
- form.append('notes','Disposable 1-pixel QA file. Delete after download.');
- form.append('file',file);
- const response=await fetch(URL+'/functions/v1/dd-validated-document-upload',{
-   method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+session.access_token},body:form
- });
- const body=await response.json().catch(()=>({}));
- if(!response.ok)throw Error(body.message||('Server rejected QA upload: HTTP '+response.status));
- await loadDocuments();notify('Spoofed PNG correctly rejected (HTTP 415). Valid QA PNG saved. Verify download, then delete this test item.');
-}
-$('qaServerValidatedUpload').addEventListener('click',()=>retry(qaServerValidatedUpload));
 
 $('openDocuments').addEventListener('click',()=>retry(async()=>{navigate('documents');await loadDocuments()}));
 $('documentsBackHome').addEventListener('click',()=>navigate('home'));
