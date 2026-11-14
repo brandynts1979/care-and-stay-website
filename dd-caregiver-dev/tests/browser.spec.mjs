@@ -417,3 +417,27 @@ test('four new care-planning modules support fictional records',async({page})=>{
 });
 
 
+
+test('DD care records clear on sign out and remain mobile usable',async({page})=>{
+ await page.setViewportSize({width:375,height:812});
+ const db=await fakeBackend(page);await signin(page);
+ await page.locator('#openStrengths').click();
+ await page.locator('#personName').fill('Fictional mobile QA');
+ await page.locator('#savePerson').click();
+ await expect.poll(()=>db.people.length).toBe(1);
+ await page.locator('#backHome').click();
+ await page.locator('#openEducation').click();
+ await page.locator('#supportPerson').selectOption(db.people[0].id);
+ await page.locator('#supportTitle').fill('Fictional private note');
+ await page.locator('#supportDetails').fill('Should be cleared on signout');
+ await page.locator('#addSupportRecord').click();
+ await expect(page.locator('#supportRecordsList')).toContainText('Fictional private note');
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth+1)).toBeTruthy();
+ await page.locator('#supportRecordsBackHome').click();
+ await page.locator('#signout').click();
+ await expect(page.locator('#app')).toBeHidden();
+ await expect(page.locator('#supportRecordsList')).toBeEmpty();
+ expect(await page.locator('#supportTitle').inputValue()).toBe('');
+ expect(await page.locator('#supportDetails').inputValue()).toBe('');
+ expect(await page.evaluate(()=>sessionStorage.getItem('dd_dev_session'))).toBeNull();
+});
