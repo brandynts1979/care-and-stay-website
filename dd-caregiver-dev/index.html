@@ -16,6 +16,7 @@
 <button type="button" id="saveResetPassword">Save new password</button><button type="button" id="cancelPasswordReset" class="secondary">Return to sign-in</button></section>
 <div id="app" class="hide">
 <div class="card flex"><div><strong id="signedin"></strong><p class="muted">Only you can see records you create in this first development version.</p></div><div style="text-align:right"><button id="signout" class="secondary">Sign out</button></div></div>
+<section class="card" aria-labelledby="billingHeading"><h2 id="billingHeading">DD Family Care subscription</h2><p id="ddBillingStatus" role="status">Checking subscription availability…</p><p class="muted"><small>Development preview only. Subscriptions and payments are not available here. Do not enter real care information.</small></p><button id="ddBillingRefresh" type="button" class="secondary">Refresh subscription status</button></section>
 <section id="dashboard"><div class="card"><h2>Family Care Dashboard</h2><p>Helping children and adults with developmental disabilities build on strengths, choices, autonomy and quality of life.</p><p class="muted">Select a module. Planned features are not yet available. Use fictional information only.</p></div><div class="dashboard-grid"><button type="button" class="dashboard-tile ready" id="openStrengths"><strong>🌱 Strengths & Possibilities</strong><span>Personal goals, interests, practice steps and progress notes.</span><span class="tag">Available now</span></button>
 <button type="button" class="dashboard-tile ready" id="openTeam"><strong>👥 My Care Team</strong><span>Invite supporters and accept read-only access to a shared profile.</span><span class="tag">Development preview</span></button>
 <button type="button" class="dashboard-tile ready" id="openTasks"><strong>📅 Shared Care Tasks</strong><span>Assign tasks to accepted supporters and track their progress.</span><span class="tag">Development preview</span></button>
@@ -128,7 +129,27 @@ async function updateRecoveredPassword(){
   notify('Password updated. Sign in with your new password.');
  }catch(e){notify('Password could not be updated: '+e.message)}
 }
-async function loggedIn(){if(!session?.access_token)return;sessionStorage.setItem('dd_dev_session',JSON.stringify(session));$('auth').classList.add('hide');$('app').classList.remove('hide');$('signedin').textContent=session.user?.email||'Signed in';notify('Signed in to DD development. Use fictional records only.');navigate('home');await loadPeople();await loadTeam()}
+async function loadDdBillingStatus(){
+ const status=$('ddBillingStatus');
+ if(!session?.access_token){status.textContent='Sign in to check subscription status.';return;}
+ status.textContent='Checking subscription availability…';
+ try{
+  const r=await fetch(URL+'/functions/v1/dd-subscription-gateway',{
+   method:'POST',headers:{'Content-Type':'application/json',apikey:KEY,Authorization:'Bearer '+session.access_token},
+   body:JSON.stringify({action:'status'})
+  });
+  const data=await r.json();
+  if(!r.ok)throw Error(data.error||'Billing service unavailable');
+  if(data.checkout_enabled===true){
+   // Never create a payment link in the browser; await a server-generated Checkout URL.
+   status.textContent='Billing setup is being verified. No purchase button is available in this development preview.';
+  }else{
+   status.textContent='Subscriptions are not available yet. Current subscription status: '+String(data.subscription_status||'none')+'.';
+  }
+ }catch(e){status.textContent='Subscription status could not be verified. Purchases remain unavailable.';}
+}
+$('ddBillingRefresh').addEventListener('click',loadDdBillingStatus);
+async function loggedIn(){if(!session?.access_token)return;sessionStorage.setItem('dd_dev_session',JSON.stringify(session));$('auth').classList.add('hide');$('app').classList.remove('hide');$('signedin').textContent=session.user?.email||'Signed in';notify('Signed in to DD development. Use fictional records only.');navigate('home');await loadPeople();await loadTeam();await loadDdBillingStatus()}
 function clearSession(message='Session expired. Please sign in again.'){
  session=null;person=null;strengths=[];goals=[];peopleCache=[];
  sessionStorage.removeItem('dd_dev_session');
