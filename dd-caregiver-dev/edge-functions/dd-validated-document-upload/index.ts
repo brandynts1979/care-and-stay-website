@@ -78,6 +78,17 @@ Deno.serve(async (request: Request) => {
     if (!profileResponse.ok) return respond(503, "Unable to verify profile access.");
     const owned = await profileResponse.json();
     if (!Array.isArray(owned) || owned.length !== 1) return respond(403, "You cannot upload to this profile.");
+    // Service-role Storage uploads bypass RLS: enforce the same subscription
+    // entitlement gate explicitly before any privileged file write.
+    const gateResponse = await fetch(url + "/rest/v1/rpc/dd_can_upload_for_owner", {
+      method: "POST",
+      headers: { ...storageHeaders, "Content-Type": "application/json" },
+      body: JSON.stringify({ p_owner_id: user.id })
+    });
+    if (!gateResponse.ok) return respond(503, "Unable to verify subscription access.");
+    const permitted = await gateResponse.json();
+    if (permitted !== true) return respond(403, "An active subscription is required for document uploads.");
+
 
     const path = user.id + "/" + personId + "/" + crypto.randomUUID() + "." + TYPES[file.type];
     const upload = await fetch(url + "/storage/v1/object/" + BUCKET + "/" + path, {
