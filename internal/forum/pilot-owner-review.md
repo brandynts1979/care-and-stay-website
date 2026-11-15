@@ -50,3 +50,11 @@ Operator-only function deployed to the existing community staging database. No r
 - Support contact wording updated in privacy draft using owner-confirmed inbox.
 - Pending before public release: confirm actual Supabase backup inventory and non-destructive recovery procedure, live device-width mobile layout, finalize retention periods and owner-approved legal copy, verify public signup/verification end to end with a disposable account, and set moderator absence/backup procedure.
 - Do not turn on public gate until these tests pass. Do not conflate staging deploy with public launch.
+
+## Backup and launch-gate evidence — November 14, 2026
+- Owner-provided Supabase Database Backups screen for project care-and-stay-community-staging showed PHYSICAL backups at 2026-11-14 09:37:03 UTC, 2026-11-13 09:36:51 UTC, and 2026-11-13 05:14:44 UTC.
+- Backup inventory EXISTS. Actual restoration has NOT been tested. Never click Restore against the live/staging source as a test because this would overwrite records.
+- Database backup does not include Supabase Storage objects. Current forums are text-only and upload capability is deferred.
+- For a safe restore drill, use the provider's Restore to new project feature only after confirming additional project costs and configuration. Validate restored table counts, schema and authentication in the separate isolated project; do not alter source.
+- Owner confirmed hello@mycareandstay.com operates; password recovery email was received separately.
+- Scope remaining: mobile viewport, real new-member signup + verification, moderator absence plan, final terms/privacy approval, and safe backup restore drill or documented risk acceptance.
