@@ -11,7 +11,7 @@ const ORIGINS = new Set([
   "https://mycareandstay.com",
   "https://www.mycareandstay.com"
 ]);
-const LIVE_PRICE = "price_1Ubr0GHU2Vcv1mFQgOfj2Ww8";
+const LIVE_PRICE = "price_1Ubt9YHU2Vcv1mFQ4i7i4K0e";
 const release = false; // Hard gate: only a reviewed source release can enable customer charges.
 const priceId = LIVE_PRICE; // Never trust environment or client to swap the approved live price.
 function answer(code:number, data:Record<string,unknown>, origin:string){
@@ -60,7 +60,7 @@ Deno.serve(async(req:Request)=>{
   const current=typeof record?.current_period_end==="string"&&Date.parse(record.current_period_end)>Date.now();
   const entitled=release&&validPrice&&current&&record?.status==="active";
   if(action==="status")return answer(200,{product:"dd_parent_app",monthly_price_usd:39,
-   tax_behavior:"exclusive",checkout_enabled:release,subscription_status:record?.status||"none",
+   tax_behavior:"managed_payments",checkout_enabled:release,subscription_status:record?.status||"none",
    cancel_at_period_end:Boolean(record?.cancel_at_period_end),entitled:Boolean(entitled)},origin);
   if(!release)return answer(503,{error:"Subscriptions are not yet available",checkout_enabled:false},origin);
   const secret=Deno.env.get("STRIPE_SECRET_KEY");
@@ -71,7 +71,7 @@ Deno.serve(async(req:Request)=>{
   const price=await stripe.prices.retrieve(priceId);
   if(!price.active||price.currency!=="usd"||price.unit_amount!==3900||
      price.recurring?.interval!=="month"||price.recurring?.interval_count!==1||
-     price.tax_behavior!=="exclusive"||price.product!=="prod_Vcl3ez86uLhNFb")
+     !["exclusive","unspecified"].includes(price.tax_behavior||"unspecified")||price.product!=="prod_Vd9SCXaSq0OhNA")
     return answer(503,{error:"Approved price unavailable"},origin);
   if(action==="portal"){
    if(!record?.stripe_customer_id)return answer(409,{error:"No active billing profile"},origin);
