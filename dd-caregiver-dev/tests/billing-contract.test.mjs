@@ -49,7 +49,8 @@ const reviewedGateway=readFileSync(new URL('../edge-functions/dd-subscription-ga
 test('future production Checkout implementation remains UNDEPLOYED and fail-closed',()=>{
  assert.match(reviewedGateway,/const CHECKOUT_RELEASE_APPROVED = false/);
  assert.match(reviewedGateway,/if\(!CHECKOUT_RELEASE_APPROVED\)return result\(503/);
- assert.match(reviewedGateway,/automatic_tax:\{enabled:true\}/);
+ assert.match(reviewedGateway,/managed_payments:\{enabled:true\}/);
+ assert.doesNotMatch(reviewedGateway,/automatic_tax:\{enabled:true\}/);
  assert.match(reviewedGateway,/client_reference_id:user.id/);
  assert.match(reviewedGateway,/subscription_data:\{metadata:\{dd_owner_id:user.id/);
  assert.match(reviewedGateway,/stripe\.checkout\.sessions\.create/);
