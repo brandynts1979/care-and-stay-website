@@ -1,72 +1,112 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import Stripe from "npm:stripe@20.2.0";
 
-/*
- * DD Parent App billing gateway — guarded prelaunch version.
- * Checkout and billing portal are intentionally DISABLED.
- * To launch, a separate reviewed implementation must remove this guard,
- * configure Stripe secrets, tax registrations and webhook/entitlement verification.
+/** DD billing gateway: checkout is fail-closed in source until verified launch.
+ * Managed Payments was approved by owner but LIVE eligibility and paid data gates
+ * require independent confirmation. Never enable via an environment variable alone.
  */
-const ORIGIN = "https://care-and-stay-dd-caregiver-dev.onrender.com";
-const PRICE_ID = "price_1Ubr0GHU2Vcv1mFQgOfj2Ww8";
-const CHECKOUT_RELEASE_APPROVED = false; // Never change without documented launch authorization.
-const headers = {
-  "Access-Control-Allow-Origin": ORIGIN,
-  "Access-Control-Allow-Headers": "authorization, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Cache-Control": "no-store",
-  "Vary": "Origin",
-  "Content-Type": "application/json"
-};
-function response(status: number, body: Record<string,unknown>) {
-  return new Response(JSON.stringify(body), {status, headers});
+const ORIGINS = new Set([
+  "https://care-and-stay-dd-caregiver-dev.onrender.com",
+  "https://care-and-stay-website.onrender.com",
+  "https://mycareandstay.com",
+  "https://www.mycareandstay.com"
+]);
+const LIVE_PRICE = "price_1Ubr0GHU2Vcv1mFQgOfj2Ww8";
+const release = false; // Hard gate: only a reviewed source release can enable customer charges.
+const priceId = LIVE_PRICE; // Never trust environment or client to swap the approved live price.
+function answer(code:number, data:Record<string,unknown>, origin:string){
+ return new Response(JSON.stringify(data),{status:code,headers:{
+  "Content-Type":"application/json","Cache-Control":"no-store","Vary":"Origin",
+  ...(ORIGINS.has(origin)?{"Access-Control-Allow-Origin":origin}:{})
+ }});
 }
-Deno.serve(async (req: Request) => {
-  if (req.headers.get("origin") !== ORIGIN) return response(403,{error:"Origin not permitted"});
-  if (req.method === "OPTIONS") return new Response(null,{status:204,headers});
-  if (req.method !== "POST") return response(405,{error:"Method not allowed"});
-  const auth = req.headers.get("authorization") || "";
-  if (!auth.startsWith("Bearer ")) return response(401,{error:"Authentication required"});
-  const url = Deno.env.get("SUPABASE_URL");
-  const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
-  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  if (!url || !anonKey || !serviceKey) return response(503,{error:"Service configuration unavailable"});
-  try {
-    const who = await fetch(url+"/auth/v1/user",{headers:{apikey:anonKey,authorization:auth}});
-    if (!who.ok) return response(401,{error:"Invalid or expired session"});
-    const user = await who.json();
-    if (typeof user.id !== "string") return response(401,{error:"Invalid account"});
-    let body:Record<string,unknown>;
-    try {body=await req.json()} catch{return response(400,{error:"Invalid request"})}
-    const action=body.action;
-    if (action==="checkout" || action==="portal") {
-      // No live Checkout, no saved-card collection, no Stripe calls.
-      return response(503,{
-        error:"DD subscriptions are not available for purchase yet",
-        checkout_enabled:CHECKOUT_RELEASE_APPROVED
-      });
-    }
-    if (action!=="status") return response(400,{error:"Unsupported billing action"});
-    const query=url+"/rest/v1/dd_subscription_entitlements?owner_id=eq."+encodeURIComponent(user.id)
-      +"&select=status,current_period_end,cancel_at_period_end,stripe_price_id&limit=1";
-    const result=await fetch(query,{headers:{apikey:serviceKey,authorization:"Bearer "+serviceKey}});
-    if (!result.ok) return response(503,{error:"Subscription status unavailable"});
-    const records=await result.json();
-    const record=Array.isArray(records)?records[0]:null;
-    const status=record?.status || "none";
-    const validPrice=record?.stripe_price_id===PRICE_ID;
-    const period=record?.current_period_end;
-    const stillCurrent=period && !Number.isNaN(Date.parse(period)) && Date.parse(period)>Date.now();
-    const entitled=CHECKOUT_RELEASE_APPROVED && validPrice && stillCurrent && (status==="active"||status==="trialing");
-    return response(200,{
-      product:"dd_parent_app",
-      monthly_price_usd:39,
-      tax_behavior:"exclusive",
-      checkout_enabled:CHECKOUT_RELEASE_APPROVED,
-      subscription_status:status,
-      entitled:Boolean(entitled),
-      // Do not expose Stripe customer/subscription identifiers to the browser.
-    });
-  } catch {
-    return response(503,{error:"Subscription service unavailable"});
+async function backend(base:string,key:string,path:string,method="GET",body?:unknown){
+ const r=await fetch(base+path,{method,headers:{apikey:key,Authorization:"Bearer "+key,"Content-Type":"application/json",
+   Prefer:"resolution=merge-duplicates,return=representation"},
+   body:body===undefined?undefined:JSON.stringify(body)});
+ if(!r.ok)throw Error("Private database request failed");
+ return r.status===204?null:await r.json();
+}
+function returnUrl(origin:string){
+ if(origin==="https://mycareandstay.com"||origin==="https://www.mycareandstay.com")return "https://mycareandstay.com/dd-family-care/";
+ if(origin==="https://care-and-stay-website.onrender.com")return origin+"/dd-caregiver-dev/";
+ return "https://care-and-stay-dd-caregiver-dev.onrender.com/";
+}
+Deno.serve(async(req:Request)=>{
+ const origin=req.headers.get("origin")||"";
+ if(!ORIGINS.has(origin))return answer(403,{error:"Origin not permitted"},origin);
+ if(req.method==="OPTIONS")return new Response(null,{status:204,headers:{
+  "Access-Control-Allow-Origin":origin,"Access-Control-Allow-Headers":"authorization, apikey, content-type",
+  "Access-Control-Allow-Methods":"POST, OPTIONS","Vary":"Origin"}});
+ if(req.method!=="POST")return answer(405,{error:"Method not allowed"},origin);
+ const auth=req.headers.get("authorization")||"";
+ if(!/^Bearer\s+[^\s]+$/.test(auth))return answer(401,{error:"Authentication required"},origin);
+ const base=Deno.env.get("SUPABASE_URL");
+ const anon=Deno.env.get("SUPABASE_ANON_KEY");
+ const service=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+ if(!base||!anon||!service)return answer(503,{error:"Billing service unavailable"},origin);
+ try{
+  const check=await fetch(base+"/auth/v1/user",{headers:{apikey:anon,Authorization:auth}});
+  if(!check.ok)return answer(401,{error:"Session invalid"},origin);
+  const user=await check.json() as {id?:string,email?:string,email_confirmed_at?:string};
+  if(!user.id||!user.email_confirmed_at)return answer(403,{error:"Verified account required"},origin);
+  let action:unknown;
+  try{const request=await req.json();action=request?.action;}catch{return answer(400,{error:"Invalid request"},origin);}
+  if(action!=="status"&&action!=="checkout"&&action!=="portal")return answer(400,{error:"Unsupported action"},origin);
+  const records=await backend(base,service,"/rest/v1/dd_subscription_entitlements?owner_id=eq."+
+   encodeURIComponent(user.id)+"&select=stripe_customer_id,stripe_subscription_id,stripe_price_id,status,current_period_end,cancel_at_period_end&limit=1");
+  const record=Array.isArray(records)?records[0]:null;
+  const validPrice=record?.stripe_price_id===priceId;
+  const current=typeof record?.current_period_end==="string"&&Date.parse(record.current_period_end)>Date.now();
+  const entitled=release&&validPrice&&current&&record?.status==="active";
+  if(action==="status")return answer(200,{product:"dd_parent_app",monthly_price_usd:39,
+   tax_behavior:"exclusive",checkout_enabled:release,subscription_status:record?.status||"none",
+   cancel_at_period_end:Boolean(record?.cancel_at_period_end),entitled:Boolean(entitled)},origin);
+  if(!release)return answer(503,{error:"Subscriptions are not yet available",checkout_enabled:false},origin);
+  const secret=Deno.env.get("STRIPE_SECRET_KEY");
+  if(!secret)return answer(503,{error:"Billing processor unavailable"},origin);
+  const stripe=new Stripe(secret);
+  // Validate that the configured price is a currently active $39 monthly DD price
+  // in the same Stripe account/mode before allowing a charge.
+  const price=await stripe.prices.retrieve(priceId);
+  if(!price.active||price.currency!=="usd"||price.unit_amount!==3900||
+     price.recurring?.interval!=="month"||price.recurring?.interval_count!==1||
+     price.tax_behavior!=="exclusive"||price.product!=="prod_Vcl3ez86uLhNFb")
+    return answer(503,{error:"Approved price unavailable"},origin);
+  if(action==="portal"){
+   if(!record?.stripe_customer_id)return answer(409,{error:"No active billing profile"},origin);
+   const customer=await stripe.customers.retrieve(record.stripe_customer_id);
+   if(customer.deleted||customer.metadata?.dd_owner_id!==user.id)
+     return answer(403,{error:"Billing profile mismatch"},origin);
+   const portal=await stripe.billingPortal.sessions.create({customer:customer.id,return_url:returnUrl(origin)});
+   return answer(200,{url:portal.url},origin);
   }
+  if(record?.stripe_subscription_id&&["active","trialing","past_due","unpaid","incomplete"].includes(record?.status||""))
+   return answer(409,{error:"An existing subscription must be managed, not duplicated"},origin);
+  let customerId=record?.stripe_customer_id;
+  if(customerId){
+   const customer=await stripe.customers.retrieve(customerId);
+   if(customer.deleted||customer.metadata?.dd_owner_id!==user.id)
+     return answer(403,{error:"Billing profile mismatch"},origin);
+  }else{
+   const customer=await stripe.customers.create({email:user.email,
+     metadata:{dd_owner_id:user.id,care_stay_product:"dd_parent_app"}},
+     {idempotencyKey:"dd-customer-"+user.id});
+   customerId=customer.id;
+   await backend(base,service,"/rest/v1/dd_subscription_entitlements?on_conflict=owner_id","POST",
+     {owner_id:user.id,stripe_customer_id:customerId,status:"none"});
+  }
+  const session=await stripe.checkout.sessions.create({
+    mode:"subscription",customer:customerId,
+    client_reference_id:user.id,
+    line_items:[{price:priceId,quantity:1}],
+    managed_payments:{enabled:true},billing_address_collection:"required",
+    customer_update:{address:"auto"},
+    subscription_data:{metadata:{dd_owner_id:user.id,care_stay_product:"dd_parent_app"}},
+    success_url:returnUrl(origin)+"?billing=success",
+    cancel_url:returnUrl(origin)+"?billing=cancelled",
+  },{idempotencyKey:"dd-checkout-"+user.id+"-"+Math.floor(Date.now()/300000)});
+  return answer(200,{url:session.url},origin);
+ }catch(e){console.error("DD billing gateway:",e instanceof Error?e.message:"unknown");
+  return answer(503,{error:"Billing temporarily unavailable"},origin);}
 });
