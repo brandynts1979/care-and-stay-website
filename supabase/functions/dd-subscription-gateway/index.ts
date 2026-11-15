@@ -65,7 +65,7 @@ Deno.serve(async(req:Request)=>{
   if(!release)return answer(503,{error:"Subscriptions are not yet available",checkout_enabled:false},origin);
   const secret=Deno.env.get("STRIPE_SECRET_KEY");
   if(!secret)return answer(503,{error:"Billing processor unavailable"},origin);
-  const stripe=new Stripe(secret);
+  const stripe=new Stripe(secret, {apiVersion:"2025-09-30.clover"});
   // Validate that the configured price is a currently active $39 monthly DD price
   // in the same Stripe account/mode before allowing a charge.
   const price=await stripe.prices.retrieve(priceId);
