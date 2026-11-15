@@ -33,7 +33,7 @@ async function showCommunity(){
   const form=el('form',undefined,'editor');form.append(el('h2',`Join ${names[current]}`),el('p','Choose a display name. Only people who join this community can read and contribute.'));
   const name=field(form,'Display name','display_name','text',50);name.minLength=2;if(m)name.value=m.display_name;
   const label=el('label');const check=el('input');check.type='checkbox';check.required=true;
-  label.append(check,document.createTextNode('I am 18 or older and agree to the community guidelines.'));
+  label.append(check,document.createTextNode('I am 18 or older, agree to the membership terms and community guidelines, and have read the privacy notice.'));
   const link=el('a','Read the guidelines');link.href='/community/guidelines/';link.target='_blank';link.rel='noopener';form.append(label,link);
   const submit=el('button','Join this community','button');submit.type='submit';form.append(el('p'),submit);
   form.addEventListener('submit',e=>{e.preventDefault();run(async()=>{await api('join',{display_name:name.value,adult:check.checked,terms_version:terms});await refreshAccount();status('You have joined the community.');},submit);});area.append(form);return;
