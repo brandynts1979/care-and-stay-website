@@ -11,8 +11,10 @@ import Stripe from "npm:stripe@20.2.0";
  *
  * Only activate after tax readiness, access enforcement and full sandbox tests.
  */
-const PRICE_ID = "price_1Ubr0GHU2Vcv1mFQgOfj2Ww8";
+const PRICE_ID = Deno.env.get("DD_STRIPE_PRICE_ID") || "price_1Ubr0GHU2Vcv1mFQgOfj2Ww8";
 const enabled = Deno.env.get("DD_BILLING_RELEASE_APPROVED") === "true";
+// Sandbox requires its own Stripe test key, webhook secret and DD_STRIPE_PRICE_ID.
+// This function is never activated merely by deployment.
 const json = (code:number, body:Record<string,unknown>) =>
   new Response(JSON.stringify(body), { status:code, headers:{"Content-Type":"application/json","Cache-Control":"no-store"} });
 const uuid = (v:unknown):v is string => typeof v === "string" &&
