@@ -1,102 +1,57 @@
-import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import Stripe from "npm:stripe@20.2.0";
-
-/**
- * DD Parent App Stripe webhook. Launch-safe default: DISABLED.
- * This endpoint never trusts event payload claims without Stripe signature
- * validation and a fresh server-to-server subscription lookup.
- *
- * Required launch secrets (not included in source):
- * STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, DD_BILLING_RELEASE_APPROVED=true
- *
- * Only activate after tax readiness, access enforcement and full sandbox tests.
- */
-const PRICE_ID = Deno.env.get("DD_STRIPE_PRICE_ID") || "price_1Ubr0GHU2Vcv1mFQgOfj2Ww8";
-const enabled = Deno.env.get("DD_BILLING_RELEASE_APPROVED") === "true";
-// Sandbox requires its own Stripe test key, webhook secret and DD_STRIPE_PRICE_ID.
-// This function is never activated merely by deployment.
-const json = (code:number, body:Record<string,unknown>) =>
-  new Response(JSON.stringify(body), { status:code, headers:{"Content-Type":"application/json","Cache-Control":"no-store"} });
-const uuid = (v:unknown):v is string => typeof v === "string" &&
- /^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(v);
-
-Deno.serve(async (req:Request) => {
- if(req.method !== "POST") return json(405,{error:"Method not allowed"});
- if(!enabled) return json(503,{error:"DD subscriptions not launched"});
- const secret=Deno.env.get("STRIPE_WEBHOOK_SECRET");
- const key=Deno.env.get("STRIPE_SECRET_KEY");
- const url=Deno.env.get("SUPABASE_URL");
- const service=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
- if(!secret||!key||!url||!service) return json(503,{error:"Billing not configured"});
- const stripe = new Stripe(key);
- const signature=req.headers.get("stripe-signature")||"";
+// DD Parent App — PRELAUNCH Stripe webhook receiver source.
+// NOT DEPLOYED. Do not deploy/register with Stripe until secret configuration,
+// tax registration, end-to-end sandbox testing and launch approvals are complete.
+// Supabase Edge deployment must use verify_jwt:false ONLY because the signature is verified below.
+import Stripe from "npm:stripe@22.0.0";
+import {HANDLED_EVENTS,getSubscriptionId,getBillingSnapshot,isPaidEntitlement} from "./event-mapping.mjs";
+const PROCESSING_RELEASE_APPROVED = false;
+const PRICE_ID = "price_1Ubr0GHU2Vcv1mFQgOfj2Ww8";
+const stripeCryptoProvider = Stripe.createSubtleCryptoProvider();
+function no(message: string,status=503){return new Response(message,{status,headers:{"Cache-Control":"no-store"}})}
+Deno.serve(async(req:Request)=>{
+ if(!PROCESSING_RELEASE_APPROVED) return no("DD billing webhooks are not activated.");
+ if(req.method!=="POST") return no("Method not allowed",405);
+ const secret=Deno.env.get("STRIPE_SECRET_KEY"),webhookSecret=Deno.env.get("STRIPE_WEBHOOK_SIGNING_SECRET");
+ const supabaseUrl=Deno.env.get("SUPABASE_URL"),serviceKey=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+ if(!secret||!webhookSecret||!supabaseUrl||!serviceKey)return no("Billing service unavailable");
+ const signature=req.headers.get("Stripe-Signature");
+ if(!signature)return no("Missing signature",400);
+ const stripe=new Stripe(secret);
  let event:Stripe.Event;
  try {
-   event=await stripe.webhooks.constructEventAsync(await req.text(),signature,secret);
- } catch {return json(400,{error:"Invalid signature"});}
- const relevant = new Set([
- "checkout.session.completed","customer.subscription.created",
- "customer.subscription.updated","customer.subscription.deleted",
- "invoice.paid","invoice.payment_failed"
- ]);
- if(!relevant.has(event.type))return json(200,{received:true,ignored:true});
- // Only subscriptions created by the app with both a valid owner and price may
- // establish an entitlement. A customer ID or email alone never grants access.
- try {
-  const obj=event.data.object as unknown as Record<string,unknown>;
-  let subscriptionId:string|null=null;
-  if(event.type.startsWith("customer.subscription.")) subscriptionId=String(obj.id||"");
-  else if(event.type==="checkout.session.completed"){
-    if(obj.mode!=="subscription") return json(200,{received:true,ignored:true});
-    subscriptionId=typeof obj.subscription==="string"?obj.subscription:null;
-  } else {
-    const parent=obj.parent as {subscription_details?:{subscription?:string}}|undefined;
-    subscriptionId=parent?.subscription_details?.subscription||
-      (typeof obj.subscription==="string"?obj.subscription:null);
-  }
-  if(!subscriptionId?.startsWith("sub_"))return json(200,{received:true,ignored:true});
-  const sub=await stripe.subscriptions.retrieve(subscriptionId);
-  const owner=sub.metadata?.dd_owner_id;
-  const rightPrice=sub.items.data.some(x=>x.price.id===PRICE_ID);
-  if(!uuid(owner)||sub.metadata?.care_stay_product!=="dd_parent_app"||!rightPrice)
-    return json(200,{received:true,ignored:true});
-  const customer=typeof sub.customer==="string"?sub.customer:sub.customer.id;
-  if(!customer.startsWith("cus_"))return json(200,{received:true,ignored:true});
-  // Use the current subscription state rather than event order for recovery.
-  const lastPeriod=Math.max(0,...sub.items.data.filter(x=>x.price.id===PRICE_ID).map(x=>x.current_period_end||0));
-  const end=lastPeriod?new Date(lastPeriod*1000).toISOString():null;
-  const hdr={apikey:service,Authorization:"Bearer "+service,"Content-Type":"application/json",
-    Prefer:"resolution=merge-duplicates,return=minimal"};
-  // Previous subscription ownership cannot be silently reassigned.
-  const conflicts=await fetch(url+"/rest/v1/dd_subscription_entitlements?stripe_subscription_id=eq."+encodeURIComponent(sub.id)+"&select=owner_id",{headers:hdr});
-  if(!conflicts.ok)throw Error("Cannot verify entitlement owner");
-  const owners=await conflicts.json();
-  if(owners.length && owners[0].owner_id!==owner)
-    return json(409,{error:"Subscription ownership conflict"});
-  const prior=await fetch(url+"/rest/v1/dd_subscription_entitlements?owner_id=eq."+encodeURIComponent(owner)+"&select=stripe_subscription_id",{headers:hdr});
-  if(!prior.ok)throw Error("Cannot verify existing subscription");
-  const existing=await prior.json();
-  if(existing.length && existing[0].stripe_subscription_id && existing[0].stripe_subscription_id!==sub.id)
-    return json(409,{error:"Existing subscription requires reconciliation"});
-  const record={
-   owner_id:owner,stripe_customer_id:customer,stripe_subscription_id:sub.id,
-   stripe_price_id:PRICE_ID,status:sub.status,current_period_end:end,
-   cancel_at_period_end:sub.cancel_at_period_end,updated_at:new Date().toISOString()
-  };
-  const update=await fetch(url+"/rest/v1/dd_subscription_entitlements?on_conflict=owner_id",
-   {method:"POST",headers:hdr,body:JSON.stringify(record)});
-  if(!update.ok)throw Error("Entitlement update failed");
-  // Event log is diagnostic only; entitlement updates are idempotent.
-  const logged=await fetch(url+"/rest/v1/dd_stripe_webhook_events?on_conflict=stripe_event_id",
-   {method:"POST",headers:hdr,body:JSON.stringify({
-      stripe_event_id:event.id,stripe_event_type:event.type,
-      stripe_event_created:event.created,customer_id:customer,
-      subscription_id:sub.id,outcome:"applied"
-   })});
-  if(!logged.ok)throw Error("Event log write failed");
-  return json(200,{received:true});
- }catch(e){
-  console.error("DD webhook reconciliation error",e instanceof Error?e.message:"unknown");
-  return json(500,{error:"Reconciliation failed; Stripe should retry"});
+  event=await stripe.webhooks.constructEventAsync(await req.text(),signature,webhookSecret,undefined,stripeCryptoProvider);
+ }catch {return no("Invalid Stripe signature",400)}
+ if(!HANDLED_EVENTS.has(event.type))return new Response("ignored",{status:200});
+ try{
+  const subId=getSubscriptionId(event);
+  if(!subId)return no("Subscription reference unavailable",422);
+  // Always retrieve the CURRENT subscription to avoid stale event payloads.
+  const subscription=await stripe.subscriptions.retrieve(subId);
+  const snapshot=getBillingSnapshot(subscription,PRICE_ID);
+  if(!snapshot)return no("Subscription is not linked to exactly one approved DD price/account",422);
+  // A completed Checkout page is not proof of a settled payment.
+  // Fail closed for missing/unpaid invoices and do not confer trial access.
+  const invoiceRef=subscription.latest_invoice;
+  const invoiceId=typeof invoiceRef==="string"?invoiceRef:invoiceRef?.id;
+  const invoice=invoiceId?await stripe.invoices.retrieve(invoiceId):null;
+  const invoicePaid=Boolean(invoice?.status==="paid"&&invoice.paid);
+  const paid=isPaidEntitlement(snapshot,invoicePaid);
+  const recordedStatus=snapshot.status==="active"&&!paid?"past_due":
+    snapshot.status==="trialing"?"incomplete":snapshot.status;
+  const res=await fetch(supabaseUrl+"/rest/v1/rpc/dd_apply_verified_stripe_event",{
+   method:"POST",
+   headers:{apikey:serviceKey,authorization:"Bearer "+serviceKey,"Content-Type":"application/json"},
+   body:JSON.stringify({
+    p_event_id:event.id,p_event_type:event.type,p_event_created:event.created,
+    p_owner_id:snapshot.ownerId,p_customer_id:snapshot.customerId,p_subscription_id:snapshot.subscriptionId,
+    p_price_id:PRICE_ID,p_status:recordedStatus,p_period_end:snapshot.periodEnd,
+    p_cancel_at_period_end:snapshot.cancelAtPeriodEnd
+   })
+  });
+  if(!res.ok)return no("Billing event persistence unavailable",503);
+  return new Response("ok",{status:200});
+ }catch {
+  // Stripe retries transient processing errors. Do not log raw webhook or customer info.
+  return no("Billing event not processed",503);
  }
 });
