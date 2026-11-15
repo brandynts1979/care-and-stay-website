@@ -44,3 +44,17 @@ test('prelaunch webhook stays undeployed and processing is disabled in source',(
 test('the temporary billing QA button is not in customer-facing app',()=>{
  assert.doesNotMatch(page,/qaBillingGate|Verify disabled subscription checkout/);
 });
+
+const reviewedGateway=readFileSync(new URL('../edge-functions/dd-subscription-gateway-PRODUCTION-REVIEW/index.ts',import.meta.url),'utf8');
+test('future production Checkout implementation remains UNDEPLOYED and fail-closed',()=>{
+ assert.match(reviewedGateway,/const CHECKOUT_RELEASE_APPROVED = false/);
+ assert.match(reviewedGateway,/if\(!CHECKOUT_RELEASE_APPROVED\)return result\(503/);
+ assert.match(reviewedGateway,/automatic_tax:\{enabled:true\}/);
+ assert.match(reviewedGateway,/client_reference_id:user.id/);
+ assert.match(reviewedGateway,/subscription_data:\{metadata:\{dd_owner_id:user.id/);
+ assert.match(reviewedGateway,/stripe\.checkout\.sessions\.create/);
+ assert.match(reviewedGateway,/stripe\.billingPortal\.sessions\.create/);
+ assert.match(reviewedGateway,/price\.unit_amount!==3900/);
+ assert.match(reviewedGateway,/stripe\.customers\.retrieve/);
+ assert.doesNotMatch(reviewedGateway,/input\.price_id|input\.owner_id|input\.customer_id/);
+});
