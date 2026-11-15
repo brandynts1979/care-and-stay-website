@@ -1,0 +1,1 @@
+{"name":"care-stay-forum-checks","private":true,"type":"module","scripts":{"build":"node build.mjs","test":"node --test test-access.mjs"},"dependencies":{"@supabase/supabase-js":"2.119.0"},"devDependencies":{"@electric-sql/pglite":"0.5.16","esbuild":"0.28.2"}}

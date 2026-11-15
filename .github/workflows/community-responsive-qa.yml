@@ -1,0 +1,29 @@
+name: Care & Stay community responsive release QA
+on:
+  push:
+    branches: [community-safe-integration-20261114]
+  pull_request:
+    paths:
+      - 'community/**'
+      - 'tools/forum/**'
+      - '.github/workflows/community-responsive-qa.yml'
+jobs:
+  mobile-and-links:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install headless Chromium
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+      - name: Serve release candidate
+        run: |
+          python3 -m http.server 8765 --bind 127.0.0.1 --directory . >/tmp/community-server.log 2>&1 &
+          sleep 2
+      - name: Check mobile and desktop page layout, privacy links, and closed registration
+        run: node tools/forum/test-responsive.mjs
