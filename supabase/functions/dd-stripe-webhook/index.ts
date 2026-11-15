@@ -5,7 +5,7 @@
 import Stripe from "npm:stripe@22.0.0";
 import {HANDLED_EVENTS,getSubscriptionId,getBillingSnapshot,isPaidEntitlement} from "./event-mapping.mjs";
 const PROCESSING_RELEASE_APPROVED = false;
-const PRICE_ID = "price_1Ubr0GHU2Vcv1mFQgOfj2Ww8";
+const PRICE_ID = "price_1Ubt9YHU2Vcv1mFQ4i7i4K0e";
 const stripeCryptoProvider = Stripe.createSubtleCryptoProvider();
 function no(message: string,status=503){return new Response(message,{status,headers:{"Cache-Control":"no-store"}})}
 Deno.serve(async(req:Request)=>{
