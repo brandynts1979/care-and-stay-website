@@ -1,0 +1,10 @@
+CREATE INDEX IF NOT EXISTS dd_care_tasks_person_owner_fk_idx ON public.dd_care_tasks(person_id,owner_id);
+CREATE INDEX IF NOT EXISTS dd_documents_person_owner_fk_idx ON public.dd_documents(person_id,owner_id);
+CREATE INDEX IF NOT EXISTS dd_goal_steps_goal_owner_person_fk_idx ON public.dd_goal_steps(goal_id,owner_id,person_id);
+CREATE INDEX IF NOT EXISTS dd_goals_person_owner_fk_idx ON public.dd_goals(person_id,owner_id);
+CREATE INDEX IF NOT EXISTS dd_goals_strength_owner_person_fk_idx ON public.dd_goals(strength_id,owner_id,person_id);
+CREATE INDEX IF NOT EXISTS dd_people_owner_fk_idx ON public.dd_people(owner_id);
+CREATE INDEX IF NOT EXISTS dd_progress_goal_owner_person_fk_idx ON public.dd_progress_notes(goal_id,owner_id,person_id);
+CREATE INDEX IF NOT EXISTS dd_strengths_person_owner_fk_idx ON public.dd_strengths(person_id,owner_id);
+CREATE INDEX IF NOT EXISTS dd_support_records_person_owner_fk_idx ON public.dd_support_records(person_id,owner_id);
+CREATE INDEX IF NOT EXISTS dd_team_invitations_person_owner_fk_idx ON public.dd_team_invitations(person_id,owner_id);
