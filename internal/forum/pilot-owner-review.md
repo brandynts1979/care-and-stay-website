@@ -39,3 +39,14 @@ Operator-only function deployed to the existing community staging database. No r
 - Confirmed cs_forum_private.settings.enabled=false; the moderator access exception supports owner testing, but broad participation is still blocked.
 - Backups and restore test not verified; current Supabase plan and backup inventory not independently verified. Do not announce recovery capability.
 - Public launch NOT authorized as complete until support inbox and alternate moderator are verified, security warning reviewed, legal copy finalized, a working deploy is checked, and email recovery/mobile tests pass.
+
+## Consolidated prelaunch update — November 14, 2026
+- Security advisor now returns no WARN notices; remaining 5 INFO entries describe intentionally policy-free RLS/private tables. Do not relax default-deny.
+- Owner confirmed recovery email delivery and hello@mycareandstay.com as the functioning support inbox. Password reset request accepted; completing reset not tested.
+- Latest previously verified Render deployment: 37ab63b. Subsequent changes on this branch are not yet confirmed deployed.
+- Approved no-solicitation rule committed to guidelines and membership terms, verified live in 37ab63b.
+- Prepared fail-closed registration switch: community/members/config.json has registrationOpen=false. The new button/intro toggle requires both enabled=true and registrationOpen=true. Database settings.enabled remains false.
+- Updated join checkbox copy to reference membership terms, guidelines and privacy notice, in both source and committed browser bundle. Existing pilot moderation records remain untouched.
+- Support contact wording updated in privacy draft using owner-confirmed inbox.
+- Pending before public release: confirm actual Supabase backup inventory and non-destructive recovery procedure, live device-width mobile layout, finalize retention periods and owner-approved legal copy, verify public signup/verification end to end with a disposable account, and set moderator absence/backup procedure.
+- Do not turn on public gate until these tests pass. Do not conflate staging deploy with public launch.
