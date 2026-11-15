@@ -1,7 +1,10 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import Stripe from "npm:stripe@20.2.0";
 
-/** DD billing gateway: checkout is fail-closed until explicitly approved. */
+/** DD billing gateway: checkout is fail-closed in source until verified launch.
+ * Managed Payments was approved by owner but LIVE eligibility and paid data gates
+ * require independent confirmation. Never enable via an environment variable alone.
+ */
 const ORIGINS = new Set([
   "https://care-and-stay-dd-caregiver-dev.onrender.com",
   "https://care-and-stay-website.onrender.com",
@@ -9,8 +12,8 @@ const ORIGINS = new Set([
   "https://www.mycareandstay.com"
 ]);
 const LIVE_PRICE = "price_1Ubr0GHU2Vcv1mFQgOfj2Ww8";
-const release = Deno.env.get("DD_BILLING_RELEASE_APPROVED") === "true";
-const priceId = Deno.env.get("DD_STRIPE_PRICE_ID") || LIVE_PRICE;
+const release = false; // Hard gate: only a reviewed source release can enable customer charges.
+const priceId = LIVE_PRICE; // Never trust environment or client to swap the approved live price.
 function answer(code:number, data:Record<string,unknown>, origin:string){
  return new Response(JSON.stringify(data),{status:code,headers:{
   "Content-Type":"application/json","Cache-Control":"no-store","Vary":"Origin",
@@ -55,7 +58,7 @@ Deno.serve(async(req:Request)=>{
   const record=Array.isArray(records)?records[0]:null;
   const validPrice=record?.stripe_price_id===priceId;
   const current=typeof record?.current_period_end==="string"&&Date.parse(record.current_period_end)>Date.now();
-  const entitled=release&&validPrice&&current&&["active","trialing"].includes(record?.status||"");
+  const entitled=release&&validPrice&&current&&record?.status==="active";
   if(action==="status")return answer(200,{product:"dd_parent_app",monthly_price_usd:39,
    tax_behavior:"exclusive",checkout_enabled:release,subscription_status:record?.status||"none",
    cancel_at_period_end:Boolean(record?.cancel_at_period_end),entitled:Boolean(entitled)},origin);
@@ -68,7 +71,7 @@ Deno.serve(async(req:Request)=>{
   const price=await stripe.prices.retrieve(priceId);
   if(!price.active||price.currency!=="usd"||price.unit_amount!==3900||
      price.recurring?.interval!=="month"||price.recurring?.interval_count!==1||
-     price.tax_behavior!=="exclusive")
+     price.tax_behavior!=="exclusive"||price.product!=="prod_Vcl3ez86uLhNFb")
     return answer(503,{error:"Approved price unavailable"},origin);
   if(action==="portal"){
    if(!record?.stripe_customer_id)return answer(409,{error:"No active billing profile"},origin);
@@ -97,7 +100,7 @@ Deno.serve(async(req:Request)=>{
     mode:"subscription",customer:customerId,
     client_reference_id:user.id,
     line_items:[{price:priceId,quantity:1}],
-    automatic_tax:{enabled:true},billing_address_collection:"required",
+    managed_payments:{enabled:true},billing_address_collection:"required",
     customer_update:{address:"auto"},
     subscription_data:{metadata:{dd_owner_id:user.id,care_stay_product:"dd_parent_app"}},
     success_url:returnUrl(origin)+"?billing=success",
