@@ -3,13 +3,9 @@
 // tax registration, end-to-end sandbox testing and launch approvals are complete.
 // Supabase Edge deployment must use verify_jwt:false ONLY because the signature is verified below.
 import Stripe from "npm:stripe@22.0.0";
+import {HANDLED_EVENTS,getSubscriptionId,getBillingSnapshot,isPaidEntitlement} from "./event-mapping.mjs";
 const PROCESSING_RELEASE_APPROVED = false;
 const PRICE_ID = "price_1Ubr0GHU2Vcv1mFQgOfj2Ww8";
-const HANDLED = new Set([
- "checkout.session.completed","customer.subscription.created",
- "customer.subscription.updated","customer.subscription.deleted",
- "invoice.paid","invoice.payment_failed"
-]);
 const stripeCryptoProvider = Stripe.createSubtleCryptoProvider();
 function no(message: string,status=503){return new Response(message,{status,headers:{"Cache-Control":"no-store"}})}
 Deno.serve(async(req:Request)=>{
@@ -25,36 +21,31 @@ Deno.serve(async(req:Request)=>{
  try {
   event=await stripe.webhooks.constructEventAsync(await req.text(),signature,webhookSecret,undefined,stripeCryptoProvider);
  }catch {return no("Invalid Stripe signature",400)}
- if(!HANDLED.has(event.type))return new Response("ignored",{status:200});
+ if(!HANDLED_EVENTS.has(event.type))return new Response("ignored",{status:200});
  try{
-  const obj=event.data.object as unknown as Record<string,unknown>;
-  let subId:string|undefined;
-  if(event.type.startsWith("customer.subscription."))subId=typeof obj.id==="string"?obj.id:undefined;
-  else if(event.type==="checkout.session.completed")subId=typeof obj.subscription==="string"?obj.subscription:undefined;
-  else {
-   const parent=obj.parent as Record<string,unknown>|undefined;
-   const details=parent?.subscription_details as Record<string,unknown>|undefined;
-   const sub=details?.subscription;
-   subId=typeof sub==="string"?sub:(sub && typeof sub==="object"?String((sub as Record<string,unknown>).id||""):undefined);
-  }
-  if(!subId?.startsWith("sub_"))return no("Subscription reference unavailable",422);
-  // Fetch current Stripe subscription to avoid stale out-of-order event payloads.
+  const subId=getSubscriptionId(event);
+  if(!subId)return no("Subscription reference unavailable",422);
+  // Always retrieve the CURRENT subscription to avoid stale event payloads.
   const subscription=await stripe.subscriptions.retrieve(subId);
-  const matching=subscription.items.data.find(item=>item.price.id===PRICE_ID);
-  if(!matching)return no("Subscription price does not match DD approved price",422);
-  const ownerId=subscription.metadata.dd_owner_id;
-  if(!/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(ownerId||""))return no("Missing account link",422);
-  const customerId=typeof subscription.customer==="string"?subscription.customer:subscription.customer.id;
-  const currentPeriodEnd=matching.current_period_end;
-  const periodEnd=typeof currentPeriodEnd==="number"?new Date(currentPeriodEnd*1000).toISOString():null;
+  const snapshot=getBillingSnapshot(subscription,PRICE_ID);
+  if(!snapshot)return no("Subscription is not linked to exactly one approved DD price/account",422);
+  // A completed Checkout page is not proof of a settled payment.
+  // Fail closed for missing/unpaid invoices and do not confer trial access.
+  const invoiceRef=subscription.latest_invoice;
+  const invoiceId=typeof invoiceRef==="string"?invoiceRef:invoiceRef?.id;
+  const invoice=invoiceId?await stripe.invoices.retrieve(invoiceId):null;
+  const invoicePaid=Boolean(invoice?.status==="paid"&&invoice.paid);
+  const paid=isPaidEntitlement(snapshot,invoicePaid);
+  const recordedStatus=snapshot.status==="active"&&!paid?"past_due":
+    snapshot.status==="trialing"?"incomplete":snapshot.status;
   const res=await fetch(supabaseUrl+"/rest/v1/rpc/dd_apply_verified_stripe_event",{
    method:"POST",
    headers:{apikey:serviceKey,authorization:"Bearer "+serviceKey,"Content-Type":"application/json"},
    body:JSON.stringify({
     p_event_id:event.id,p_event_type:event.type,p_event_created:event.created,
-    p_owner_id:ownerId,p_customer_id:customerId,p_subscription_id:subscription.id,
-    p_price_id:PRICE_ID,p_status:subscription.status,p_period_end:periodEnd,
-    p_cancel_at_period_end:subscription.cancel_at_period_end
+    p_owner_id:snapshot.ownerId,p_customer_id:snapshot.customerId,p_subscription_id:snapshot.subscriptionId,
+    p_price_id:PRICE_ID,p_status:recordedStatus,p_period_end:snapshot.periodEnd,
+    p_cancel_at_period_end:snapshot.cancelAtPeriodEnd
    })
   });
   if(!res.ok)return no("Billing event persistence unavailable",503);
