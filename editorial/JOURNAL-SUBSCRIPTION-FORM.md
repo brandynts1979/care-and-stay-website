@@ -1,6 +1,6 @@
 # Stay Culture Journal — Subscription Form Specification
 
-Status: READY FOR HUBSPOT IMPLEMENTATION REVIEW. No live form, contact collection, CRM writes or email sending enabled.
+Status: HubSpot form created by account owner and saved with unpublished updates (user-reported, not independently verified). Exact integration identifier confirmed from editor URL. Not embedded or activated on website; no submission test completed.
 
 ## Form placement
 - On the Journal homepage, below featured articles, with a compact newsletter panel.
@@ -45,3 +45,14 @@ Status: READY FOR HUBSPOT IMPLEMENTATION REVIEW. No live form, contact collectio
 
 ## Status
 Current HubSpot connector exposes email and CRM functionality, but not a direct native forms creation action. Therefore the live HubSpot form must be created using HubSpot's form editor or a future compatible connected workflow.
+
+## Actual HubSpot form identification (November 14, 2026)
+- HubSpot portal: 247944652
+- Data center region: na2
+- Form GUID: cb4cb784-d69e-4730-afc8-3ae579dda438
+- Editor URL supplied by account owner. HubSpot documentation confirms the new editor URL contains the GUID.
+- Branch-only embed implementation prepared at `/stay-culture-journal/journal-signup.js`. It is intentionally **not loaded from any Journal page** until approved policy and test submissions.
+- User reports "Saved with unpublished updates". Must verify the form's latest consent/confirmation changes are published in HubSpot before activation.
+- Newsletter-specific notice draft available at `/stay-culture-journal/privacy/` on the editorial review branch; it is explicitly not operative and must be approved, dated, and published before live signup.
+- HubSpot connector currently does not expose forms reads, submissions, form publishing or embed retrieval. Human browser verification remains necessary for those operations.
+- Before launch: ensure Marketing Information subscription scope matches newsletter consent; check email confirmation/unsubscribe, contact interest property mapping, optional versus required fields, privacy link, form publish state and an authorized test submission.
