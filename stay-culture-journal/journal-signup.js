@@ -1,20 +1,14 @@
-/* Stay Culture Journal — HubSpot form integration.
- * Deliberately NOT loaded by the public Journal or preview until
- * privacy notice, consent and subscriber tests are approved.
- * To activate after approval, include:
- * <div id="stay-culture-journal-signup"></div>
- * <script src="https://js.hsforms.net/forms/embed/v2.js"></script>
- * <script src="/stay-culture-journal/journal-signup.js"></script>
- * Once enabled, verify with a controlled subscription test.
+/* Stay Culture Journal, new HubSpot form editor.
+ * The new editor uses HubSpot's v4 form-frame embed, not hbspt.forms.create.
+ * This file serves as a reference/configuration for the production integration.
+ * The actual embed is in the Journal preview HTML, loading HubSpot's script.
+ * Portal: 247944652; form: cb4cb784-d69e-4730-afc8-3ae579dda438; region na2.
+ * Do not add automated marketing sends here.
  */
 (function () {
   'use strict';
-  const target = document.getElementById('stay-culture-journal-signup');
-  if (!target || !window.hbspt || !window.hbspt.forms || typeof window.hbspt.forms.create !== 'function') return;
-  window.hbspt.forms.create({
-    region: 'na2',
-    portalId: '247944652',
-    formId: 'cb4cb784-d69e-4730-afc8-3ae579dda438',
-    target: '#stay-culture-journal-signup'
-  });
+  const target = document.querySelector('.hs-form-frame[data-form-id="cb4cb784-d69e-4730-afc8-3ae579dda438"]');
+  if (!target) return;
+  target.dataset.region = 'na2';
+  target.dataset.portalId = '247944652';
 })();
