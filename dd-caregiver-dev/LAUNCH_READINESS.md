@@ -28,6 +28,23 @@
 - This is **NOT** permission to solicit sensitive family records, deliver production care services, or accept paid subscriptions. Sales inquiries and demos only until required reviews are complete.
 - **Next full production blockers:** Utah sales tax registration, independently tested Storage object backup and restore, malware scanning, account deletion/export, different-account REST E2E, end-to-end password reset/verification, product UX/AI scope, legal/privacy/accessibility review, active Stripe payment and entitlement verification, production support/incident response and approval.
 
+## Subscription activation audit — Nov 14, 2026, 18:05 Mountain
+**Release decision: NOT APPROVED TO ACTIVATE LIVE CUSTOMER CHARGES OR REAL FAMILY DATA.** Product owner explicitly requested activation only after all checks, and previously approved Managed Payments including 3.5% additional fee, conditional on account/product eligibility.
+
+**Verified current systems**
+- Live Care and Stay Stripe charges_enabled=true, details_submitted=true, no currently-due basic account verification items. **This does NOT establish Managed Payments eligibility.**
+- Live DD product `prod_Vcl3ez86uLhNFb` inactive, live approved $39/mo price `price_1Ubr0GHU2Vcv1mFQgOfj2Ww8` inactive, checkout_status=not_launched; no live Checkout enabled by deployed `dd-subscription-gateway` (hard gate false).
+- Sandbox Managed Payments Checkout sessions exist, but observed sessions are **OPEN/UNPAID** with no subscription linked. Automated browser attempt at actual sandbox payment did not complete; do not claim end-to-end payment success.
+- Stripe webhook source (signature verification) and Checkout/portal production review source exist but **are not deployed or connected to live Stripe**, and no live webhook signing secret configured/verified.
+- Supabase subscription-entitlements and Stripe-event tables contain zero real/test rows after rollback. New transactional tests against `dd_apply_verified_stripe_event` confirm duplicate deduplication and out-of-order rejection without persistent test rows. Client role cannot SELECT or UPDATE entitlements or INSERT synthetic paid event.
+- GitHub DD CI run #98 successful. Supabase Security Advisor reports INFO for two RLS-protected, service-role-only billing tables without client policies; this is intentional denial, not a customer-data exposure finding.
+- Supabase's database backups exclude Storage object bytes. No encrypted independent document backup/recovery drill or anti-malware scanning certified. Independent-account live REST tests, end-to-end verification/reset, account deletion/export, accessibility and privacy/guardian-consent/legal signoff remain open.
+- Marketing/sales inquiry page at https://mycareandstay.com/dd-family-care/ is live; app remains development-only for fictional data.
+
+**Must all pass before activation:** (1) confirm LIVE Managed Payments eligibility and transaction terms with Stripe; (2) real completed sandbox test purchase through owner-bound Checkout and signed webhook, renewal, payment failure, cancellation, duplicate events and portal; (3) enforce payment entitlements at every protected API/data path while supporting safe cancellation/expiry, including no access when unpaid; (4) prove encrypted Storage backups + restore, malware controls and cross-account API security; (5) production privacy/terms/consent, guardian authority, retention/deletion, incident response, accessibility and release signoff. If Managed Payments eligibility fails, establish suitable tax registration before live taxable sales.
+
+**Do not switch live Stripe Product/Price active, remove the gateway release gate, or publish a payment link until these conditions are evidenced.**
+
 ## Release decision — Nov 13, 2026
 **NO-GO for customer-paid/public real-data launch.** Password minimum 12 and leaked-password rejection are now verified, but Storage backup and independent restore are not in place.  Actual signed-in Storage transfer and four core record-module tests now passed, but unrelated-account Storage REST denial, anti-malware scanning, backup/restore, complete privacy/accessibility/reliability review, full service workflows, AI coach, and approved Stripe checkout/tax registration remain outstanding. A public *informational* landing/waitlist without account signup, payment or sensitive-data intake could be considered separately but has not been built or approved here.
 
