@@ -28,6 +28,15 @@
 - This is **NOT** permission to solicit sensitive family records, deliver production care services, or accept paid subscriptions. Sales inquiries and demos only until required reviews are complete.
 - **Next full production blockers:** Utah sales tax registration, independently tested Storage object backup and restore, malware scanning, account deletion/export, different-account REST E2E, end-to-end password reset/verification, product UX/AI scope, legal/privacy/accessibility review, active Stripe payment and entitlement verification, production support/incident response and approval.
 
+## Subscription enforcement hardening — Nov 14, 2026 Mountain (subsequent checks)
+- Applied migration `20261115012327_dd_opt_in_restrictive_paid_access_policies_default_disabled`, version-controlled at [migrations/20261115012327_dd_opt_in_paid_access_default_disabled.sql](migrations/20261115012327_dd_opt_in_paid_access_default_disabled.sql).
+- Nine DD family-data tables now have **RESTRICTIVE** RLS subscription checks in addition to existing owner/supporter permission checks. Private Storage SELECT/DELETE also gated by owner's subscription status. All enforcement is **OFF by default** via server-only `dd_internal.release_controls.paid_data_required=false`.
+- Transactional `BEGIN/ROLLBACK` tests passed: development owner access remains, unpaid owner is blocked after gate turned on, fictional paid/active subscriber regains access, `past_due` loses access again, private Storage follows same rule, invited supporter can read when family owner is paid but not when unpaid. One initial incomplete test JWT omitted invitee email and was corrected; accurate claim context passed.
+- Server-only `dd_can_upload_for_owner` RPC tested under development/unpaid/paid states. Version 3 of `dd-validated-document-upload` Edge Function deployed to **call this RPC before service-role Storage upload** (service-role writes bypass RLS). A future live signed-in file-upload-through-version-3 test remains to be performed.
+- Read-only real signed-in DD QA browser test `1a1b88a2-7aeb-478b-985d-109672c4f889` passed for fictional profile, strengths/goals and Documents view under the disabled gate.
+- Rollback confirmed `paid_data_required=false`, zero retained entitlements/events, and 9 restrictive data-table policies. **No payment activation was performed.**
+- The prepared (NOT DEPLOYED) Stripe webhook now includes asynchronous Checkout succeeded/failed event handling and checks the latest invoice was paid before projecting active access. New event-parser tests were added to GitHub CI; do not call this an actual Stripe webhook integration test.
+
 ## Subscription activation audit — Nov 14, 2026, 18:05 Mountain
 **Release decision: NOT APPROVED TO ACTIVATE LIVE CUSTOMER CHARGES OR REAL FAMILY DATA.** Product owner explicitly requested activation only after all checks, and previously approved Managed Payments including 3.5% additional fee, conditional on account/product eligibility.
 
