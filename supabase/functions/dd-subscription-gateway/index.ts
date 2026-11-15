@@ -101,7 +101,6 @@ Deno.serve(async(req:Request)=>{
     client_reference_id:user.id,
     line_items:[{price:priceId,quantity:1}],
     managed_payments:{enabled:true},billing_address_collection:"required",
-    customer_update:{address:"auto"},
     subscription_data:{metadata:{dd_owner_id:user.id,care_stay_product:"dd_parent_app"}},
     success_url:returnUrl(origin)+"?billing=success",
     cancel_url:returnUrl(origin)+"?billing=cancelled",
