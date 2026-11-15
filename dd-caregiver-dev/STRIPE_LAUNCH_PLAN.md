@@ -20,6 +20,13 @@
 8. Full sandbox test matrix: successful checkout, incomplete payment, canceled checkout, subscription renewal, payment failure, reactivation, cancellation, duplicate/out-of-order webhook, invoice/tax preview, multiple family accounts and cross-account entitlement denial.
 9. After legal/tax approval and sandbox verification, activate appropriate live product and checkout, observe first safe real payment with explicit owner authorization, and audit entitlements.
 
+## Utah sales tax registration — owner confirmed still pending (Nov 14, 2026)
+- Owner confirmed Care & Stay has **not yet completed Utah sales tax registration**. Official Utah Tax Commission instructions: https://tax.utah.gov/business/create-manage/tax-info-business/ and https://tap.utah.gov/ — apply for tax account(s) via TC-69.
+- Do not treat Stripe Tax settings being active as evidence of registration. Confirm issuance of the Utah sales tax license/account number and the actual effective date before adding Utah registration in Stripe.
+- Verify correct tax treatment/code for Care & Stay's DD and caregiver consumer SaaS subscriptions, filing obligations and other product types with the Utah State Tax Commission or a qualified tax adviser. Utah Pub 64 discusses remotely accessed prewritten software.
+- $39/month DD recurring Price is created with `tax_behavior=exclusive` but remains **inactive**. Do not enable checkout or collect tax without verified registration and tax treatment.
+- Record the registration number and sensitive tax IDs only in secure merchant/government systems, never in public GitHub or chat.
+
 ## Blocking approvals
 - DD price **approved** at $39/month plus applicable sales tax; commitment/renewal policy and legal terms **not yet approved**.
 - Tax registration and treatment: **not confirmed** (no Stripe registrations).
