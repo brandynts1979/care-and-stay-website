@@ -20,6 +20,8 @@ jobs:
           node-version: '22'
       - name: Check application syntax and expected modules
         run: node dd-caregiver-dev/tests/check-app.mjs
+      - name: Check disabled DD billing and approved price contract
+        run: node --test dd-caregiver-dev/tests/billing-contract.test.mjs
       - name: Install Playwright test runner
         run: npm install --no-save --no-package-lock @playwright/test@1.56.1
       - name: Install Chromium for Playwright
