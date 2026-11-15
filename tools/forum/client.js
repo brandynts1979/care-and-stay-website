@@ -1,6 +1,6 @@
 import {createClient} from '@supabase/supabase-js';
 const $=id=>document.getElementById(id);
-const names={'family-caregivers':'Family Caregivers','dd-families':'DD Parents & Families'};
+const names={'family-caregivers':'Family Caregivers','dd-families':'Developmental Disabilities — Parents & Families'};
 let client, user, memberships=[], terms, current='family-caregivers', generation=0, recovering=false;
 const status=(message,error=false)=>{ $('status').textContent=message; $('status').classList.toggle('error',error); };
 function el(tag,text,cls){const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n;}
