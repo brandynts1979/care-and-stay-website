@@ -10,6 +10,17 @@ await mark(out);
 const configPath=join(out,'community/members/config.json');
 const config=JSON.parse(await readFile(configPath,'utf8'));
 config.enabled=true; // Staging sign-in only; database discussion gate remains authoritative.
+// A staging build must NEVER become a public enrollment entry point merely
+// because someone toggles a JSON flag in the source branch.
+config.registrationOpen=false;
+const terms=await readFile(join(out,'community/terms/index.html'),'utf8');
+const guidelines=await readFile(join(out,'community/guidelines/index.html'),'utf8');
+const privacy=await readFile(join(out,'community/privacy/index.html'),'utf8');
+if(!terms.includes('No solicitation or self-promotion') ||
+   !guidelines.includes('No solicitation or self-promotion') ||
+   !privacy.includes('hello@mycareandstay.com')) {
+ throw new Error('Required community policies are missing; refusing to publish staging assets.');
+}
 await writeFile(configPath,JSON.stringify(config,null,2)+'\n');
 await writeFile(join(out,'robots.txt'),'User-agent: *\nDisallow: /\n');
-console.log('Prepared community-only staging assets in forum-dist; staging sign-in enabled; discussion access remains controlled by the database.');
+console.log('Prepared community-only staging assets in forum-dist; staging registration forced closed; database discussion access remains independently controlled.');
