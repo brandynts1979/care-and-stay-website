@@ -1,6 +1,8 @@
 // DD Parent App — production-capable checkout draft. NOT DEPLOYED.
 // The deployed dd-subscription-gateway has checkout disabled. This file is
 // retained for security/legal/tax review and end-to-end sandbox integration.
+// Managed Payments approved by product owner Nov 14, 2026, including 3.5% fee;
+// live product eligibility, subscription terms, webhook and data security NOT approved.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import Stripe from "npm:stripe@22.0.0";
 
@@ -83,7 +85,9 @@ Deno.serve(async(req:Request)=>{
   const checkout=await stripe.checkout.sessions.create({
     mode:"subscription",customer:customerId,
     line_items:[{price:PRICE_ID,quantity:1}],
-    automatic_tax:{enabled:true},billing_address_collection:"required",
+    // Stripe (via Link) is MoR for eligible Managed Payments transactions.
+    // Do not pass automatic_tax alongside managed_payments; Stripe owns tax liability.
+    managed_payments:{enabled:true},billing_address_collection:"required",
     subscription_data:{metadata:{dd_owner_id:user.id,care_stay_product:"dd_parent_app"}},
     client_reference_id:user.id,
     success_url:BASE+"/dd-family-care/?checkout=complete&session_id={CHECKOUT_SESSION_ID}",
