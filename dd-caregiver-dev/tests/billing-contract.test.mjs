@@ -29,3 +29,18 @@ test('static browser does not expose Stripe secret credentials, checkout or enti
  assert.doesNotMatch(page,/(?:sk_live_|rk_live_|sb_secret_|STRIPE_SECRET_KEY|stripe_secret_key)/);
  assert.doesNotMatch(page,/\/v1\/checkout\/sessions|\/rest\/v1\/dd_subscription_entitlements/);
 });
+
+const webhook=readFileSync(new URL('../edge-functions/dd-stripe-webhook-PRELAUNCH/index.ts',import.meta.url),'utf8');
+test('prelaunch webhook stays undeployed and processing is disabled in source',()=>{
+ assert.match(webhook,/const PROCESSING_RELEASE_APPROVED = false/);
+ assert.match(webhook,/constructEventAsync\(/);
+ assert.match(webhook,/Stripe-Signature/);
+ assert.match(webhook,/dd_apply_verified_stripe_event/);
+ assert.match(webhook,/matching\.current_period_end/);
+ assert.match(webhook,/stripe\.subscriptions\.retrieve\(subId\)/);
+ assert.match(webhook,/price\.id===PRICE_ID/);
+ assert.doesNotMatch(page,/dd-stripe-webhook-PRELAUNCH/);
+});
+test('the temporary billing QA button is not in customer-facing app',()=>{
+ assert.doesNotMatch(page,/qaBillingGate|Verify disabled subscription checkout/);
+});
