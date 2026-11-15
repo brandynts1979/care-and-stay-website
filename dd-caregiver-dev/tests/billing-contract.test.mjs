@@ -36,9 +36,11 @@ test('prelaunch webhook stays undeployed and processing is disabled in source',(
  assert.match(webhook,/constructEventAsync\(/);
  assert.match(webhook,/Stripe-Signature/);
  assert.match(webhook,/dd_apply_verified_stripe_event/);
- assert.match(webhook,/matching\.current_period_end/);
+ assert.match(webhook,/getSubscriptionId\(event\)/);
+ assert.match(webhook,/getBillingSnapshot\(subscription,PRICE_ID\)/);
  assert.match(webhook,/stripe\.subscriptions\.retrieve\(subId\)/);
- assert.match(webhook,/price\.id===PRICE_ID/);
+ assert.match(webhook,/stripe\.invoices\.retrieve\(invoiceId\)/);
+ assert.match(webhook,/isPaidEntitlement\(snapshot,invoicePaid\)/);
  assert.doesNotMatch(page,/dd-stripe-webhook-PRELAUNCH/);
 });
 test('the temporary billing QA button is not in customer-facing app',()=>{
