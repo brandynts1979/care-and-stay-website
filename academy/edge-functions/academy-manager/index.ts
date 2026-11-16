@@ -148,8 +148,13 @@ Deno.serve(async(req:Request)=>{
     if(cleanEmail(invite.invited_email)!==cleanEmail(user.email) || invite.accepted_at || invite.revoked_at
        || Date.parse(invite.expires_at)<Date.now())fail(403,"Invitation invalid or expired");
     const loc=await location(invite.location_id);if(!active(loc.subscription_status))fail(403,"Location billing inactive");
+    const {data:existingMember,error:existingError}=await admin.from("academy_location_members")
+      .select("role").eq("location_id",invite.location_id).eq("user_id",user.id).maybeSingle();
+    if(existingError)throw existingError;
+    // An invitation must never demote an owner or existing GM.
+    const safeRole=existingMember&&["owner","gm"].includes(existingMember.role)?existingMember.role:invite.intended_role;
     const {error:memberError}=await admin.from("academy_location_members").upsert({
-      location_id:invite.location_id,user_id:user.id,role:invite.intended_role,active:true
+      location_id:invite.location_id,user_id:user.id,role:safeRole,active:true
     },{onConflict:"location_id,user_id"});if(memberError)throw memberError;
     const {error:upError}=await admin.from("academy_invitations").update({accepted_by:user.id,accepted_at:new Date().toISOString()}).eq("id",inviteId).is("accepted_at",null);
     if(upError)throw upError;
