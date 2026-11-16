@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Academy Learner Portal | Care &amp; Stay</title>
+<link rel="stylesheet" href="/styles.css">
+<style>
+.academy-wrap{max-width:1020px;margin:42px auto 96px;padding:0 24px}
+.academy-panel{padding:28px;border:1px solid #d8e3dd;border-radius:16px;background:#fff;margin:22px 0}
+.academy-panel h2{font-size:1.8rem}
+.academy-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
+.academy-input{display:block;width:100%;font:inherit;padding:12px;border:1px solid #9caeaa;border-radius:6px;margin:5px 0 18px}
+.academy-actions{display:flex;flex-wrap:wrap;gap:12px;margin:15px 0}
+.academy-btn{cursor:pointer;background:#164f4d;color:#fff;padding:10px 18px;border:0;border-radius:7px;font:inherit}
+.academy-btn:disabled{opacity:.6;cursor:not-allowed}
+.academy-btn.alt{background:#fff;color:#164f4d;border:1px solid #164f4d}
+.academy-btn:focus-visible,.academy-input:focus-visible{outline:3px solid #a77d40;outline-offset:2px}
+.academy-note{padding:14px;border-radius:8px;background:#eef4f0}
+.academy-error{background:#fff2e6;color:#7a311b}
+.academy-lesson{padding:12px;border-bottom:1px solid #d8e3dd}
+.academy-lesson button{margin-left:14px}
+.academy-question{margin:15px 0 23px;padding:15px;background:#fbf9f4;border-radius:9px}
+.academy-question label{display:block;margin:12px 0;cursor:pointer}
+.academy-hide{display:none!important}
+</style></head><body>
+<header class="site-header"><nav class="nav container"><a class="brand" href="/"><span>Care <em>&amp;</em> Stay</span><small>Care for people. Culture for staying.</small></a><a href="/academy/">Academy overview</a></nav></header>
+<main class="academy-wrap"><p class="eyebrow">Stay Culture Leadership Academy</p><h1>My Learning</h1>
+<div id="message" class="academy-note" role="status" aria-live="polite">Checking secure learner portal configuration…</div>
+<section id="authPanel" class="academy-panel academy-hide" aria-label="Sign in or register">
+<h2>Sign in</h2><form id="authForm"><label for="email">Email</label><input id="email" class="academy-input" autocomplete="email" inputmode="email" type="email" required>
+<label for="password">Password</label><input id="password" class="academy-input" type="password" minlength="8" autocomplete="current-password" required>
+<div class="academy-actions"><button class="academy-btn" type="submit">Sign in</button><button class="academy-btn alt" id="register" type="button">Create account</button><button class="academy-btn alt" id="reset" type="button">Reset password</button></div></form></section>
+<section id="memberPanel" class="academy-hide" aria-label="Your learning">
+<div class="academy-actions"><span id="userLabel"></span><button class="academy-btn alt" id="signout" type="button">Sign out</button></div>
+<div id="courses" class="academy-panel"><h2>My courses</h2><p>Loading your enrollment…</p></div>
+<div id="lessons" class="academy-panel academy-hide"><h2>Course lessons</h2></div>
+<div id="lessonDetail" class="academy-panel academy-hide" aria-live="polite"></div>
+<div id="reviewer" class="academy-panel academy-hide"><h2>Assigned practice reviews</h2></div>
+</section></main>
+<script src="./config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.0/dist/umd/supabase.min.js" defer></script>
+<script src="./app.js" defer></script>
+</body></html>
