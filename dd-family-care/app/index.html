@@ -159,6 +159,11 @@ async function loadDdBillingStatus(){
    $('ddStartCheckout').classList.add('hide');$('ddStartCheckout').disabled=true;
    $('ddManageBilling').classList.add('hide');$('ddManageBilling').disabled=true;
    $('ddAcceptTerms').closest('p').classList.add('hide');
+  }else if(data.beta_access===true&&data.entitled===true){
+   status.textContent='Complimentary beta access active. DD Family Care and the AI Coach are available without payment during your test period.';
+   $('ddStartCheckout').classList.add('hide');$('ddStartCheckout').disabled=true;
+   $('ddManageBilling').classList.add('hide');$('ddManageBilling').disabled=true;
+   $('ddAcceptTerms').closest('p').classList.add('hide');
   }else if(data.checkout_enabled===true){
    $('ddAcceptTerms').closest('p').classList.remove('hide');
    status.textContent='Subscription status: '+String(data.subscription_status||'none')+'.';
