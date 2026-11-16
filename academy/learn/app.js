@@ -13,7 +13,7 @@
   const elt = (tag, text, css) => { const n = document.createElement(tag); if(text!==undefined) n.textContent=String(text); if(css)n.className=css;return n; };
   const button = (label, handler, alt=false) => { const n=elt('button',label,'academy-btn'+(alt?' alt':''));n.type='button';n.addEventListener('click',handler);return n; };
   const show = (text, error=false) => {msg.textContent=text;msg.classList.toggle('academy-error',error);};
-  let db, user, enrollment;
+  let db, user, enrollment, recovering=false;
   const safeError = e => show(e?.message || 'Please retry the action.',true);
   if(!cfg.supabaseUrl || !/^https:\/\/[a-z0-9-]+\.supabase\.co$/.test(cfg.supabaseUrl)
     || !cfg.publishableKey || /service_role|sb_secret_|^sk_/.test(cfg.publishableKey)) {
@@ -50,11 +50,21 @@
     }catch(e){safeError(e);}
   });
   $('signout').addEventListener('click',async()=>{try{await db.auth.signOut();await refresh();}catch(e){safeError(e);}});
+  $('recoveryForm').addEventListener('submit',async e=>{
+    e.preventDefault();try{
+      const password=$('newPassword').value;
+      if(password.length<8)return show('Use a password with at least 8 characters.',true);
+      const {error}=await db.auth.updateUser({password});
+      if(error)throw error;
+      $('newPassword').value='';recovering=false;
+      show('Password updated. Your session is secured.');await refresh();
+    }catch(err){safeError(err);}
+  });
   async function refresh(){
     const {data:{user:next},error}=await db.auth.getUser();
     if(error && error.name!=='AuthSessionMissingError')throw error;
     user=next||null;
-    hidden(authPanel,!!user);hidden(memberPanel,!user);
+    hidden(authPanel,!!user || recovering);hidden(memberPanel,!user || recovering);hidden($('recoveryPanel'),!recovering);
     hidden(detail,true);hidden(lessonsNode,true);
     if(!user){show('Sign in to access an active Academy enrollment.');return;}
     $('userLabel').textContent=user.email||'Signed in';
@@ -154,6 +164,6 @@
       reviewsNode.append(item);
     }
   }
-  db.auth.onAuthStateChange((event)=>{if(event==='SIGNED_OUT'){user=null;hidden(memberPanel,true);hidden(authPanel,false);}});
+  db.auth.onAuthStateChange((event)=>{if(event==='PASSWORD_RECOVERY'){recovering=true;hidden(authPanel,true);hidden(memberPanel,true);hidden($('recoveryPanel'),false);show('Enter a new password to finish account recovery.');}if(event==='SIGNED_OUT'){user=null;hidden(memberPanel,true);hidden(authPanel,false);}});
   refresh().catch(safeError);
 })();
