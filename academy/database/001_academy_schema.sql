@@ -129,6 +129,12 @@ grant select on public.academy_courses,public.academy_modules,public.academy_les
   public.academy_reviewer_assignments,public.academy_reviews,public.academy_graduations to authenticated;
 grant insert,update on public.academy_lesson_progress,public.academy_private_reflections,public.academy_submissions to authenticated;
 grant insert,update on public.academy_reviews to authenticated;
+grant all on public.academy_courses,public.academy_modules,public.academy_lessons,
+ public.academy_scenarios,public.academy_choices,public.academy_enrollments,
+ public.academy_lesson_progress,public.academy_private_reflections,public.academy_submissions,
+ public.academy_reviewer_assignments,public.academy_reviews,public.academy_graduations,
+ public.academy_billing_events,public.academy_audit_log to service_role;
+grant usage,select on sequence public.academy_audit_log_id_seq to service_role;
 -- No browser grant for entitlement creation, reviewer assignment, graduation, billing event, or audit writes.
 
 create policy "enrollment owned" on public.academy_enrollments for select to authenticated
@@ -160,7 +166,10 @@ with check (exists(select 1 from public.academy_enrollments e where e.id=enrollm
 create policy "progress owned update" on public.academy_lesson_progress for update to authenticated
 using (exists(select 1 from public.academy_enrollments e where e.id=enrollment_id and e.user_id=(select auth.uid()) and e.status='active'))
 with check (exists(select 1 from public.academy_enrollments e where e.id=enrollment_id and e.user_id=(select auth.uid())
-  and e.status='active' and (e.expires_at is null or e.expires_at>now())));
+  and e.status='active' and (e.expires_at is null or e.expires_at>now()))
+ and exists(select 1 from public.academy_lessons l join public.academy_modules m on m.id=l.module_id
+ join public.academy_enrollments e on e.course_id=m.course_id
+ where l.id=lesson_id and l.published and e.id=enrollment_id));
 
 create policy "reflection private read" on public.academy_private_reflections for select to authenticated
 using (exists(select 1 from public.academy_enrollments e where e.id=enrollment_id and e.user_id=(select auth.uid())));
