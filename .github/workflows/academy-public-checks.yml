@@ -47,6 +47,14 @@ jobs:
           node --test tools/academy/smoke.test.mjs
           node --check academy/learn/app.js
           node --check academy/learn/config.js
+      - name: Set up Deno for Edge Function validation
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Check Academy manager and Stripe webhook TypeScript
+        run: |
+          deno check academy/edge-functions/academy-manager/index.ts
+          deno check academy/edge-functions/academy-stripe-webhook/index.ts
       - name: Initialize mock Supabase auth and roles in disposable Postgres
         run: |
           psql -v ON_ERROR_STOP=1 <<'SQL'
