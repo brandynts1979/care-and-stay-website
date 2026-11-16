@@ -18,12 +18,12 @@ async function authenticate(req:Request){
  if(!token)fail(401,"Sign in required");
  const {data:{user},error}=await admin.auth.getUser(token);
  if(error||!user||!user.email||!user.email_confirmed_at)fail(401,"Verified email required");
- return user;
+ return user!;
 }
 async function permission(userId:string,locationId:string){
  const row=unwrap(await admin.from("academy_location_members").select("role,active").eq("user_id",userId).eq("location_id",locationId).maybeSingle()) as {role:string,active:boolean}|null;
  if(!row||!row.active||!["owner","gm"].includes(row.role))fail(403,"Owner or GM permission required");
- return row.role;
+ return row!.role;
 }
 async function location(id:string){
  const row=unwrap(await admin.from("academy_locations").select("*").eq("id",id).single()) as any;
