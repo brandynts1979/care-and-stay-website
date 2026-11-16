@@ -23,6 +23,104 @@
   if(!window.supabase?.createClient){show('Unable to load the secure sign-in service. Refresh and try again.',true);return;}
   db = window.supabase.createClient(cfg.supabaseUrl,cfg.publishableKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
   const read = async (table, query) => {const {data,error}=await query(db.from(table));if(error)throw error;return data||[];};
+
+  const locationsNode = $('locationsPanel');
+  const invitationsNode = $('invitesPanel');
+  const managerRequest = async (action,values={}) => {
+    const {data,error}=await db.functions.invoke('academy-manager',{body:{action,...values}});
+    if(error)throw error;
+    if(data?.error)throw new Error(data.error);
+    return data;
+  };
+  const entry = (type,placeholder) => {
+    const n=elt('input',undefined,'academy-input');
+    n.type=type;n.placeholder=placeholder;n.autocomplete='off';
+    if(type==='email')n.setAttribute('aria-label','Manager email address');
+    if(type==='text')n.setAttribute('aria-label','Restaurant location name');
+    return n;
+  };
+  async function loadLocations(){
+    const {locations}=await managerRequest('list_locations');
+    locationsNode.replaceChildren(elt('h2','Restaurant locations'));
+    if(!locations?.length){
+      locationsNode.append(elt('p','Create a restaurant location to set up an owner subscription. No charge occurs until you complete Stripe Checkout.'));
+    }
+    const nameInput=entry('text','Restaurant location name');
+    const nameLabel=elt('label','Add a restaurant location');nameLabel.append(nameInput);
+    locationsNode.append(nameLabel,button('Create location',async()=>{
+      try{
+        if(nameInput.value.trim().length<2)return show('Enter a restaurant location name.',true);
+        await managerRequest('create_location',{name:nameInput.value.trim()});
+        show('Location created. Add a subscription to activate manager invitations.');
+        await loadLocations();
+      }catch(e){safeError(e);}
+    }));
+    for(const loc of locations||[]){
+      const item=elt('section',undefined,'academy-lesson');
+      item.append(elt('h3',loc.name));
+      item.append(elt('p','Subscription: '+loc.subscription_status+' · Your role: '+loc.role));
+      if(loc.role==='owner'){
+        if(!['active','trialing'].includes(loc.subscription_status)) item.append(button('Subscribe — $199/month',async()=>{
+          try{const {checkout_url}=await managerRequest('create_checkout',{location_id:loc.id});
+            if(!checkout_url || !/^https:\/\/checkout\.stripe\.com\//.test(checkout_url))throw new Error('Unable to open Stripe Checkout');
+            window.location.assign(checkout_url);
+          }catch(e){safeError(e);}
+        }));
+        else item.append(button('Manage billing',async()=>{
+          try{const {portal_url}=await managerRequest('billing_portal',{location_id:loc.id});
+          if(!portal_url || !/^https:\/\/billing\.stripe\.com\//.test(portal_url))throw new Error('Unable to open Stripe billing portal');
+          window.location.assign(portal_url);}catch(e){safeError(e);}
+        },true));
+      }
+      if(['owner','gm'].includes(loc.role)&&['active','trialing'].includes(loc.subscription_status)){
+        const addr=entry('email','manager@example.com');
+        const label=elt('label','Invite a manager or shift leader by email');label.append(addr);item.append(label);
+        const role=elt('select',undefined,'academy-input');
+        role.setAttribute('aria-label','Invited manager role');
+        for(const value of loc.role==='owner'?['gm','manager','shift_leader']:['manager','shift_leader']){
+          const opt=elt('option',value.replace('_',' '));opt.value=value;role.append(opt);
+        }
+        item.append(role,button('Invite manager',async()=>{
+          try{const response=await managerRequest('invite',{location_id:loc.id,email:addr.value.trim(),role:role.value});
+          show(response.message||'Invitation recorded.');addr.value='';
+          }catch(e){safeError(e);}
+        }));
+        item.append(button('View team',async()=>{
+          try{const {members}=await managerRequest('list_members',{location_id:loc.id});
+          let old=item.querySelector('[data-team]');if(old)old.remove();
+          const block=elt('div');block.dataset.team='true';
+          block.append(elt('p',String(members.length)+' associated team members'));
+          for(const member of members){
+            const line=elt('p',member.role+' · '+(member.active?'Active':'Inactive')+' · '+member.user_id.slice(0,8)+'…');
+            if(member.active && member.role!=='owner')line.append(button('Remove access',async()=>{
+              try{await managerRequest('deactivate_member',{location_id:loc.id,user_id:member.user_id});
+              show('Manager access removed from this location.');await loadLocations();}catch(e){safeError(e);}
+            },true));
+            block.append(line);
+          }
+          item.append(block);
+          }catch(e){safeError(e);}
+        },true));
+      }
+      locationsNode.append(item);
+    }
+  }
+  async function loadInvitations(){
+    const {invitations}=await managerRequest('pending_invites');
+    hidden(invitationsNode,!invitations?.length);
+    invitationsNode.replaceChildren(elt('h2','Invitations for you'));
+    for(const invite of invitations||[]){
+      const item=elt('div',undefined,'academy-lesson');
+      item.append(elt('p',invite.location_name+' — '+invite.intended_role.replace('_',' ')));
+      item.append(button('Join this location',async()=>{
+        try{await managerRequest('accept_invite',{invitation_id:invite.id});
+        show('Invitation accepted. Your Academy access is being prepared.');
+        await loadInvitations();await loadLocations();await loadCourses();}catch(e){safeError(e);}
+      }));
+      invitationsNode.append(item);
+    }
+  }
+
   const signin = async () => {
     const email=$('email').value.trim(), password=$('password').value;
     if(!email||!password) return show('Please enter your email and password.',true);
@@ -69,7 +167,7 @@
     if(!user){show('Sign in to access an active Academy enrollment.');return;}
     $('userLabel').textContent=user.email||'Signed in';
     show('Signed in securely. Loading your enrollment…');
-    await loadCourses();await loadReviews();
+    await loadLocations();await loadInvitations();await loadCourses();await loadReviews();
   }
   async function loadCourses(){
     const data=await read('academy_enrollments',q=>q.select('id,course_id,status,expires_at').order('created_at',{ascending:false}));
