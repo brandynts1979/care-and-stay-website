@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Care &amp; Stay | Beta Tester Management</title>
+<link rel="stylesheet" href="/styles.css">
+<style>
+body{background:#f5f8f6;color:#1b3037}main{max-width:1120px;margin:35px auto 75px;padding:0 20px}
+h1{font-size:2.2rem}.lead{max-width:850px;color:#475f67}.beta-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:24px}
+.beta-panel{background:#fff;border:1px solid #d6e2db;border-radius:13px;padding:24px;box-shadow:0 4px 16px #182f2810}
+.beta-panel h2{margin:0 0 8px}.muted{color:#576d74;font-size:.93rem}
+.beta-panel input{display:block;width:100%;padding:10px 12px;margin:6px 0 13px;border:1px solid #afc3bd;border-radius:7px;box-sizing:border-box}
+.beta-panel label{font-weight:650;display:block}.actions{display:flex;gap:8px;flex-wrap:wrap}
+.beta-panel button{border:0;background:#175b53;color:white;border-radius:7px;padding:10px 15px;cursor:pointer}
+.beta-panel button.secondary{background:#e7efea;color:#16483f;border:1px solid #c6d8cc}
+.beta-panel button.danger{background:#fff5f4;color:#8b291d;border:1px solid #eabbb6}
+.beta-panel button:disabled{opacity:.6;cursor:not-allowed}
+.beta-table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:.89rem;margin-top:15px}
+.beta-table th,.beta-table td{padding:9px 5px;text-align:left;border-bottom:1px solid #e4eae5;overflow-wrap:anywhere}
+.beta-table th:first-child{width:42%}.beta-table th:nth-child(2){width:30%}
+.status{min-height:1.6em;font-size:.9rem;white-space:pre-wrap}.beta-panel a{color:#15594f}
+.tip{padding:17px;border-left:4px solid #397e70;background:#eef5f0;margin:20px 0 28px}
+.hide{display:none!important}
+</style></head><body>
+<header class="site-header"><nav class="nav container"><a class="brand" href="/"><span>Care <em>&amp;</em> Stay</span></a><a href="/dd-family-care/">DD Family Care</a><a href="/">Home</a></nav></header>
+<main><h1>Beta Tester Management</h1>
+<p class="lead">Approve complimentary test access for the Family Caregiver App and DD Family Care App. Testers use their own email address and create their own password. Access lasts 90 days by default; no payment information is required.</p>
+<div class="tip"><strong>Recommended workflow:</strong> Approve an email for the appropriate app, then send the tester that app's registration link. Their account must be email-verified before access begins. Beta access is limited to the chosen app and expires automatically. Use fictional information unless you've separately approved real-data testing.</div>
+<div class="beta-grid">
+<section id="dd" class="beta-panel"><h2>DD Family Care</h2><p class="muted">Developmental disabilities support app, including AI Family Care Coach.</p>
+<p><a href="/dd-family-care/app/" target="_blank" rel="noopener">Tester registration and sign-in</a></p>
+<div class="sign-in"><label for="ddLogin">Your administrator email</label><input id="ddLogin" type="email" autocomplete="username" value="firststepworldwide@gmail.com"><label for="ddPassword">Your password for this app</label><input id="ddPassword" type="password" autocomplete="current-password"><button type="button" id="ddSignin">Sign in to manage DD testers</button></div>
+<div class="admin hide"><p class="status" id="ddSignedIn"></p><label for="ddEmail">Tester's own email address</label><input id="ddEmail" type="email" placeholder="tester@example.com" autocomplete="off"><label for="ddDays">Days of complimentary access</label><input id="ddDays" type="number" min="1" max="365" value="90">
+<div class="actions"><button type="button" id="ddApprove">Approve / extend</button><button type="button" id="ddRevoke" class="danger">Revoke</button><button type="button" id="ddRefresh" class="secondary">Refresh list</button><button type="button" id="ddSignout" class="secondary">Sign out</button></div>
+<div id="ddList"></div></div><p class="status" role="status" id="ddStatus"></p></section>
+<section id="family" class="beta-panel"><h2>Family Caregiver App</h2><p class="muted">Caregiver Coach and Care Manager for family caregivers.</p>
+<p><a href="https://care-and-stay-caregiver-staging.onrender.com/" target="_blank" rel="noopener">Tester registration and sign-in</a></p>
+<div class="sign-in"><label for="familyLogin">Your administrator email</label><input id="familyLogin" type="email" autocomplete="username" value="firststepworldwide@gmail.com"><label for="familyPassword">Your password for this app</label><input id="familyPassword" type="password" autocomplete="current-password"><button type="button" id="familySignin">Sign in to manage caregiver testers</button></div>
+<div class="admin hide"><p class="status" id="familySignedIn"></p><label for="familyEmail">Tester's own email address</label><input id="familyEmail" type="email" placeholder="tester@example.com" autocomplete="off"><label for="familyDays">Days of complimentary access</label><input id="familyDays" type="number" min="1" max="365" value="90">
+<div class="actions"><button type="button" id="familyApprove">Approve / extend</button><button type="button" id="familyRevoke" class="danger">Revoke</button><button type="button" id="familyRefresh" class="secondary">Refresh list</button><button type="button" id="familySignout" class="secondary">Sign out</button></div>
+<div id="familyList"></div></div><p class="status" role="status" id="familyStatus"></p></section>
+</div><p class="muted">Only verified administrator accounts can view or manage these lists. Testers are never granted administrator permissions. Extending access replaces the prior expiration date with a new period starting today.</p>
+</main><script>
+const configs={
+ dd:{url:'https://iqgytijuufgkvnzolvqz.supabase.co',key:'sb_publishable_RJjUabuM_LOanY9YqLRXLw_-TdQo4rA',prefix:'dd'},
+ family:{url:'https://ygmvhcgasoopiopjnlom.supabase.co',key:'sb_publishable_l9zdqeJ_pe5h_msYomAiXA_RDGz2IqG',prefix:'care'}
+};
+const $=id=>document.getElementById(id);
+const sessions={dd:null,family:null};
+function status(app,msg){$(app+'Status').textContent=msg}
+async function call(app,path,body,token){
+ const c=configs[app];
+ const res=await fetch(c.url+path,{method:'POST',headers:{'Content-Type':'application/json','apikey':c.key,...(token?{'Authorization':'Bearer '+token}:{})},body:JSON.stringify(body)});
+ let data;try{data=await res.json()}catch{throw Error('Service did not return a valid response')}
+ if(!res.ok)throw Error(data?.msg||data?.message||data?.error_description||data?.error||'Request failed ('+res.status+')');
+ return data;
+}
+function signedIn(app,on){
+ const root=$(app);
+ root.querySelector('.sign-in').classList.toggle('hide',on);
+ root.querySelector('.admin').classList.toggle('hide',!on);
+}
+async function login(app){
+ const email=$(app+'Login').value.trim(),password=$(app+'Password').value;
+ if(!email||!password)return status(app,'Enter your administrator email and password.');
+ status(app,'Signing in…');
+ try{
+  const result=await call(app,'/auth/v1/token?grant_type=password',{email,password});
+  $(app+'Password').value='';
+  if(!result?.access_token)throw Error('Authentication failed');
+  sessions[app]=result.access_token;
+  $(app+'SignedIn').textContent='Signed in as '+email;
+  await list(app);
+  signedIn(app,true);
+  status(app,'Ready. You can add, extend or revoke complimentary beta access.');
+ }catch(e){sessions[app]=null;status(app,e.message||'Sign-in failed')}
+}
+async function list(app){
+ const result=await call(app,'/rest/v1/rpc/'+configs[app].prefix+'_beta_list',{},sessions[app]);
+ const target=$(app+'List');target.replaceChildren();
+ if(!Array.isArray(result)||!result.length){const p=document.createElement('p');p.textContent='No beta testers approved yet.';p.className='muted';target.append(p);return}
+ const table=document.createElement('table');table.className='beta-table';
+ const thead=document.createElement('thead'),header=document.createElement('tr');
+ for(const name of ['Email','Access until','State']){const th=document.createElement('th');th.textContent=name;header.append(th)}thead.append(header);table.append(thead);
+ const tbody=document.createElement('tbody');
+ for(const item of result){
+  const tr=document.createElement('tr');
+  const end=Date.parse(item.expires_at);
+  const state=item.revoked?'Revoked':end<=Date.now()?'Expired':item.registered_verified?'Active':'Awaiting registration / verification';
+  for(const value of [item.email,Number.isFinite(end)?new Date(end).toLocaleDateString():'—',state]){
+   const td=document.createElement('td');td.textContent=value;tr.append(td)
+  }
+  tr.title='Click to select this tester';
+  tr.addEventListener('click',()=>{$(app+'Email').value=item.email;status(app,'Selected '+item.email)});
+  tbody.append(tr);
+ }
+ table.append(tbody);target.append(table);
+}
+async function manage(app,action){
+ const email=$(app+'Email').value.trim().toLowerCase();
+ if(!$(app+'Email').checkValidity()||!email)return status(app,'Enter a valid tester email address.');
+ const days=Number($(app+'Days').value);
+ if(action==='approve'&&(!Number.isInteger(days)||days<1||days>365))return status(app,'Choose 1–365 days.');
+ if(action==='revoke'&&!confirm('Revoke '+email+' access to this app?'))return;
+ status(app,'Updating access…');
+ try{const result=await call(app,'/rest/v1/rpc/'+configs[app].prefix+'_beta_manage',
+  {p_email:email,p_action:action,p_days:days},sessions[app]);
+  status(app,(action==='approve'?'Approved':'Revoked')+' '+result.email+' for '+app+' app.');
+  await list(app);
+ }catch(e){status(app,e.message||'Access update failed')}
+}
+for(const app of ['dd','family']){
+ $(app+'Signin').addEventListener('click',()=>login(app));
+ $(app+'Approve').addEventListener('click',()=>manage(app,'approve'));
+ $(app+'Revoke').addEventListener('click',()=>manage(app,'revoke'));
+ $(app+'Refresh').addEventListener('click',async()=>{try{await list(app);status(app,'List refreshed.')}catch(e){status(app,e.message||'Could not refresh')}});
+ $(app+'Signout').addEventListener('click',()=>{sessions[app]=null;signedIn(app,false);$(app+'List').replaceChildren();status(app,'Signed out.');});
+ $(app+'Password').addEventListener('keydown',e=>{if(e.key==='Enter')login(app)});
+}
+</script></body></html>
