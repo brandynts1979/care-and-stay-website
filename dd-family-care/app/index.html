@@ -1,0 +1,554 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DD Family Care — Care & Stay</title>
+<style>
+:root{font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:#18304b;background:#eef5f4}*{box-sizing:border-box}body{margin:0}header{background:#173d4b;color:white;padding:22px max(20px,calc((100vw - 920px)/2))}header h1{margin:0;font-size:1.5rem}main{max-width:920px;margin:24px auto;padding:0 16px}.card{background:white;border:1px solid #d7e4e3;border-radius:14px;padding:20px;margin-bottom:18px;box-shadow:0 1px 3px #163b4210}.muted{color:#526776}label{display:block;font-weight:650;margin:12px 0 5px}input,textarea,select{width:100%;font:inherit;padding:10px;border:1px solid #a9c0c1;border-radius:7px;background:#fff}textarea{min-height:75px}button{font:inherit;background:#16666a;color:white;border:0;border-radius:8px;padding:11px 15px;cursor:pointer;margin:7px 8px 7px 0}button.secondary{background:#e6efee;color:#164b52}button:disabled{opacity:.55;cursor:wait}.flex{display:flex;gap:12px;flex-wrap:wrap;align-items:center}.flex>*{flex:1}h2{margin:0 0 12px;font-size:1.3rem}h3{margin:14px 0 8px}p{line-height:1.5}#notice{white-space:pre-wrap;padding:10px 12px;border-radius:9px;background:#f4efe1;margin:10px 0}#notice:empty{display:none}.entry{border-top:1px solid #d9e5e4;padding-top:12px;margin-top:13px}.tag{font-size:.78rem;background:#e6f2ee;color:#22583c;padding:4px 8px;border-radius:12px}.hide{display:none}small{color:#526776} .warn{color:#794c00}.dashboard-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(235px,1fr));gap:12px;margin:16px 0}.dashboard-tile{width:100%;text-align:left;background:white;border:1px solid #c6ddda;color:#18304b;border-radius:12px;padding:18px;min-height:130px;margin:0}.dashboard-tile strong{font-size:1.06rem}.dashboard-tile span{display:block;color:#526776;margin-top:8px;line-height:1.4}.dashboard-tile em{display:inline-block;font-size:.76rem;font-style:normal;color:#73560a;background:#fff3cf;padding:3px 8px;border-radius:9px;margin-top:9px}.dashboard-tile:disabled{opacity:1;cursor:default;background:#f4f7f7;border-style:dashed}.dashboard-tile:not(:disabled):hover,.dashboard-tile:not(:disabled):focus-visible{outline:2px solid #16666a;outline-offset:2px}.dashboard-tile.ready{border-left:5px solid #16666a}@media(max-width:600px){.dashboard-grid{grid-template-columns:1fr}}</style></head>
+<body><header><h1>Care & Stay | DD Family Care</h1><div>Strengths, autonomy, connection and quality of life</div></header>
+<main><p class="warn">Please do not enter sensitive family details until your paid subscription has been confirmed active. This service is not emergency, medical, legal or benefits advice. <a href="/legal/dd-family-subscription-terms/">Subscription terms</a> · <a href="/legal/dd-family-privacy/">Privacy notice</a>.</p><div id="notice" role="status" aria-live="polite"></div>
+<section id="auth" class="card"><h2>Secure sign-in</h2><p class="muted">DD Family Care uses a dedicated secure account, separate from the regular Family Caregiver App.</p>
+<label for="email">Email</label><input id="email" type="email" autocomplete="email">
+<label for="password">Password</label><input id="password" type="password" minlength="8" autocomplete="current-password">
+<button id="signin">Sign in</button><button class="secondary" id="signup">Create account</button><button type="button" class="secondary" id="forgotPassword">Forgot password?</button>
+<p><small>Email confirmation may be required. If the confirmation link opens the wrong page, the project's Auth redirect URLs must be configured before testing verification.</small></p></section>
+<section id="passwordReset" class="card hide"><h2>Set a new password</h2><p class="muted">Use a new password of at least 12 characters for your DD development account.</p>
+<label for="resetPassword">New password</label><input id="resetPassword" type="password" minlength="12" autocomplete="new-password">
+<label for="resetPasswordConfirm">Confirm new password</label><input id="resetPasswordConfirm" type="password" minlength="12" autocomplete="new-password">
+<button type="button" id="saveResetPassword">Save new password</button><button type="button" id="cancelPasswordReset" class="secondary">Return to sign-in</button></section>
+<div id="app" class="hide">
+<div class="card flex"><div><strong id="signedin"></strong><p class="muted">Only you can see records you create in this first development version.</p></div><div style="text-align:right"><button id="signout" class="secondary">Sign out</button></div></div>
+<section class="card" aria-labelledby="billingHeading"><h2 id="billingHeading">DD Family Care subscription</h2><p id="ddBillingStatus" role="status">Checking subscription availability…</p><p class="muted"><small>Your subscription is verified after payment. Only enter family care information after confirmation of paid access.</small></p><button id="ddBillingRefresh" type="button" class="secondary">Refresh subscription status</button><button id="ddStartCheckout" type="button" class="hide" disabled>Subscribe — $39/month + tax</button><button id="ddManageBilling" type="button" class="hide" disabled>Manage subscription</button></section>
+<section id="dashboard"><div class="card"><h2>Family Care Dashboard</h2><p>Helping children and adults with developmental disabilities build on strengths, choices, autonomy and quality of life.</p><p class="muted">Select a module. Features marked planned are not yet available. Please review your subscription status before entering care information.</p></div><div class="dashboard-grid"><button type="button" class="dashboard-tile ready" id="openStrengths"><strong>🌱 Strengths & Possibilities</strong><span>Personal goals, interests, practice steps and progress notes.</span><span class="tag">Available now</span></button>
+<button type="button" class="dashboard-tile ready" id="openTeam"><strong>👥 My Care Team</strong><span>Invite supporters and accept read-only access to a shared profile.</span><span class="tag">Development preview</span></button>
+<button type="button" class="dashboard-tile ready" id="openTasks"><strong>📅 Shared Care Tasks</strong><span>Assign tasks to accepted supporters and track their progress.</span><span class="tag">Development preview</span></button>
+<button type="button" class="dashboard-tile ready" id="openDocuments"><strong>📁 Documents & Records</strong><span>Upload and download private documents.</span><span class="tag">Development preview</span></button>
+<button type="button" class="dashboard-tile ready" id="openHealth"><strong>💊 Health & Medications</strong><span>Care notes, medication reminders and allergy summaries.</span><span class="tag">Development preview</span></button>
+<button type="button" class="dashboard-tile ready" id="openEducation"><strong>🎓 Education & Therapies</strong><span>IEP milestones, therapy appointments and services.</span><span class="tag">Development preview</span></button>
+<button type="button" class="dashboard-tile ready" id="openBenefits"><strong>🧭 Benefits & Resources</strong><span>Waiver applications, respite and community resources.</span><span class="tag">Development preview</span></button>
+<button type="button" class="dashboard-tile ready" id="openTransitions"><strong>🌤️ Future & Transitions</strong><span>Employment, housing, adulthood and supported decisions.</span><span class="tag">Development preview</span></button>
+<button type="button" class="dashboard-tile" disabled><strong>💬 AI Family Care Coach</strong><span>Strengths-based coaching and practical guidance.</span><em>Planned</em></button></div></section><div id="supportRecordsModule" class="hide">
+<button type="button" id="supportRecordsBackHome" class="secondary">← Back to Dashboard</button><section class="card">
+<h2 id="supportRecordsHeading">Care records</h2><p id="supportRecordsIntro" class="muted"></p>
+<p class="warn">Only provide information you are authorized to share, and review the privacy notice before entering sensitive information.</p>
+<label for="supportPerson">Profile you manage</label><select id="supportPerson"><option value="">Choose a profile</option></select>
+<label for="supportType">Record type</label><select id="supportType"></select>
+<label for="supportTitle">Short title</label><input id="supportTitle" maxlength="200" placeholder="Example: Fictional plan or appointment">
+<label for="supportDetails">Details</label><textarea id="supportDetails" maxlength="3000" placeholder="Fictional notes and next steps"></textarea>
+<label for="supportTargetDate">Date or deadline (optional)</label><input id="supportTargetDate" type="date">
+<label for="supportStatus">Status</label><select id="supportStatus"><option value="active">Active</option><option value="planned">Planned</option><option value="completed">Completed</option><option value="paused">Paused</option></select>
+<button type="button" id="addSupportRecord">Save record</button>
+<h3>Saved records</h3><div id="supportRecordsList"></div><button type="button" id="refreshSupportRecords" class="secondary">Refresh records</button>
+</section></div><div id="documentsModule" class="hide">
+<button type="button" id="documentsBackHome" class="secondary">← Back to Dashboard</button>
+<section class="card"><h2>Documents & Records</h2><p>Organize private records for a fictional profile. Only the profile owner can currently upload, view, or delete files. Shared family access does <strong>not</strong> include documents in this version.</p>
+<p class="warn">Only upload documents you have permission to store. Keep an independent backup of critical records.</p>
+<label for="docPerson">Choose a profile you own</label><select id="docPerson"><option value="">Choose a profile</option></select>
+<label for="docCategory">Document category</label><select id="docCategory">
+<option value="education_iep">Education / IEP</option><option value="therapy">Therapy</option><option value="medical">Medical</option><option value="benefits">Benefits / Funding</option><option value="legal">Legal</option><option value="other">Other</option></select>
+<label for="docName">Display name</label><input id="docName" maxlength="200" placeholder="Example: Fictional Sample IEP">
+<label for="docNotes">Notes (optional)</label><textarea id="docNotes" maxlength="1000" placeholder="Describe why this document matters"></textarea>
+<label for="docFile">Select a PDF, PNG or JPEG (10 MB maximum)</label><input id="docFile" type="file" accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg">
+<button type="button" id="uploadDocument">Upload private document</button>
+<h3>Saved documents</h3><div id="docList"></div><button type="button" id="refreshDocuments" class="secondary">Refresh documents</button>
+</section></div><div id="tasksModule" class="hide">
+<button type="button" id="tasksBackHome" class="secondary">← Back to Dashboard</button>
+<section class="card"><h2>Shared Care Tasks</h2><p>Create a care task, optionally assign it to an accepted supporter, and track its completion. Assigned supporters can update the status of their own tasks only.</p>
+<div id="taskOwnerInputs"><label for="taskPerson">Profile</label><select id="taskPerson"><option value="">Choose a profile</option></select>
+<label for="taskTitle">Task description</label><input id="taskTitle" maxlength="300" placeholder="Example: Practice choosing a snack">
+<label for="taskDetails">Helpful instructions</label><textarea id="taskDetails" placeholder="Example: Offer visual choices, encourage independent decisions"></textarea>
+<label for="taskDue">Target date (optional)</label><input id="taskDue" type="date">
+<label for="taskAssignee">Assign to accepted supporter (optional)</label><select id="taskAssignee"><option value="">Unassigned</option></select>
+<button type="button" id="createTask">Save task</button></div>
+<h3>Tasks available to your account</h3><div id="taskList"></div><button type="button" id="refreshTasks" class="secondary">Refresh tasks</button>
+<p class="muted"><small>Development testing only. A full scheduling calendar, recurring tasks, alerts and broader editing permissions are not yet implemented.</small></p>
+</section></div><div id="teamModule" class="hide">
+<button type="button" id="teamBackHome" class="secondary">← Back to Dashboard</button>
+<section class="card"><h2>My Care Team</h2><p>Invite a registered supporter to see a profile, strengths, goals and progress. Access begins only when the invited account accepts. This first version is read-only for invitees.</p>
+<label for="teamPerson">Choose your profile</label><select id="teamPerson"><option value="">Choose a profile</option></select>
+<label for="teamEmail">Supporter's registered email</label><input type="email" id="teamEmail" placeholder="test-supporter@example.com" autocomplete="off">
+<label for="teamRole">Support role</label><select id="teamRole"><option value="family_supporter">Family supporter</option><option value="caregiver">Caregiver</option><option value="professional">Professional</option><option value="individual">Individual receiving support</option></select>
+<label style="font-weight:400"><input type="checkbox" id="teamAuthority" style="width:auto;margin-right:8px">I confirm I have the person's consent or appropriate legal authority to share this profile.</label>
+<button id="sendTeamInvite">Create invitation</button>
+<p class="muted"><small>This does not send an email automatically. Ask the invited tester to create or sign in to their own account using the exact email you entered, then open My Care Team to accept. Do not invite real people or use real health information.</small></p>
+<h3>Invitations you manage</h3><div id="teamSent"></div>
+<h3>Invitations for your account</h3><div id="teamReceived"></div>
+<button id="reloadTeam" class="secondary">Refresh invitations</button></section></div>
+<div id="strengthsModule" class="hide"><button type="button" id="backHome" class="secondary">← Back to Dashboard</button><section class="card"><h2>1. Person's voice and preferences</h2><label for="personName">Preferred name</label><input id="personName" maxlength="120" placeholder="Example: Alex">
+<label for="communication">How does this person prefer to communicate?</label><textarea id="communication" placeholder="Verbal, visual choices, gestures, communication device..."></textarea>
+<label for="matters">What matters most to this person?</label><textarea id="matters" placeholder="What brings them joy, belonging and a meaningful day?"></textarea>
+<button id="savePerson">Save new profile</button><label for="people">Select existing profile</label><select id="people"><option value="">Choose a profile</option></select></section>
+<section id="details" class="hide">
+<section class="card"><h2>2. Discover strengths</h2><label for="strength">What does the person enjoy or do well?</label><textarea id="strength">Enjoys preparing food and helping in the kitchen.</textarea>
+<label for="category">Kind of strength</label><select id="category"><option value="interest">Interest</option><option value="skill">Skill</option><option value="preference">Preference</option><option value="relationship">Relationship</option><option value="resource">Support or resource</option></select><button id="addStrength">Add strength</button><div id="strengthList"></div></section>
+<section class="card"><h2>3. Explore a personally meaningful goal</h2><label for="goal">Goal</label><textarea id="goal">Prepare a favorite snack with less assistance.</textarea>
+<label for="choice">How was the goal chosen?</label><select id="choice"><option value="not_yet_confirmed">Not yet confirmed with the person</option><option value="person_chose">The person chose it</option><option value="supported_choice">The person chose with communication support</option><option value="declined">The person declined</option></select>
+<label for="support">Helpful support</label><textarea id="support">Offer visual steps, accessible ingredients, safe tools, and help when requested.</textarea>
+<label for="success">What would success look like to the person?</label><textarea id="success">Can prepare a preferred snack with fewer prompts while enjoying the activity.</textarea><button id="addGoal">Save goal</button><div id="goalList"></div></section>
+<section class="card"><h2>4. Practice, observe, celebrate</h2><label for="activeGoal">Goal to work on</label><select id="activeGoal"></select>
+<label for="step">A small, achievable practice step</label><input id="step" placeholder="Example: Choose ingredients using pictures"><button id="addStep">Add practice step</button>
+<label for="observation">What happened? Include the person's own perspective</label><textarea id="observation" placeholder="Describe the achievement without comparing to anyone else."></textarea>
+<label for="feedback">What did the person express about the activity?</label><textarea id="feedback" placeholder="Their words, preferences, gestures, or communication"></textarea>
+<label for="supportLevel">Assistance during this observation</label><select id="supportLevel"><option value="partial_support">Partial assistance</option><option value="full_support">Full assistance</option><option value="prompt_only">Prompt only</option><option value="independent">Independent</option></select><button id="addNote">Record progress</button>
+<div id="stepList"></div><div id="noteList"></div></section></section></div></div>
+</main><script>
+const URL='https://iqgytijuufgkvnzolvqz.supabase.co';
+const KEY='sb_publishable_RJjUabuM_LOanY9YqLRXLw_-TdQo4rA';
+const $=id=>document.getElementById(id); let session=null,person=null,strengths=[],goals=[],peopleCache=[],recoveryToken=null;
+const notify=s=>{$('notice').textContent=s};
+function navigate(section){$('dashboard').classList.toggle('hide',section!=='home');$('strengthsModule').classList.toggle('hide',section!=='strengths');$('teamModule').classList.toggle('hide',section!=='team');$('tasksModule').classList.toggle('hide',section!=='tasks');$('documentsModule').classList.toggle('hide',section!=='documents');$('supportRecordsModule').classList.toggle('hide',section!=='supportRecords');if(section==='home')notify('');window.scrollTo(0,0);}
+function make(tag,content,className){let el=document.createElement(tag);el.textContent=content;if(className)el.className=className;return el}
+function item(target,heading,sub){const d=make('div','', 'entry');d.append(make('strong',heading));if(sub)d.append(make('p',sub,'muted'));$(target).append(d);return d}
+async function request(path,method='GET',data=null,access=true){let h={'apikey':KEY,'Content-Type':'application/json'};if(method==='POST'&&path.startsWith('/rest/v1/'))h.Prefer='return=representation';if(access&&session)h.Authorization='Bearer '+session.access_token;let r=await fetch(URL+path,{method,headers:h,body:data?JSON.stringify(data):undefined});let raw=await r.text(),value;try{value=raw?JSON.parse(raw):null}catch{value=raw}if(!r.ok)throw Error(value?.msg||value?.message||value?.error_description||value?.error||('HTTP '+r.status));return value}
+async function authenticate(type){notify('');try{let email=$('email').value.trim(),password=$('password').value;if(!email||!password)throw Error('Enter email and password.');if(type==='signup'&&password.length<12)throw Error('Choose a password of at least 12 characters for new accounts.');let path=type==='signin'?'/auth/v1/token?grant_type=password':'/auth/v1/signup?redirect_to='+encodeURIComponent(window.location.origin+'/');let value=await request(path,'POST',{email,password},false);if(type==='signup'&&!value.access_token){notify('Account created. Check your verification email before signing in.');return}session=value;await loggedIn()}catch(e){notify(e.message)}}
+async function requestPasswordReset(){
+ const email=$('email').value.trim();
+ if(!email||!$('email').checkValidity()){notify('Enter a valid account email address first.');return}
+ try{
+  await request('/auth/v1/recover?redirect_to='+encodeURIComponent(window.location.origin+'/'),'POST',{email},false);
+  notify('If this address has an account, a password-reset link will arrive by email. Check your inbox and spam folder.');
+ }catch(e){notify('Unable to request password reset: '+e.message)}
+}
+async function updateRecoveredPassword(){
+ if(!recoveryToken){notify('Your reset link is no longer active. Request a new one.');return}
+ const password=$('resetPassword').value;
+ if(password.length<12){notify('Choose a password of at least 12 characters.');return}
+ if(password!==$('resetPasswordConfirm').value){notify('The new passwords do not match.');return}
+ try{
+  const response=await fetch(URL+'/auth/v1/user',{method:'PUT',headers:{apikey:KEY,Authorization:'Bearer '+recoveryToken,'Content-Type':'application/json'},body:JSON.stringify({password})});
+  const raw=await response.text();let body;try{body=JSON.parse(raw)}catch{body={}}
+  if(!response.ok){
+   if(response.status===401||response.status===403){
+    recoveryToken=null;$('resetPassword').value='';$('resetPasswordConfirm').value='';
+    $('passwordReset').classList.add('hide');$('auth').classList.remove('hide');
+    throw Error('Recovery session expired. Request a new password-reset link.');
+   }
+   throw Error(body.msg||body.message||body.error_description||body.error||('HTTP '+response.status));
+  }
+  recoveryToken=null;$('resetPassword').value='';$('resetPasswordConfirm').value='';
+  $('passwordReset').classList.add('hide');$('auth').classList.remove('hide');
+  sessionStorage.removeItem('dd_family_session');
+  notify('Password updated. Sign in with your new password.');
+ }catch(e){notify('Password could not be updated: '+e.message)}
+}
+async function loadDdBillingStatus(){
+ const status=$('ddBillingStatus');
+ if(!session?.access_token){status.textContent='Sign in to check subscription status.';return;}
+ status.textContent='Checking subscription availability…';
+ $('ddStartCheckout').classList.add('hide');$('ddStartCheckout').disabled=true;
+ $('ddManageBilling').classList.add('hide');$('ddManageBilling').disabled=true;
+ try{
+  const r=await fetch(URL+'/functions/v1/dd-subscription-gateway',{
+   method:'POST',headers:{'Content-Type':'application/json',apikey:KEY,Authorization:'Bearer '+session.access_token},
+   body:JSON.stringify({action:'status'})
+  });
+  const data=await r.json();
+  if(!r.ok)throw Error(data.error||'Billing service unavailable');
+  if(data.checkout_enabled===true){
+   status.textContent='Subscription status: '+String(data.subscription_status||'none')+'.';
+   const existing=String(data.subscription_status||'none')!=='none';
+   $('ddStartCheckout').classList.toggle('hide',existing);
+   $('ddStartCheckout').disabled=existing;
+   $('ddManageBilling').classList.toggle('hide',!existing);
+   $('ddManageBilling').disabled=!existing;
+  }else{
+   status.textContent='Subscriptions are not available yet. Current subscription status: '+String(data.subscription_status||'none')+'.';
+  }
+ }catch(e){status.textContent='Subscription status could not be verified. Purchases remain unavailable.';}
+}
+$('ddBillingRefresh').addEventListener('click',loadDdBillingStatus);
+async function ddBillingAction(action){
+ if(!session?.access_token)return notify('Sign in first.');
+ const btn=$(action==='checkout'?'ddStartCheckout':'ddManageBilling');
+ btn.disabled=true;
+ try{
+  const r=await fetch(URL+'/functions/v1/dd-subscription-gateway',{
+   method:'POST',headers:{'Content-Type':'application/json',apikey:KEY,Authorization:'Bearer '+session.access_token},
+   body:JSON.stringify({action})});
+  const data=await r.json();
+  if(!r.ok)throw Error(data.error||'Billing unavailable');
+  const target=new URL(data.url);
+  if(target.protocol!=='https:'||!['checkout.stripe.com','billing.stripe.com'].includes(target.hostname))
+   throw Error('Unexpected Stripe destination');
+  window.location.assign(target.href);
+ }catch(e){notify(e.message||'Billing temporarily unavailable');await loadDdBillingStatus();}
+}
+$('ddStartCheckout').addEventListener('click',()=>ddBillingAction('checkout'));
+$('ddManageBilling').addEventListener('click',()=>ddBillingAction('portal'));
+
+async function loggedIn(){if(!session?.access_token)return;sessionStorage.setItem('dd_family_session',JSON.stringify(session));$('auth').classList.add('hide');$('app').classList.remove('hide');$('signedin').textContent=session.user?.email||'Signed in';notify('Signed in to DD Family Care. Confirm your subscription status before entering family information.');navigate('home');await loadPeople();await loadTeam();await loadDdBillingStatus()}
+function clearSession(message='Session expired. Please sign in again.'){
+ session=null;person=null;strengths=[];goals=[];peopleCache=[];
+ sessionStorage.removeItem('dd_family_session');
+ $('app').classList.add('hide');$('auth').classList.remove('hide');
+ $('signedin').textContent='';$('password').value='';
+ // Remove all account-specific values and rendered records, even though the app is hidden.
+ for(const field of document.querySelectorAll('#app input, #app textarea, #app select')){
+  if(field.type==='checkbox'||field.type==='radio')field.checked=false;
+  else if(field.tagName==='SELECT')field.selectedIndex=-1;
+  else field.value='';
+ }
+ for(const id of ['people','activeGoal','docPerson','taskPerson','taskAssignee','teamPerson',
+  'strengthList','goalList','stepList','noteList','teamSent','teamReceived','taskList','docList','supportRecordsList'])$(id)?.replaceChildren();
+ $('details')?.classList.add('hide');
+ navigate('home');notify(message);
+}
+async function refresh(){
+ if(!session?.refresh_token){clearSession();return}
+ try{
+  let v=await request('/auth/v1/token?grant_type=refresh_token','POST',{refresh_token:session.refresh_token},false);
+  session=v;sessionStorage.setItem('dd_family_session',JSON.stringify(session));
+ }catch{clearSession()}
+}
+async function retry(action){try{await refresh();if(!session)return;await action()}catch(e){notify(e.message)}}
+const enc=encodeURIComponent;
+async function loadPeople(){let list=await request('/rest/v1/dd_people?select=id,owner_id,display_name,preferred_communication,what_matters_to_me&order=created_at.desc');peopleCache=list;let s=$('people');s.replaceChildren(new Option('Choose a profile',''));list.forEach(p=>s.add(new Option(p.display_name,p.id)));if(person&&list.some(p=>p.id===person.id)){s.value=person.id;person=list.find(p=>p.id===person.id)}else{person=null;$('details').classList.add('hide')}return list}
+async function savePerson(){let name=$('personName').value.trim();if(!name)throw Error('Enter the person\'s preferred name.');let p=await request('/rest/v1/dd_people?select=*','POST',{display_name:name,preferred_communication:$('communication').value.trim(),what_matters_to_me:$('matters').value.trim()});person=p[0];await loadPeople();$('people').value=person.id;await loadDetails();applyProfilePermission();notify('Profile saved.')}
+async function selectPerson(){let selected=$('people').value;let list=await loadPeople();person=list.find(p=>p.id===selected)||null;if(person){$('people').value=person.id;$('personName').value=person.display_name;$('communication').value=person.preferred_communication||'';$('matters').value=person.what_matters_to_me||'';await loadDetails();applyProfilePermission()}}
+async function loadDetails(){if(!person)return;$('details').classList.remove('hide');let pid=enc(person.id);[strengths,goals]=await Promise.all([request('/rest/v1/dd_strengths?select=*&person_id=eq.'+pid+'&order=created_at.desc'),request('/rest/v1/dd_goals?select=*&person_id=eq.'+pid+'&order=created_at.desc')]);$('strengthList').replaceChildren();strengths.forEach(s=>item('strengthList',s.description,s.category));$('goalList').replaceChildren();let sel=$('activeGoal');sel.replaceChildren(new Option('Select a goal',''));goals.forEach(g=>{item('goalList',g.goal_text,'Choice: '+g.person_choice+' · Status: '+g.status);sel.add(new Option(g.goal_text,g.id))});$('stepList').replaceChildren();$('noteList').replaceChildren()}
+function applyProfilePermission(){const own=person&&person.owner_id===session?.user?.id;['addStrength','addGoal','addStep','addNote','savePerson'].forEach(id=>{$(id).disabled=!!person&&!own});$('personName').disabled=!!person&&!own;$('communication').disabled=!!person&&!own;$('matters').disabled=!!person&&!own;}
+async function addStrength(){let description=$('strength').value.trim();if(!description)throw Error('Enter a strength.');await request('/rest/v1/dd_strengths','POST',{person_id:person.id,description,category:$('category').value});await loadDetails();notify('Strength saved.')}
+async function addGoal(){let goal_text=$('goal').value.trim(),person_choice=$('choice').value;if(!goal_text)throw Error('Enter a goal.');await request('/rest/v1/dd_goals','POST',{person_id:person.id,goal_text,person_choice,support_plan:$('support').value.trim(),success_looks_like:$('success').value.trim(),status:person_choice==='declined'?'declined':'exploring'});await loadDetails();notify('Goal saved.')}
+function selectedGoal(){let id=$('activeGoal').value;if(!id)throw Error('Select a goal first.');return id}
+async function loadProgress(){let id=selectedGoal(),q=enc(id);let [steps,notes]=await Promise.all([request('/rest/v1/dd_goal_steps?select=*&goal_id=eq.'+q+'&order=position.asc'),request('/rest/v1/dd_progress_notes?select=*&goal_id=eq.'+q+'&order=observed_at.desc')]);$('stepList').replaceChildren(make('h3','Practice steps'));steps.forEach(s=>item('stepList',s.step_text,s.support_level));$('noteList').replaceChildren(make('h3','Progress notes'));notes.forEach(n=>item('noteList',n.observation,(n.person_feedback||'')+' · Support: '+(n.support_level||'Not recorded')))}
+async function addStep(){let goal_id=selectedGoal(),step_text=$('step').value.trim();if(!step_text)throw Error('Enter a step.');await request('/rest/v1/dd_goal_steps','POST',{person_id:person.id,goal_id,step_text});$('step').value='';await loadProgress();notify('Practice step saved.')}
+async function addNote(){let goal_id=selectedGoal(),observation=$('observation').value.trim();if(!observation)throw Error('Enter an observation.');await request('/rest/v1/dd_progress_notes','POST',{person_id:person.id,goal_id,observation,person_feedback:$('feedback').value.trim(),support_level:$('supportLevel').value});$('observation').value='';$('feedback').value='';await loadProgress();notify('Progress note saved.')}
+$('openStrengths').addEventListener('click',()=>navigate('strengths'));
+$('backHome').addEventListener('click',()=>navigate('home'));
+
+
+
+const DOC_BUCKET='dd-private-documents';
+const DOC_TYPES=new Set(['application/pdf','image/png','image/jpeg']);
+async function hasExpectedFileSignature(file){
+ const b=new Uint8Array(await file.slice(0,8).arrayBuffer());
+ if(file.type==='application/pdf')return b.length>=5&&b[0]===37&&b[1]===80&&b[2]===68&&b[3]===70&&b[4]===45;
+ if(file.type==='image/png')return b.length>=8&&[137,80,78,71,13,10,26,10].every((n,i)=>b[i]===n);
+ if(file.type==='image/jpeg')return b.length>=3&&b[0]===255&&b[1]===216&&b[2]===255;
+ return false;
+}
+
+const SUPPORT_RECORD_CONFIG={
+ health:{heading:'Health & Medications',intro:'Track fictional care summaries, medication reminders, allergies and appointments. Not a prescribing or emergency tool.',types:[['care_note','Care note'],['medication','Medication reminder'],['allergy','Allergy summary'],['appointment','Appointment'],['question','Question for clinician']]},
+ education:{heading:'Education & Therapies',intro:'Organize fictional IEP goals, therapy visits and coordination. Not an official education record.',types:[['iep_goal','IEP goal'],['therapy','Therapy'],['meeting','IEP meeting'],['service','Service'],['progress','Progress update']]},
+ benefits:{heading:'Benefits & Resources',intro:'Track fictional waivers, respite, benefit applications and resources.',types:[['waiver','Waiver'],['respite','Respite'],['benefit','Benefit'],['resource','Community resource'],['application','Application']]},
+ transitions:{heading:'Future & Transitions',intro:'Plan fictional transitions to adulthood, employment, housing and supported decisions.',types:[['employment','Employment'],['housing','Housing'],['education','Education'],['decision','Supported decision'],['milestone','Milestone']]}
+};
+let supportRecordCategory='education';
+async function loadSupportRecords(){
+ const [profiles,records]=await Promise.all([
+  request('/rest/v1/dd_people?select=id,owner_id,display_name&order=created_at.desc'),
+  request('/rest/v1/dd_support_records?select=id,person_id,owner_id,category,record_type,title,details,target_date,status,created_at&category=eq.'+enc(supportRecordCategory)+'&order=created_at.desc')
+ ]);
+ const owned=profiles.filter(p=>p.owner_id===session?.user?.id);
+ const previous=$('supportPerson').value;
+ $('supportPerson').replaceChildren(new Option('Choose a profile',''));
+ owned.forEach(p=>$('supportPerson').add(new Option(p.display_name,p.id)));
+ if(owned.some(p=>p.id===previous))$('supportPerson').value=previous;
+ const names=Object.fromEntries(owned.map(p=>[p.id,p.display_name]));
+ const target=$('supportRecordsList');target.replaceChildren();
+ for(const record of records){
+  const block=item('supportRecordsList',record.title,(names[record.person_id]||'Fictional profile')+' · '+record.record_type.replace(/_/g,' ')+' · '+(record.target_date||'No date'));
+  if(record.details)block.append(make('p',record.details,'muted'));
+  const label=make('label','Status');block.append(label);
+  const status=document.createElement('select');status.setAttribute('aria-label','Status for '+record.title);
+  for(const [value,name] of [['active','Active'],['planned','Planned'],['completed','Completed'],['paused','Paused']])status.add(new Option(name,value));
+  status.value=record.status;
+  status.addEventListener('change',()=>retry(async()=>{
+   await request('/rest/v1/dd_support_records?id=eq.'+enc(record.id),'PATCH',{status:status.value});
+   await loadSupportRecords();notify('Record status updated.');
+  }));
+  block.append(status);
+  const del=make('button','Delete record','secondary');del.type='button';
+  del.addEventListener('click',()=>{
+   if(del.dataset.confirm!=='yes'){
+    del.dataset.confirm='yes';del.textContent='Confirm delete record';del.setAttribute('aria-label','Confirm delete record');
+    notify('Click Confirm delete record to permanently remove this fictional entry.');return;
+   }
+   retry(async()=>{await request('/rest/v1/dd_support_records?id=eq.'+enc(record.id),'DELETE');await loadSupportRecords();notify('Fictional record deleted.');});
+  });
+  block.append(del);
+ }
+ if(!records.length)target.append(make('p','No records in this area yet.','muted'));
+}
+async function openSupportRecords(category){
+ supportRecordCategory=category;const cfg=SUPPORT_RECORD_CONFIG[category];
+ $('supportRecordsHeading').textContent=cfg.heading;$('supportRecordsIntro').textContent=cfg.intro;
+ $('supportType').replaceChildren();cfg.types.forEach(([value,name])=>$('supportType').add(new Option(name,value)));
+ navigate('supportRecords');await loadSupportRecords();
+}
+async function saveSupportRecord(){
+ const person_id=$('supportPerson').value,title=$('supportTitle').value.trim(),record_type=$('supportType').value;
+ if(!person_id)throw Error('Choose a fictional profile you own.');
+ if(!title)throw Error('Enter a short title.');
+ await request('/rest/v1/dd_support_records','POST',{person_id,category:supportRecordCategory,record_type,title,details:$('supportDetails').value.trim()||null,target_date:$('supportTargetDate').value||null,status:$('supportStatus').value});
+ $('supportTitle').value='';$('supportDetails').value='';$('supportTargetDate').value='';$('supportStatus').value='active';
+ await loadSupportRecords();notify('Fictional record saved.');
+}
+for(const [id,category] of [['openHealth','health'],['openEducation','education'],['openBenefits','benefits'],['openTransitions','transitions']]){
+ $(id).addEventListener('click',()=>retry(()=>openSupportRecords(category)));
+}
+$('supportRecordsBackHome').addEventListener('click',()=>navigate('home'));
+$('addSupportRecord').addEventListener('click',()=>retry(saveSupportRecord));
+$('refreshSupportRecords').addEventListener('click',()=>retry(loadSupportRecords));
+
+async function docStorage(path,method='GET',file=null,type=''){
+ const h={'apikey':KEY,'Authorization':'Bearer '+session.access_token};
+ if(file){h['Content-Type']=type;h['x-upsert']='false';}
+ const encoded=path.split('/').map(encodeURIComponent).join('/');
+ const url=URL+'/storage/v1/object/'+(method==='GET'?'authenticated/':'')+DOC_BUCKET+'/'+encoded;
+ const response=await fetch(url,{method,headers:h,body:file||undefined});
+ if(!response.ok){const raw=await response.text();throw Error('Document storage error: '+response.status+' '+raw.slice(0,150));}
+ return response;
+}
+async function deleteDocStorage(path){
+ const response=await fetch(URL+'/storage/v1/object/'+DOC_BUCKET,{
+  method:'DELETE',
+  headers:{apikey:KEY,Authorization:'Bearer '+session.access_token,'Content-Type':'application/json'},
+  body:JSON.stringify({prefixes:[path]})
+ });
+ if(!response.ok){const raw=await response.text();throw Error('Document deletion error: '+response.status+' '+raw.slice(0,150));}
+ return response;
+}
+async function loadDocuments(){
+ const [profiles,docs]=await Promise.all([
+  request('/rest/v1/dd_people?select=id,owner_id,display_name&order=created_at.desc'),
+  request('/rest/v1/dd_documents?select=id,person_id,owner_id,document_name,category,file_path,media_type,file_size,notes,created_at&order=created_at.desc')
+ ]);
+ const mine=profiles.filter(p=>p.owner_id===session?.user?.id);
+ const previous=$('docPerson').value;
+ $('docPerson').replaceChildren(new Option('Choose a profile',''));
+ mine.forEach(p=>$('docPerson').add(new Option(p.display_name,p.id)));
+ if(mine.some(p=>p.id===previous))$('docPerson').value=previous;
+ const names=Object.fromEntries(profiles.map(p=>[p.id,p.display_name]));
+ const target=$('docList');target.replaceChildren();
+ for(const d of docs){
+  const block=item('docList',d.document_name,(names[d.person_id]||'Profile')+' · '+d.category.replace(/_/g,' / ')+' · '+Math.round(d.file_size/1024)+' KB');
+  if(d.notes)block.append(make('p',d.notes,'muted'));
+  const download=make('button','Download','secondary');download.type='button';
+  download.addEventListener('click',()=>retry(async()=>{
+   const res=await docStorage(d.file_path);
+   const blob=await res.blob();
+   const u=window.URL.createObjectURL(blob),link=document.createElement('a');
+   link.href=u;link.download=d.document_name;document.body.append(link);link.click();link.remove();
+   setTimeout(()=>window.URL.revokeObjectURL(u),30000);
+   notify('Document downloaded.');
+  }));
+  const remove=make('button','Delete document','secondary');remove.type='button';
+  remove.addEventListener('click',()=>{
+   if(remove.dataset.confirm!=='yes'){
+    remove.dataset.confirm='yes';
+    remove.textContent='Confirm delete document';
+    remove.setAttribute('aria-label','Confirm delete document');
+    notify('Click Confirm delete document to permanently remove this fictional document.');
+    return;
+   }
+   retry(async()=>{
+    await deleteDocStorage(d.file_path);
+    await request('/rest/v1/dd_documents?id=eq.'+enc(d.id),'DELETE');
+    await loadDocuments();notify('Test document deleted.');
+   });
+  });
+  block.append(download,remove);
+ }
+ if(!docs.length)target.append(make('p','No documents saved yet.','muted'));
+}
+async function uploadDocument(){
+ const person_id=$('docPerson').value,file=$('docFile').files[0];
+ const title=$('docName').value.trim();
+ if(!person_id)throw Error('Choose a profile you own.');
+ if(!file)throw Error('Choose a test PDF or image.');
+ if(!DOC_TYPES.has(file.type))throw Error('Only PDF, PNG and JPEG files are allowed.');
+ if(file.size<1||file.size>10485760)throw Error('File must be 1 byte to 10 MB.');
+ if(!await hasExpectedFileSignature(file))throw Error('File content does not match its PDF or image type.');
+ if(!title)throw Error('Enter a document display name.');
+ if(title.length>200)throw Error('Document name is too long.');
+ const form=new FormData();
+ form.append('person_id',person_id);
+ form.append('document_name',title);
+ form.append('category',$('docCategory').value);
+ form.append('notes',$('docNotes').value.trim());
+ form.append('file',file,file.name);
+ const response=await fetch(URL+'/functions/v1/dd-validated-document-upload',{
+  method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+session.access_token},body:form
+ });
+ let data={};try{data=await response.json()}catch{}
+ if(!response.ok)throw Error(data.message||('Upload rejected: HTTP '+response.status));
+ $('docName').value='';$('docNotes').value='';$('docFile').value='';
+ await loadDocuments();notify('Private test document saved.');
+}
+
+$('openDocuments').addEventListener('click',()=>retry(async()=>{navigate('documents');await loadDocuments()}));
+$('documentsBackHome').addEventListener('click',()=>navigate('home'));
+
+async function loadTasks(){
+ const [profiles,invites,tasks]=await Promise.all([
+ request('/rest/v1/dd_people?select=id,display_name,owner_id&order=created_at.desc'),
+ request('/rest/v1/dd_team_invitations?select=id,person_id,invitee_email,role,status&status=eq.accepted'),
+ request('/rest/v1/dd_care_tasks?select=id,person_id,owner_id,title,details,due_date,status,assigned_invitation_id&order=created_at.desc')
+ ]);
+ const owned=profiles.filter(p=>p.owner_id===session?.user?.id);
+ $('taskPerson').replaceChildren(new Option('Choose a profile',''));
+ owned.forEach(p=>$('taskPerson').add(new Option(p.display_name,p.id)));
+ $('taskAssignee').replaceChildren(new Option('Unassigned',''));
+ const known=Object.fromEntries(profiles.map(p=>[p.id,p.display_name]));
+ const listed=$('taskList');listed.replaceChildren();
+ for(const task of tasks){
+  const mine=task.owner_id===session?.user?.id;
+  const assigned=invites.find(i=>i.id===task.assigned_invitation_id);
+  const d=item('taskList',task.title,(known[task.person_id]||'Shared profile')+' · '+(assigned?.invitee_email||'Unassigned')+' · '+(task.due_date||'No due date'));
+  if(task.details)d.append(make('p',task.details,'muted'));
+  const label=make('label','Task status');d.append(label);
+  const status=document.createElement('select');
+  for(const [value,text] of [['open','Open'],['in_progress','In progress'],['completed','Completed']])status.add(new Option(text,value));
+  status.value=task.status;
+  status.setAttribute('aria-label','Status for '+task.title);
+  status.addEventListener('change',()=>retry(async()=>{await request('/rest/v1/dd_care_tasks?id=eq.'+enc(task.id),'PATCH',{status:status.value});await loadTasks();notify('Task status updated.')}));
+  d.append(status);
+  if(mine){
+   const btn=make('button','Delete task','secondary');
+   btn.type='button';
+   btn.addEventListener('click',()=>{
+    if(btn.dataset.confirm!=='yes'){
+     btn.dataset.confirm='yes';btn.textContent='Confirm delete task';
+     btn.setAttribute('aria-label','Confirm delete task');
+     notify('Click Confirm delete task to permanently remove this fictional task.');
+     return;
+    }
+    retry(async()=>{
+     await request('/rest/v1/dd_care_tasks?id=eq.'+enc(task.id),'DELETE');
+     await loadTasks();notify('Task deleted.');
+    });
+   });
+   d.append(btn);
+  }
+ }
+ if(!tasks.length)listed.append(make('p','No tasks available yet.','muted'));
+ $('taskPerson').onchange=()=>{const person=$('taskPerson').value;const accepted=invites.filter(i=>i.person_id===person && i.role!=='professional');$('taskAssignee').replaceChildren(new Option('Unassigned',''));accepted.forEach(i=>$('taskAssignee').add(new Option(i.invitee_email+' ('+i.role+')',i.id)))};
+}
+async function createTask(){
+ const person_id=$('taskPerson').value,title=$('taskTitle').value.trim();
+ if(!person_id)throw Error('Choose a profile you own.');
+ if(!title)throw Error('Enter a task description.');
+ const assigned_invitation_id=$('taskAssignee').value||null;
+ await request('/rest/v1/dd_care_tasks','POST',{person_id,title,details:$('taskDetails').value.trim()||null,due_date:$('taskDue').value||null,assigned_invitation_id});
+ $('taskTitle').value='';$('taskDetails').value='';$('taskDue').value='';
+ await loadTasks();notify('Shared care task created.');
+}
+$('openTasks').addEventListener('click',()=>retry(async()=>{navigate('tasks');await loadTasks()}));
+$('tasksBackHome').addEventListener('click',()=>navigate('home'));
+
+async function loadTeam(){
+ const [invites,profiles]=await Promise.all([
+  request('/rest/v1/dd_team_invitations?select=id,person_id,owner_id,invitee_email,role,status,created_at&order=created_at.desc'),
+  request('/rest/v1/dd_people?select=id,display_name,owner_id&order=created_at.desc')
+ ]);
+ const mine=profiles.filter(p=>p.owner_id===session?.user?.id), names=Object.fromEntries(profiles.map(p=>[p.id,p.display_name]));
+ $('teamPerson').replaceChildren(new Option('Choose a profile',''));mine.forEach(p=>$('teamPerson').add(new Option(p.display_name,p.id)));
+ $('teamSent').replaceChildren();$('teamReceived').replaceChildren();
+ for(const invite of invites){
+  const owned=invite.owner_id===session?.user?.id;
+  const container=owned?'teamSent':'teamReceived';
+  const d=item(container,(names[invite.person_id]||'Shared profile')+' · '+invite.role,invite.invitee_email+' · '+invite.status);
+  if(owned){
+   const btn=make('button','Revoke access','secondary');
+   btn.type='button';
+   btn.addEventListener('click',()=>{
+    if(btn.dataset.confirm!=='yes'){
+     btn.dataset.confirm='yes';
+     btn.textContent='Confirm revoke access';
+     btn.setAttribute('aria-label','Confirm revoke access');
+     notify('Click Confirm revoke access to remove this support person from the fictional profile.');
+     return;
+    }
+    retry(async()=>{
+     await request('/rest/v1/dd_team_invitations?id=eq.'+enc(invite.id),'DELETE');
+     await loadTeam();notify('Invitation or access revoked.');
+    });
+   });
+   d.append(btn);
+  }else if(invite.status==='pending'){
+   for(const [status,label] of [['accepted','Accept invitation'],['declined','Decline']]){
+    const btn=make('button',label,status==='declined'?'secondary':'');
+    btn.type='button';btn.onclick=()=>retry(async()=>{
+     await request('/rest/v1/dd_team_invitations?id=eq.'+enc(invite.id),'PATCH',{status,invitee_user_id:session.user.id});
+     await loadTeam();await loadPeople();notify(status==='accepted'?'Invitation accepted. Shared profile is now available under Strengths & Possibilities.':'Invitation declined.');
+    });d.append(btn);
+   }
+  }
+ }
+ if(!$('teamSent').children.length)$('teamSent').append(make('p','No invitations created yet.','muted'));
+ if(!$('teamReceived').children.length)$('teamReceived').append(make('p','No invitations for this account.','muted'));
+}
+async function inviteTeam(){
+ const person_id=$('teamPerson').value,email=$('teamEmail').value.trim().toLowerCase(),role=$('teamRole').value;
+ if(!person_id)throw Error('Choose a profile that you own.');
+ if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))throw Error('Enter a valid test email.');
+ if(!$('teamAuthority').checked)throw Error('Please confirm consent or appropriate authority before sharing.');
+ await request('/rest/v1/dd_team_invitations','POST',{person_id,invitee_email:email,role,authority_confirmed:true});
+ $('teamEmail').value='';$('teamAuthority').checked=false;await loadTeam();
+ notify('Invitation created. Ask the test supporter to sign in with '+email+' and accept under My Care Team. No email was sent.');
+}
+
+$('openTeam').addEventListener('click',()=>retry(async()=>{navigate('team');await loadTeam()}));
+$('teamBackHome').addEventListener('click',()=>navigate('home'));
+wire('sendTeamInvite',inviteTeam);
+wire('reloadTeam',loadTeam);wire('createTask',createTask);wire('refreshTasks',loadTasks);wire('uploadDocument',uploadDocument);wire('refreshDocuments',loadDocuments);
+function wire(id,fn){$(id).addEventListener('click',()=>retry(fn))}
+$('signin').onclick=()=>authenticate('signin');$('signup').onclick=()=>authenticate('signup');
+$('forgotPassword').onclick=requestPasswordReset;
+$('saveResetPassword').onclick=updateRecoveredPassword;
+$('cancelPasswordReset').onclick=()=>{recoveryToken=null;$('resetPassword').value='';$('resetPasswordConfirm').value='';$('passwordReset').classList.add('hide');$('auth').classList.remove('hide');notify('Return to sign-in or request a new reset link.');};
+$('signout').onclick=async()=>{try{await request('/auth/v1/logout','POST',{},true)}catch{}clearSession('Signed out.')};
+wire('savePerson',savePerson);wire('addStrength',addStrength);wire('addGoal',addGoal);wire('addStep',addStep);wire('addNote',addNote);
+$('people').onchange=()=>retry(selectPerson);$('activeGoal').onchange=()=>retry(loadProgress);
+(async()=>{
+  const query=new URLSearchParams(window.location.search);
+  const fragment=new URLSearchParams(window.location.hash.replace(/^#/,''));
+  const error=query.get('error_description')||fragment.get('error_description')||query.get('error')||fragment.get('error');
+  const token=fragment.get('access_token');
+  const hasConfirmation=Boolean(token||query.get('code')||fragment.get('type')==='signup');
+  if(fragment.get('type')==='recovery'&&!token&&!error){
+    history.replaceState(null,'',window.location.pathname);
+    sessionStorage.removeItem('dd_family_session');session=null;
+    notify('Password recovery link is incomplete. Request a new one from Forgot password.');
+    return;
+  }
+  if(fragment.get('type')==='recovery'&&token&&!error){
+    history.replaceState(null,'',window.location.pathname);
+    sessionStorage.removeItem('dd_family_session');session=null;
+    try{
+      const response=await fetch(URL+'/auth/v1/user',{headers:{apikey:KEY,Authorization:'Bearer '+token}});
+      if(!response.ok)throw Error('Recovery link is expired or invalid');
+      recoveryToken=token;
+      $('auth').classList.add('hide');$('app').classList.add('hide');$('passwordReset').classList.remove('hide');
+      notify('Recovery link verified. Choose a new password.');$('resetPassword').focus();
+    }catch(e){recoveryToken=null;notify(e.message+'. Request a new link.')}
+    return;
+  }
+  if(error||hasConfirmation){
+    let message='';
+    if(error){
+      message='Verification link could not be completed: '+error+'. Please request a new confirmation link if needed.';
+    }else if(token){
+      try{
+        const response=await fetch(URL+'/auth/v1/user',{headers:{apikey:KEY,Authorization:'Bearer '+token}});
+        if(!response.ok)throw Error('Confirmation session could not be validated');
+        const verifiedUser=await response.json();
+        message=verifiedUser.email_confirmed_at?'Email verified. You can now sign in to the Care & Stay DD development app.':'Email confirmation is not complete. Please sign in to check your account.';
+      }catch{message='Unable to verify this confirmation link. Please sign in to check your account.';}
+    }else{
+      message='Confirmation link returned to the app. Please sign in to confirm your email was verified.';
+    }
+    history.replaceState(null,'',window.location.pathname);
+    sessionStorage.removeItem('dd_family_session');
+    session=null;
+    $('app').classList.add('hide');
+    $('auth').classList.remove('hide');
+    notify(message);
+    return;
+  }
+  try{
+    session=JSON.parse(sessionStorage.getItem('dd_family_session')||'null');
+    if(session){await refresh();if(session)await loggedIn()}
+  }catch{session=null}
+})();
+</script></body></html>
