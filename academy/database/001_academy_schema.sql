@@ -137,7 +137,7 @@ using (user_id = (select auth.uid()));
 create policy "course available to enrolled learner" on public.academy_courses for select to authenticated
 using (published and exists(
   select 1 from public.academy_enrollments e
-  where e.course_id = id and e.user_id = (select auth.uid())
+  where e.course_id = public.academy_courses.id and e.user_id = (select auth.uid())
   and e.status in ('active','completed') and (e.expires_at is null or e.expires_at > now())
 ));
 create policy "module available to enrolled learner" on public.academy_modules for select to authenticated
@@ -181,7 +181,7 @@ using (reviewer_user_id=(select auth.uid()));
 create policy "submission own or assigned reviewer" on public.academy_submissions for select to authenticated
 using (
   exists(select 1 from public.academy_enrollments e where e.id=enrollment_id and e.user_id=(select auth.uid()))
-  or exists(select 1 from public.academy_reviewer_assignments a where a.enrollment_id=enrollment_id and a.reviewer_user_id=(select auth.uid()))
+  or exists(select 1 from public.academy_reviewer_assignments a where a.enrollment_id=public.academy_submissions.enrollment_id and a.reviewer_user_id=(select auth.uid()))
 );
 create policy "submission owner insert" on public.academy_submissions for insert to authenticated
 with check(exists(select 1 from public.academy_enrollments e join public.academy_modules m on m.course_id=e.course_id
