@@ -16,7 +16,7 @@
 <button type="button" id="saveResetPassword">Save new password</button><button type="button" id="cancelPasswordReset" class="secondary">Return to sign-in</button></section>
 <div id="app" class="hide">
 <div class="card flex"><div><strong id="signedin"></strong><p class="muted">Only you can see records you create in this current version.</p></div><div style="text-align:right"><button id="signout" class="secondary">Sign out</button></div></div>
-<section class="card" aria-labelledby="billingHeading"><h2 id="billingHeading">DD Family Care subscription</h2><p id="ddBillingStatus" role="status">Checking subscription availability…</p><p class="muted"><small>Your subscription is verified after payment. Only enter family care information after confirmation of paid access.</small></p><button id="ddBillingRefresh" type="button" class="secondary">Refresh subscription status</button><button id="ddStartCheckout" type="button" class="hide" disabled>Subscribe — $39/month + tax</button><button id="ddManageBilling" type="button" class="hide" disabled>Manage subscription</button></section>
+<section class="card" aria-labelledby="billingHeading"><h2 id="billingHeading">DD Family Care subscription</h2><p id="ddBillingStatus" role="status">Checking subscription availability…</p><p class="muted"><small>Your subscription is verified after payment. Only enter family care information after confirmation of paid access.</small></p><button id="ddBillingRefresh" type="button" class="secondary">Refresh subscription status</button><p><label for="ddAcceptTerms" style="font-weight:400"><input type="checkbox" id="ddAcceptTerms" style="width:auto;margin-right:9px">I agree to the <a href="/legal/dd-family-subscription-terms/" target="_blank" rel="noopener">DD Family Care subscription terms</a> and understand the $39 monthly price plus applicable tax, the 12-month minimum commitment ($468 before tax), and the refund policy.</label></p><button id="ddStartCheckout" type="button" class="hide" disabled>Subscribe — $39/month + tax</button><button id="ddManageBilling" type="button" class="hide" disabled>Manage subscription</button></section>
 <section id="dashboard"><div class="card"><h2>Family Care Dashboard</h2><p>Helping children and adults with developmental disabilities build on strengths, choices, autonomy and quality of life.</p><p class="muted">Select a module. Features marked planned are not yet available. Please review your subscription status before entering care information.</p></div><div class="dashboard-grid"><button type="button" class="dashboard-tile ready" id="openStrengths"><strong>🌱 Strengths & Possibilities</strong><span>Personal goals, interests, practice steps and progress notes.</span><span class="tag">Available now</span></button>
 <button type="button" class="dashboard-tile ready" id="openTeam"><strong>👥 My Care Team</strong><span>Invite supporters and accept read-only access to a shared profile.</span><span class="tag">Available now</span></button>
 <button type="button" class="dashboard-tile ready" id="openTasks"><strong>📅 Shared Care Tasks</strong><span>Assign tasks to accepted supporters and track their progress.</span><span class="tag">Available now</span></button>
@@ -157,12 +157,13 @@ async function loadDdBillingStatus(){
 $('ddBillingRefresh').addEventListener('click',loadDdBillingStatus);
 async function ddBillingAction(action){
  if(!session?.access_token)return notify('Sign in first.');
+ if(action==='checkout'&&!$('ddAcceptTerms').checked)return notify('Please accept the subscription terms, including the 12-month minimum commitment, before continuing.');
  const btn=$(action==='checkout'?'ddStartCheckout':'ddManageBilling');
  btn.disabled=true;
  try{
   const r=await fetch(URL+'/functions/v1/dd-subscription-gateway',{
    method:'POST',headers:{'Content-Type':'application/json',apikey:KEY,Authorization:'Bearer '+session.access_token},
-   body:JSON.stringify({action})});
+   body:JSON.stringify({action,accepted_terms:action==='checkout'&&$('ddAcceptTerms').checked})});
   const data=await r.json();
   if(!r.ok)throw Error(data.error||'Billing unavailable');
   const target=new URL(data.url);
