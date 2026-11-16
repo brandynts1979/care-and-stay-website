@@ -1,4 +1,4 @@
-name: Academy public-page safety checks
+name: Academy public-page and database security checks
 on:
   push:
     branches: [academy-launch-foundation-20261116]
@@ -18,10 +18,47 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci_only_password
+          POSTGRES_DB: academy_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      PGPASSWORD: ci_only_password
+      PGHOST: localhost
+      PGUSER: postgres
+      PGDATABASE: academy_ci
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Check Academy safety/landing page contracts
+      - name: Test Academy public page
         run: node --test tools/academy/smoke.test.mjs
+      - name: Initialize mock Supabase auth and roles in disposable Postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 <<'SQL'
+          create schema auth;
+          create table auth.users(id uuid primary key);
+          create role anon nologin;
+          create role authenticated nologin;
+          create role service_role nologin;
+          grant usage on schema public,auth to authenticated;
+          create function auth.uid() returns uuid language sql stable as $$
+            select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid;
+          $$;
+          grant execute on function auth.uid() to authenticated;
+          SQL
+      - name: Install isolated Academy schema
+        run: psql -v ON_ERROR_STOP=1 -f academy/database/001_academy_schema.sql
+      - name: Verify Academy RLS and reviewer isolation
+        run: psql -v ON_ERROR_STOP=1 -f tools/academy/rls_smoke.sql
