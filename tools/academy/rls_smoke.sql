@@ -34,6 +34,8 @@ set role authenticated;
 set request.jwt.claim.sub = '10000000-0000-4000-8000-000000000001';
 do $$begin
  if (select count(*) from public.academy_enrollments) <> 1 then raise exception 'learner A enrollment isolation failed'; end if;
+ if (select count(*) from public.academy_courses) <> 1 then raise exception 'course enrollment-gating failed'; end if;
+ if (select count(*) from public.academy_lessons) <> 1 then raise exception 'published lesson enrollment-gating failed'; end if;
  if (select count(*) from public.academy_private_reflections) <> 1 then raise exception 'learner A private reflection isolation failed'; end if;
  if (select body from public.academy_private_reflections limit 1) <> 'secret for A' then raise exception 'wrong learner reflection'; end if;
  if (select count(*) from public.academy_submissions) <> 1 then raise exception 'learner A submission isolation failed'; end if;
@@ -42,6 +44,7 @@ end $$;
 set request.jwt.claim.sub = '10000000-0000-4000-8000-000000000003';
 do $$begin
  if (select count(*) from public.academy_private_reflections) <> 0 then raise exception 'reviewer leaked private notes'; end if;
+ if (select count(*) from public.academy_courses) <> 0 then raise exception 'reviewer accessed paid course without enrollment'; end if;
  if (select count(*) from public.academy_submissions) <> 1 then raise exception 'reviewer assignment isolation failed'; end if;
  if (select body from public.academy_submissions limit 1) <> 'shared A' then raise exception 'reviewer saw unassigned submission'; end if;
 end $$;
