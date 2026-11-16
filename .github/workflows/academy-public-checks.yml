@@ -43,7 +43,10 @@ jobs:
         with:
           node-version: '22'
       - name: Test Academy public page
-        run: node --test tools/academy/smoke.test.mjs
+        run: |
+          node --test tools/academy/smoke.test.mjs
+          node --check academy/learn/app.js
+          node --check academy/learn/config.js
       - name: Initialize mock Supabase auth and roles in disposable Postgres
         run: |
           psql -v ON_ERROR_STOP=1 <<'SQL'
