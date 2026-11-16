@@ -10,41 +10,41 @@
 <label for="password">Password</label><input id="password" type="password" minlength="8" autocomplete="current-password">
 <button id="signin">Sign in</button><button class="secondary" id="signup">Create account</button><button type="button" class="secondary" id="forgotPassword">Forgot password?</button>
 <p><small>Email confirmation may be required. If the confirmation link opens the wrong page, the project's Auth redirect URLs must be configured before testing verification.</small></p></section>
-<section id="passwordReset" class="card hide"><h2>Set a new password</h2><p class="muted">Use a new password of at least 12 characters for your DD development account.</p>
+<section id="passwordReset" class="card hide"><h2>Set a new password</h2><p class="muted">Use a new password of at least 12 characters for your DD Family Care account.</p>
 <label for="resetPassword">New password</label><input id="resetPassword" type="password" minlength="12" autocomplete="new-password">
 <label for="resetPasswordConfirm">Confirm new password</label><input id="resetPasswordConfirm" type="password" minlength="12" autocomplete="new-password">
 <button type="button" id="saveResetPassword">Save new password</button><button type="button" id="cancelPasswordReset" class="secondary">Return to sign-in</button></section>
 <div id="app" class="hide">
-<div class="card flex"><div><strong id="signedin"></strong><p class="muted">Only you can see records you create in this first development version.</p></div><div style="text-align:right"><button id="signout" class="secondary">Sign out</button></div></div>
+<div class="card flex"><div><strong id="signedin"></strong><p class="muted">Only you can see records you create in this current version.</p></div><div style="text-align:right"><button id="signout" class="secondary">Sign out</button></div></div>
 <section class="card" aria-labelledby="billingHeading"><h2 id="billingHeading">DD Family Care subscription</h2><p id="ddBillingStatus" role="status">Checking subscription availability…</p><p class="muted"><small>Your subscription is verified after payment. Only enter family care information after confirmation of paid access.</small></p><button id="ddBillingRefresh" type="button" class="secondary">Refresh subscription status</button><button id="ddStartCheckout" type="button" class="hide" disabled>Subscribe — $39/month + tax</button><button id="ddManageBilling" type="button" class="hide" disabled>Manage subscription</button></section>
 <section id="dashboard"><div class="card"><h2>Family Care Dashboard</h2><p>Helping children and adults with developmental disabilities build on strengths, choices, autonomy and quality of life.</p><p class="muted">Select a module. Features marked planned are not yet available. Please review your subscription status before entering care information.</p></div><div class="dashboard-grid"><button type="button" class="dashboard-tile ready" id="openStrengths"><strong>🌱 Strengths & Possibilities</strong><span>Personal goals, interests, practice steps and progress notes.</span><span class="tag">Available now</span></button>
-<button type="button" class="dashboard-tile ready" id="openTeam"><strong>👥 My Care Team</strong><span>Invite supporters and accept read-only access to a shared profile.</span><span class="tag">Development preview</span></button>
-<button type="button" class="dashboard-tile ready" id="openTasks"><strong>📅 Shared Care Tasks</strong><span>Assign tasks to accepted supporters and track their progress.</span><span class="tag">Development preview</span></button>
-<button type="button" class="dashboard-tile ready" id="openDocuments"><strong>📁 Documents & Records</strong><span>Upload and download private documents.</span><span class="tag">Development preview</span></button>
-<button type="button" class="dashboard-tile ready" id="openHealth"><strong>💊 Health & Medications</strong><span>Care notes, medication reminders and allergy summaries.</span><span class="tag">Development preview</span></button>
-<button type="button" class="dashboard-tile ready" id="openEducation"><strong>🎓 Education & Therapies</strong><span>IEP milestones, therapy appointments and services.</span><span class="tag">Development preview</span></button>
-<button type="button" class="dashboard-tile ready" id="openBenefits"><strong>🧭 Benefits & Resources</strong><span>Waiver applications, respite and community resources.</span><span class="tag">Development preview</span></button>
-<button type="button" class="dashboard-tile ready" id="openTransitions"><strong>🌤️ Future & Transitions</strong><span>Employment, housing, adulthood and supported decisions.</span><span class="tag">Development preview</span></button>
+<button type="button" class="dashboard-tile ready" id="openTeam"><strong>👥 My Care Team</strong><span>Invite supporters and accept read-only access to a shared profile.</span><span class="tag">Available now</span></button>
+<button type="button" class="dashboard-tile ready" id="openTasks"><strong>📅 Shared Care Tasks</strong><span>Assign tasks to accepted supporters and track their progress.</span><span class="tag">Available now</span></button>
+<button type="button" class="dashboard-tile ready" id="openDocuments"><strong>📁 Documents & Records</strong><span>Upload and download private documents.</span><span class="tag">Available now</span></button>
+<button type="button" class="dashboard-tile ready" id="openHealth"><strong>💊 Health & Medications</strong><span>Care notes, medication reminders and allergy summaries.</span><span class="tag">Available now</span></button>
+<button type="button" class="dashboard-tile ready" id="openEducation"><strong>🎓 Education & Therapies</strong><span>IEP milestones, therapy appointments and services.</span><span class="tag">Available now</span></button>
+<button type="button" class="dashboard-tile ready" id="openBenefits"><strong>🧭 Benefits & Resources</strong><span>Waiver applications, respite and community resources.</span><span class="tag">Available now</span></button>
+<button type="button" class="dashboard-tile ready" id="openTransitions"><strong>🌤️ Future & Transitions</strong><span>Employment, housing, adulthood and supported decisions.</span><span class="tag">Available now</span></button>
 <button type="button" class="dashboard-tile" disabled><strong>💬 AI Family Care Coach</strong><span>Strengths-based coaching and practical guidance.</span><em>Planned</em></button></div></section><div id="supportRecordsModule" class="hide">
 <button type="button" id="supportRecordsBackHome" class="secondary">← Back to Dashboard</button><section class="card">
 <h2 id="supportRecordsHeading">Care records</h2><p id="supportRecordsIntro" class="muted"></p>
 <p class="warn">Only provide information you are authorized to share, and review the privacy notice before entering sensitive information.</p>
 <label for="supportPerson">Profile you manage</label><select id="supportPerson"><option value="">Choose a profile</option></select>
 <label for="supportType">Record type</label><select id="supportType"></select>
-<label for="supportTitle">Short title</label><input id="supportTitle" maxlength="200" placeholder="Example: Fictional plan or appointment">
-<label for="supportDetails">Details</label><textarea id="supportDetails" maxlength="3000" placeholder="Fictional notes and next steps"></textarea>
+<label for="supportTitle">Short title</label><input id="supportTitle" maxlength="200" placeholder="Example: Plan or appointment">
+<label for="supportDetails">Details</label><textarea id="supportDetails" maxlength="3000" placeholder="Notes and next steps"></textarea>
 <label for="supportTargetDate">Date or deadline (optional)</label><input id="supportTargetDate" type="date">
 <label for="supportStatus">Status</label><select id="supportStatus"><option value="active">Active</option><option value="planned">Planned</option><option value="completed">Completed</option><option value="paused">Paused</option></select>
 <button type="button" id="addSupportRecord">Save record</button>
 <h3>Saved records</h3><div id="supportRecordsList"></div><button type="button" id="refreshSupportRecords" class="secondary">Refresh records</button>
 </section></div><div id="documentsModule" class="hide">
 <button type="button" id="documentsBackHome" class="secondary">← Back to Dashboard</button>
-<section class="card"><h2>Documents & Records</h2><p>Organize private records for a fictional profile. Only the profile owner can currently upload, view, or delete files. Shared family access does <strong>not</strong> include documents in this version.</p>
+<section class="card"><h2>Documents & Records</h2><p>Organize private records for a profile. Only the profile owner can currently upload, view, or delete files. Shared family access does <strong>not</strong> include documents in this version.</p>
 <p class="warn">Only upload documents you have permission to store. Keep an independent backup of critical records.</p>
 <label for="docPerson">Choose a profile you own</label><select id="docPerson"><option value="">Choose a profile</option></select>
 <label for="docCategory">Document category</label><select id="docCategory">
 <option value="education_iep">Education / IEP</option><option value="therapy">Therapy</option><option value="medical">Medical</option><option value="benefits">Benefits / Funding</option><option value="legal">Legal</option><option value="other">Other</option></select>
-<label for="docName">Display name</label><input id="docName" maxlength="200" placeholder="Example: Fictional Sample IEP">
+<label for="docName">Display name</label><input id="docName" maxlength="200" placeholder="Example: Sample IEP">
 <label for="docNotes">Notes (optional)</label><textarea id="docNotes" maxlength="1000" placeholder="Describe why this document matters"></textarea>
 <label for="docFile">Select a PDF, PNG or JPEG (10 MB maximum)</label><input id="docFile" type="file" accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg">
 <button type="button" id="uploadDocument">Upload private document</button>
@@ -59,7 +59,7 @@
 <label for="taskAssignee">Assign to accepted supporter (optional)</label><select id="taskAssignee"><option value="">Unassigned</option></select>
 <button type="button" id="createTask">Save task</button></div>
 <h3>Tasks available to your account</h3><div id="taskList"></div><button type="button" id="refreshTasks" class="secondary">Refresh tasks</button>
-<p class="muted"><small>Development testing only. A full scheduling calendar, recurring tasks, alerts and broader editing permissions are not yet implemented.</small></p>
+<p class="muted"><small>A full scheduling calendar, recurring tasks, alerts and broader editing permissions are not included in the current version.</small></p>
 </section></div><div id="teamModule" class="hide">
 <button type="button" id="teamBackHome" class="secondary">← Back to Dashboard</button>
 <section class="card"><h2>My Care Team</h2><p>Invite a registered supporter to see a profile, strengths, goals and progress. Access begins only when the invited account accepts. This first version is read-only for invitees.</p>
@@ -227,10 +227,10 @@ async function hasExpectedFileSignature(file){
 }
 
 const SUPPORT_RECORD_CONFIG={
- health:{heading:'Health & Medications',intro:'Track fictional care summaries, medication reminders, allergies and appointments. Not a prescribing or emergency tool.',types:[['care_note','Care note'],['medication','Medication reminder'],['allergy','Allergy summary'],['appointment','Appointment'],['question','Question for clinician']]},
- education:{heading:'Education & Therapies',intro:'Organize fictional IEP goals, therapy visits and coordination. Not an official education record.',types:[['iep_goal','IEP goal'],['therapy','Therapy'],['meeting','IEP meeting'],['service','Service'],['progress','Progress update']]},
- benefits:{heading:'Benefits & Resources',intro:'Track fictional waivers, respite, benefit applications and resources.',types:[['waiver','Waiver'],['respite','Respite'],['benefit','Benefit'],['resource','Community resource'],['application','Application']]},
- transitions:{heading:'Future & Transitions',intro:'Plan fictional transitions to adulthood, employment, housing and supported decisions.',types:[['employment','Employment'],['housing','Housing'],['education','Education'],['decision','Supported decision'],['milestone','Milestone']]}
+ health:{heading:'Health & Medications',intro:'Track care summaries, medication reminders, allergies and appointments. Not a prescribing or emergency tool.',types:[['care_note','Care note'],['medication','Medication reminder'],['allergy','Allergy summary'],['appointment','Appointment'],['question','Question for clinician']]},
+ education:{heading:'Education & Therapies',intro:'Organize IEP goals, therapy visits and coordination. Not an official education record.',types:[['iep_goal','IEP goal'],['therapy','Therapy'],['meeting','IEP meeting'],['service','Service'],['progress','Progress update']]},
+ benefits:{heading:'Benefits & Resources',intro:'Track waivers, respite, benefit applications and resources.',types:[['waiver','Waiver'],['respite','Respite'],['benefit','Benefit'],['resource','Community resource'],['application','Application']]},
+ transitions:{heading:'Future & Transitions',intro:'Plan transitions to adulthood, employment, housing and supported decisions.',types:[['employment','Employment'],['housing','Housing'],['education','Education'],['decision','Supported decision'],['milestone','Milestone']]}
 };
 let supportRecordCategory='education';
 async function loadSupportRecords(){
@@ -277,11 +277,11 @@ async function openSupportRecords(category){
 }
 async function saveSupportRecord(){
  const person_id=$('supportPerson').value,title=$('supportTitle').value.trim(),record_type=$('supportType').value;
- if(!person_id)throw Error('Choose a fictional profile you own.');
+ if(!person_id)throw Error('Choose a profile you own.');
  if(!title)throw Error('Enter a short title.');
  await request('/rest/v1/dd_support_records','POST',{person_id,category:supportRecordCategory,record_type,title,details:$('supportDetails').value.trim()||null,target_date:$('supportTargetDate').value||null,status:$('supportStatus').value});
  $('supportTitle').value='';$('supportDetails').value='';$('supportTargetDate').value='';$('supportStatus').value='active';
- await loadSupportRecords();notify('Fictional record saved.');
+ await loadSupportRecords();notify('Record saved.');
 }
 for(const [id,category] of [['openHealth','health'],['openEducation','education'],['openBenefits','benefits'],['openTransitions','transitions']]){
  $(id).addEventListener('click',()=>retry(()=>openSupportRecords(category)));
@@ -338,7 +338,7 @@ async function loadDocuments(){
     remove.dataset.confirm='yes';
     remove.textContent='Confirm delete document';
     remove.setAttribute('aria-label','Confirm delete document');
-    notify('Click Confirm delete document to permanently remove this fictional document.');
+    notify('Click Confirm delete document to permanently remove this document.');
     return;
    }
    retry(async()=>{
@@ -456,7 +456,7 @@ async function loadTeam(){
      btn.dataset.confirm='yes';
      btn.textContent='Confirm revoke access';
      btn.setAttribute('aria-label','Confirm revoke access');
-     notify('Click Confirm revoke access to remove this support person from the fictional profile.');
+     notify('Click Confirm revoke access to remove this support person from the profile.');
      return;
     }
     retry(async()=>{
@@ -533,7 +533,7 @@ $('people').onchange=()=>retry(selectPerson);$('activeGoal').onchange=()=>retry(
         const response=await fetch(URL+'/auth/v1/user',{headers:{apikey:KEY,Authorization:'Bearer '+token}});
         if(!response.ok)throw Error('Confirmation session could not be validated');
         const verifiedUser=await response.json();
-        message=verifiedUser.email_confirmed_at?'Email verified. You can now sign in to the Care & Stay DD development app.':'Email confirmation is not complete. Please sign in to check your account.';
+        message=verifiedUser.email_confirmed_at?'Email verified. You can now sign in to the Care & Stay DD Family Care app.':'Email confirmation is not complete. Please sign in to check your account.';
       }catch{message='Unable to verify this confirmation link. Please sign in to check your account.';}
     }else{
       message='Confirmation link returned to the app. Please sign in to confirm your email was verified.';
