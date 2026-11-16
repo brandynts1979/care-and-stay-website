@@ -65,3 +65,7 @@ jobs:
         run: psql -v ON_ERROR_STOP=1 -f academy/database/001_academy_schema.sql
       - name: Verify Academy RLS and reviewer isolation
         run: psql -v ON_ERROR_STOP=1 -f tools/academy/rls_smoke.sql
+      - name: Install server-only graduation gate
+        run: psql -v ON_ERROR_STOP=1 -f academy/database/002_graduation_gate.sql
+      - name: Verify graduation approvals and security
+        run: psql -v ON_ERROR_STOP=1 -f tools/academy/graduation_smoke.sql
