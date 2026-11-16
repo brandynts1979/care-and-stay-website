@@ -1,0 +1,27 @@
+name: Academy public-page safety checks
+on:
+  push:
+    branches: [academy-launch-foundation-20261116]
+    paths:
+      - 'academy/**'
+      - 'tools/academy/**'
+      - '.github/workflows/academy-public-checks.yml'
+      - 'index.html'
+      - 'client-portal/index.html'
+  pull_request:
+    paths:
+      - 'academy/**'
+      - 'tools/academy/**'
+      - '.github/workflows/academy-public-checks.yml'
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check Academy safety/landing page contracts
+        run: node --test tools/academy/smoke.test.mjs
