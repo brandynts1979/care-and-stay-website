@@ -80,7 +80,7 @@ async function list(app){
  if(!Array.isArray(result)||!result.length){const p=document.createElement('p');p.textContent='No beta testers approved yet.';p.className='muted';target.append(p);return}
  const table=document.createElement('table');table.className='beta-table';
  const thead=document.createElement('thead'),header=document.createElement('tr');
- for(const name of ['Email','Access until','State']){const th=document.createElement('th');th.textContent=name;header.append(th)}thead.append(header);table.append(thead);
+ for(const name of ['Email','Access until','State','Invite']){const th=document.createElement('th');th.textContent=name;header.append(th)}thead.append(header);table.append(thead);
  const tbody=document.createElement('tbody');
  for(const item of result){
   const tr=document.createElement('tr');
@@ -89,6 +89,17 @@ async function list(app){
   for(const value of [item.email,Number.isFinite(end)?new Date(end).toLocaleDateString():'—',state]){
    const td=document.createElement('td');td.textContent=value;tr.append(td)
   }
+  const tdInvite=document.createElement('td');
+  const invitation=document.createElement('a');invitation.textContent='Email link';
+  const appTitle=app==='dd'?'DD Family Care':'Family Caregiver App';
+  const appUrl=app==='dd'?'https://mycareandstay.com/dd-family-care/app/':'https://caregiver.mycareandstay.com/';
+  const subject='Care & Stay '+appTitle+' beta test invitation';
+  const body='You have been approved to beta test the Care & Stay '+appTitle+
+    ' with complimentary access. Please register with this email address, verify your email, and sign in: '+appUrl+
+    '\\n\\nNo payment or credit card is needed. Access lasts through '+(Number.isFinite(end)?new Date(end).toLocaleDateString():'the end of the approved test')+
+    '. Please use fictional information during testing, and share any feedback with the Care & Stay team.';
+  invitation.href='mailto:'+encodeURIComponent(item.email)+'?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(body);
+  tdInvite.append(invitation);tr.append(tdInvite);
   tr.title='Click to select this tester';
   tr.addEventListener('click',()=>{$(app+'Email').value=item.email;status(app,'Selected '+item.email)});
   tbody.append(tr);
