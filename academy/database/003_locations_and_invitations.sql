@@ -47,6 +47,10 @@ alter table public.academy_enrollments
  add column location_id uuid references public.academy_locations(id);
 alter table public.academy_enrollments
  drop constraint if exists academy_enrollments_user_id_course_id_key;
+-- One Stripe subscription funds unlimited enrollments within the location.
+alter table public.academy_enrollments
+ drop constraint if exists academy_enrollments_stripe_subscription_id_key;
+create index academy_enrollments_subscription_idx on public.academy_enrollments(stripe_subscription_id);
 alter table public.academy_enrollments
  add constraint academy_enrollments_location_user_course_unique unique(location_id,user_id,course_id);
 create index academy_enrollments_location_idx on public.academy_enrollments(location_id,user_id);
