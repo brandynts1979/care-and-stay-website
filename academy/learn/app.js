@@ -60,13 +60,13 @@
       item.append(elt('h3',loc.name));
       item.append(elt('p','Subscription: '+loc.subscription_status+' · Your role: '+loc.role));
       if(loc.role==='owner'){
-        if(!['active','trialing'].includes(loc.subscription_status)) item.append(button('Subscribe — $199/month',async()=>{
+        if(!['active','trialing'].includes(loc.subscription_status) && cfg.billingEnabled===true) item.append(button('Subscribe — $199/month',async()=>{
           try{const {checkout_url}=await managerRequest('create_checkout',{location_id:loc.id});
             if(!checkout_url || !/^https:\/\/checkout\.stripe\.com\//.test(checkout_url))throw new Error('Unable to open Stripe Checkout');
             window.location.assign(checkout_url);
           }catch(e){safeError(e);}
         }));
-        else item.append(button('Manage billing',async()=>{
+        else if(['active','trialing'].includes(loc.subscription_status)) item.append(button('Manage billing',async()=>{
           try{const {portal_url}=await managerRequest('billing_portal',{location_id:loc.id});
           if(!portal_url || !/^https:\/\/billing\.stripe\.com\//.test(portal_url))throw new Error('Unable to open Stripe billing portal');
           window.location.assign(portal_url);}catch(e){safeError(e);}
