@@ -2,5 +2,6 @@
 // A dedicated Academy Supabase project must be chosen before enrollment is enabled.
 window.CARE_STAY_ACADEMY_CONFIG = Object.freeze({
   supabaseUrl: "",
-  publishableKey: ""
+  publishableKey: "",
+  billingEnabled: false
 });
