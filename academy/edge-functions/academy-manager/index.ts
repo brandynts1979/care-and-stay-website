@@ -86,6 +86,7 @@ Deno.serve(async(req:Request)=>{
     const loc=await location(id);
     if(loc.billing_owner_id!==user.id)fail(403,"Only the billing owner can subscribe");
     if(active(loc.subscription_status))fail(409,"Already subscribed");
+    if(env("ACADEMY_BILLING_ENABLED")!=="true")fail(503,"Academy billing is not yet enabled");
     if(!env("ACADEMY_STRIPE_PRICE_ID")||!env("STRIPE_SECRET_KEY"))fail(503,"Billing not configured");
     const session=await stripe.checkout.sessions.create({
       mode:"subscription",line_items:[{price:env("ACADEMY_STRIPE_PRICE_ID"),quantity:1}],
