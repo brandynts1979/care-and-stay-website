@@ -154,7 +154,13 @@ async function loadDdBillingStatus(){
   });
   const data=await r.json();
   if(!r.ok)throw Error(data.error||'Billing service unavailable');
-  if(data.checkout_enabled===true){
+  if(data.owner_access===true&&data.entitled===true){
+   status.textContent='Care & Stay owner access active. All DD Family Care features, including the AI Coach, are available without payment.';
+   $('ddStartCheckout').classList.add('hide');$('ddStartCheckout').disabled=true;
+   $('ddManageBilling').classList.add('hide');$('ddManageBilling').disabled=true;
+   $('ddAcceptTerms').closest('p').classList.add('hide');
+  }else if(data.checkout_enabled===true){
+   $('ddAcceptTerms').closest('p').classList.remove('hide');
    status.textContent='Subscription status: '+String(data.subscription_status||'none')+'.';
    const existing=String(data.subscription_status||'none')!=='none';
    $('ddStartCheckout').classList.toggle('hide',existing);
