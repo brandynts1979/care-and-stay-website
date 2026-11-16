@@ -68,12 +68,8 @@ create policy "location visible to active members" on public.academy_locations
  select 1 from public.academy_location_members m
  where m.location_id=academy_locations.id and m.user_id=(select auth.uid()) and m.active
 ));
-create policy "membership visible to member or location owner" on public.academy_location_members
- for select to authenticated using(
- user_id=(select auth.uid())
- or exists(select 1 from public.academy_locations l where l.id=academy_location_members.location_id
-   and l.billing_owner_id=(select auth.uid()))
-);
+create policy "member can view own memberships" on public.academy_location_members
+ for select to authenticated using(user_id=(select auth.uid()));
 create policy "invitation visible to its sender" on public.academy_invitations
  for select to authenticated using(invited_by=(select auth.uid()));
 
