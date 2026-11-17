@@ -3,7 +3,7 @@ import Stripe from "npm:stripe@17.7.0";
 
 const env=(k:string)=>Deno.env.get(k)||"";
 const admin=createClient(env("SUPABASE_URL"),env("SUPABASE_SERVICE_ROLE_KEY"),{auth:{persistSession:false}});
-const stripe=new Stripe(env("STRIPE_SECRET_KEY"));
+const stripe=env("STRIPE_SECRET_KEY") ? new Stripe(env("STRIPE_SECRET_KEY")) : null;
 const respond=(status:number,payload:unknown)=>new Response(JSON.stringify(payload),{status,headers:{"Content-Type":"application/json","Cache-Control":"no-store"}});
 const active=(status:string)=>["active","trialing"].includes(status);
 const subEnd=(s:any)=>s.current_period_end?new Date(s.current_period_end*1000).toISOString():null;
@@ -60,12 +60,12 @@ async function updateLocation(subscription:any){
 Deno.serve(async(req:Request)=>{
  if(req.method!=="POST")return respond(405,{error:"Method not allowed"});
  const sig=req.headers.get("stripe-signature");
- if(!sig||!env("STRIPE_WEBHOOK_SECRET")||!env("STRIPE_SECRET_KEY"))
+ if(!sig||!env("STRIPE_WEBHOOK_SECRET")||!stripe)
    return respond(400,{error:"Webhook signature unavailable"});
  let event:Stripe.Event;
  try{
   const raw=await req.text();
-  event=await stripe.webhooks.constructEventAsync(raw,sig,env("STRIPE_WEBHOOK_SECRET"),undefined,Stripe.createSubtleCryptoProvider());
+  event=await stripe!.webhooks.constructEventAsync(raw,sig,env("STRIPE_WEBHOOK_SECRET"),undefined,Stripe.createSubtleCryptoProvider());
  }catch(e){console.error("Invalid Academy Stripe signature");return respond(400,{error:"Invalid signature"});}
  // Only events from a subscription tagged with a location ID can affect an Academy location.
  try{
@@ -82,7 +82,7 @@ Deno.serve(async(req:Request)=>{
    case "checkout.session.completed":{
     const session=event.data.object as Stripe.Checkout.Session;
     if(session.mode==="subscription"&&session.subscription)
-     subscription=await stripe.subscriptions.retrieve(typeof session.subscription==="string"?session.subscription:session.subscription.id);
+     subscription=await stripe!.subscriptions.retrieve(typeof session.subscription==="string"?session.subscription:session.subscription.id);
     break;
    }
    case "customer.subscription.created":
