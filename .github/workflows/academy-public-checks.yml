@@ -81,3 +81,7 @@ jobs:
         run: psql -v ON_ERROR_STOP=1 -f academy/database/003_locations_and_invitations.sql
       - name: Verify unlimited seats and location isolation
         run: psql -v ON_ERROR_STOP=1 -f tools/academy/location_smoke.sql
+      - name: Apply paid location content gate
+        run: psql -v ON_ERROR_STOP=1 -f academy/database/004_require_active_restaurant_for_content.sql
+      - name: Verify cancellation and manager removal revoke course access
+        run: psql -v ON_ERROR_STOP=1 -f tools/academy/paid_gate_smoke.sql
