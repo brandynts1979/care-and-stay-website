@@ -83,6 +83,18 @@
         item.append(role,button('Invite manager',async()=>{
           try{const response=await managerRequest('invite',{location_id:loc.id,email:addr.value.trim(),role:role.value});
           show(response.message||'Invitation recorded.');addr.value='';
+          const previous=item.querySelector('[data-invite-link]');if(previous)previous.remove();
+          if(response.invitation_url){
+            const linkBlock=elt('div');linkBlock.dataset.inviteLink='true';
+            linkBlock.append(elt('p','Share this link directly with the invited manager if the email was not delivered.'));
+            const link=elt('a','Manager invitation link');link.href=response.invitation_url;
+            link.rel='noopener noreferrer';linkBlock.append(link);
+            linkBlock.append(button('Copy invitation link',async()=>{
+              try{await navigator.clipboard.writeText(response.invitation_url);show('Invitation link copied.');}
+              catch{show('Use the invitation link above to share it.',true);}
+            },true));
+            item.append(linkBlock);
+          }
           }catch(e){safeError(e);}
         }));
         item.append(button('View team',async()=>{
