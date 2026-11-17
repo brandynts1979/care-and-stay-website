@@ -3,7 +3,7 @@ import Stripe from "npm:stripe@17.7.0";
 
 const env = (k: string) => Deno.env.get(k) || "";
 const origin = (env("ACADEMY_SITE_ORIGIN") || "https://mycareandstay.com").replace(/\/$/,"");
-const cors = { "Access-Control-Allow-Origin": origin, "Access-Control-Allow-Methods": "POST, OPTIONS", "Access-Control-Allow-Headers": "authorization, apikey, content-type", "Vary":"Origin" };
+const cors = { "Access-Control-Allow-Origin": origin, "Access-Control-Allow-Methods": "POST, OPTIONS", "Access-Control-Allow-Headers": "authorization, apikey, content-type, x-client-info, x-supabase-api-version", "Vary":"Origin" };
 const json = (status:number, data:unknown) => new Response(JSON.stringify(data),{status,headers:{...cors,"Content-Type":"application/json","Cache-Control":"no-store"}});
 const url=env("SUPABASE_URL"), pub=env("SUPABASE_ANON_KEY"), secret=env("SUPABASE_SERVICE_ROLE_KEY");
 const admin=createClient(url,secret,{auth:{persistSession:false}});
@@ -121,16 +121,16 @@ Deno.serve(async(req:Request)=>{
     if(role==="gm"&&intendedRole==="gm")fail(403,"Only owners may designate a GM");
     const token=crypto.randomUUID()+crypto.randomUUID();
     const digest=Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(token)))).map(x=>x.toString(16).padStart(2,"0")).join("");
-    const {error}=await admin.from("academy_invitations").insert({
+    const {data:createdInvite,error}=await admin.from("academy_invitations").insert({
       location_id:id,invited_email:email,intended_role:intendedRole,invited_by:user.id,
       token_digest:digest,expires_at:new Date(Date.now()+7*86400000).toISOString()
-    });
+    }).select("id").single();
     if(error?.code==="23505")fail(409,"A pending invitation already exists for this email");
     if(error)throw error;
     // Supabase sends the email for new users. Existing users can sign in and accept pending invitations.
     const invite=await admin.auth.admin.inviteUserByEmail(email,{redirectTo:origin+"/academy/learn/"});
     await admin.from("academy_audit_log").insert({actor_id:user.id,action:"invite_created",target:id});
-    return json(200,{invited:true,email,invitation_email_sent:!invite.error,
+    return json(200,{invited:true,email,invitation_url:origin+"/academy/learn/?invitation="+encodeURIComponent(createdInvite.id),invitation_email_sent:!invite.error,
       message:invite.error?"Invitation recorded. Ask the existing user to sign in and accept it.":"Invitation email sent."});
   }
   if(action==="pending_invites"){
@@ -150,6 +150,8 @@ Deno.serve(async(req:Request)=>{
     if(cleanEmail(invite.invited_email)!==cleanEmail(user.email) || invite.accepted_at || invite.revoked_at
        || Date.parse(invite.expires_at)<Date.now())fail(403,"Invitation invalid or expired");
     const loc=await location(invite.location_id);if(!active(loc.subscription_status))fail(403,"Location billing inactive");
+    const inviter=await admin.from("academy_location_members").select("role,active").eq("location_id",invite.location_id).eq("user_id",invite.invited_by).maybeSingle();
+    if(inviter.error||!inviter.data?.active||!["owner","gm"].includes(inviter.data.role))fail(403,"Inviting manager is no longer authorized");
     const {data:existingMember,error:existingError}=await admin.from("academy_location_members")
       .select("role").eq("location_id",invite.location_id).eq("user_id",user.id).maybeSingle();
     if(existingError)throw existingError;
