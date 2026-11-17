@@ -287,7 +287,7 @@
   async function openLesson(l,completed,clickedRow){
     // Keep the lesson directly next to the Study lesson button rather than after all 24 lessons.
     // The previous placement looked like a nonresponsive button, especially on mobile.
-    clickedRow.after(detail);
+    clickedRow.append(detail);
     hidden(detail,false);
     detail.replaceChildren(elt('h2',l.title),elt('p','Loading lesson activities…'));
     detail.scrollIntoView({behavior:'smooth',block:'start'});
