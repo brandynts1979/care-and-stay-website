@@ -216,29 +216,58 @@
     }
     show('Your Academy courses are ready.');
   }
+  const moduleGuides=[["Discover strengths","Recognize the conditions that make this team effective.","Identify specific successes and design an appreciative improvement experiment."],["Lead authentically","Make values, service and healthy boundaries visible in daily work.","Practice credible, fair decisions that combine care and accountability."],["Build belonging","Create trust, psychological safety and reasons employees choose to stay.","Listen to employees and turn insight into meaningful action."],["Coach for growth","Use curiosity, feedback and delegation to develop people.","Guide development conversations and create visible growth opportunities."],["Transform conflict","Respond to tension with courage, empathy and accountability.","Navigate a difficult conversation and develop a constructive agreement."],["Sustain the culture","Build practical leadership routines and evidence of improvement.","Create a 30/60/90-day leadership plan that can be measured and sustained."]];
   async function loadLessons(e,course){
     enrollment=e; hidden(lessonsNode,false);hidden(detail,true);
-    lessonsNode.replaceChildren(elt('h2',course.title));
+    lessonsNode.replaceChildren();
+    const intro=elt('div',undefined,'academy-course-heading');
+    intro.append(elt('p','YOUR LEARNING PATH','academy-overline'),elt('h2',course.title),
+      elt('p','Six modules · 24 lessons · Learn, reflect, and apply at your own pace.','academy-intro'));
+    lessonsNode.append(intro);
     const modules=await read('academy_modules',q=>q.select('id,title,position').eq('course_id',course.id).order('position'));
     const progress=await read('academy_lesson_progress',q=>q.select('lesson_id').eq('enrollment_id',e.id));
     const done=new Set(progress.map(p=>p.lesson_id));
-    for(const module of modules){
-      const h=elt('h3',module.title); lessonsNode.append(h);
-      const lessons=await read('academy_lessons',q=>q.select('id,title,body,position').eq('module_id',module.id).eq('published',true).order('position'));
-      for(const l of lessons){
-        const row=elt('div',undefined,'academy-lesson');
-        row.append(elt('span',(done.has(l.id)?'✓ ':'○ ')+l.title));
-        row.append(button('Study lesson',async()=>{
-          try{
-            await openLesson(l,done.has(l.id),row);
-          }catch(err){
-            safeError(err);
-            detail.append(elt('p','Unable to finish loading this lesson. '+(err?.message||'Please retry.'),'academy-error'));
-          }
+    const lessons=await read('academy_lessons',q=>q.select('id,module_id,title,body,position').in('module_id',modules.map(m=>m.id)).eq('published',true).order('position'));
+    const finished=lessons.filter(l=>done.has(l.id)).length;
+    const summary=elt('div',undefined,'academy-progress-summary');
+    const head=elt('div',undefined,'academy-progress-top');
+    head.append(elt('strong','Course progress'),elt('span',finished+' of '+lessons.length+' lessons completed'));
+    const track=elt('div',undefined,'academy-track');
+    track.setAttribute('role','progressbar');track.setAttribute('aria-valuemin','0');
+    track.setAttribute('aria-valuemax',String(lessons.length));track.setAttribute('aria-valuenow',String(finished));track.setAttribute('aria-label','Course progress');
+    const fill=elt('div',undefined,'academy-track-fill');fill.style.width=(lessons.length?100*finished/lessons.length:0)+'%';
+    track.append(fill);summary.append(head,track);lessonsNode.append(summary);
+    const cards=elt('div',undefined,'academy-modules');
+    for(const m of modules){
+      const items=lessons.filter(l=>l.module_id===m.id);
+      const completed=items.filter(l=>done.has(l.id)).length;
+      const guide=moduleGuides[m.position-1]||['Leadership practice','Explore these lessons.','Apply the learning to your team.'];
+      const card=elt('details',undefined,'academy-module-card');
+      if(completed>0&&completed<items.length||m.position===1&&finished===0)card.open=true;
+      const header=elt('summary',undefined,'academy-module-header');
+      const num=elt('span',String(m.position).padStart(2,'0'),'academy-module-number');
+      const title=elt('div',undefined,'academy-module-heading');
+      title.append(elt('span','MODULE '+m.position+' · '+guide[0].toUpperCase(),'academy-overline'),
+        elt('h3',m.title),elt('p',guide[1]));
+      header.append(num,title,elt('span',completed+' / '+items.length+' complete','academy-count'));card.append(header);
+      const content=elt('div',undefined,'academy-module-content');
+      content.append(elt('p','Learning outcome: '+guide[2],'academy-outcome'));
+      const list=elt('ol',undefined,'academy-lesson-list');
+      for(const lesson of items){
+        const row=elt('li',undefined,'academy-lesson-row');
+        const label=elt('div',undefined,'academy-lesson-label');
+        label.append(elt('span',done.has(lesson.id)?'✓':'',done.has(lesson.id)?'academy-lesson-status complete':'academy-lesson-status'));
+        const copy=elt('div');copy.append(elt('strong',lesson.title),elt('small','Lesson '+lesson.position+' · Learn · Reflect · Apply'));
+        label.append(copy);
+        row.append(label,button(done.has(lesson.id)?'Review lesson':'Study lesson',async()=>{
+          try{await openLesson(lesson,done.has(lesson.id),row);}
+          catch(err){safeError(err);detail.append(elt('p','Unable to load this lesson. '+(err?.message||'Please retry.'),'academy-error'));}
         },true));
-        lessonsNode.append(row);
+        list.append(row);
       }
+      content.append(list);card.append(content);cards.append(card);
     }
+    lessonsNode.append(cards);
   }
   async function openLesson(l,completed,clickedRow){
     // Keep the lesson directly next to the Study lesson button rather than after all 24 lessons.
@@ -247,7 +276,18 @@
     hidden(detail,false);
     detail.replaceChildren(elt('h2',l.title),elt('p','Loading lesson activities…'));
     detail.scrollIntoView({behavior:'smooth',block:'start'});
-    const body=elt('div');body.style.whiteSpace='pre-wrap';body.textContent=l.body;detail.replaceChildren(elt('h2',l.title),body);
+    const header=elt('div',undefined,'academy-study-header');
+    header.append(elt('p','LEARN · REFLECT · APPLY','academy-overline'),elt('h2',l.title));
+    const reading=elt('div',undefined,'academy-reading');
+    for(const part of l.body.split(/\\n\\n(?=[A-Z][A-Z &–—-]{4,}\\n)/)){
+      const match=part.match(/^([A-Z][A-Z &–—-]{4,})\\n([\\s\\S]*)$/);
+      if(!match){reading.append(elt('p',part));continue;}
+      const section=elt('section',undefined,'academy-reading-section');
+      section.append(elt('h3',match[1].toLowerCase().replace(/\\b[a-z]/g,c=>c.toUpperCase())));
+      for(const paragraph of match[2].split(/\\n\\n/))if(paragraph.trim())section.append(elt('p',paragraph.trim()));
+      reading.append(section);
+    }
+    detail.replaceChildren(header,reading);
     const scenarios=await read('academy_scenarios',q=>q.select('id,prompt,position').eq('lesson_id',l.id).order('position'));
     for(const scenario of scenarios){
       const box=elt('section',undefined,'academy-question');
