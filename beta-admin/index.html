@@ -85,8 +85,9 @@ async function list(app){
  for(const item of result){
   const tr=document.createElement('tr');
   const end=Date.parse(item.expires_at);
-  const state=item.revoked?'Revoked':end<=Date.now()?'Expired':item.registered_verified?'Active':'Awaiting registration / verification';
-  for(const value of [item.email,Number.isFinite(end)?new Date(end).toLocaleDateString():'—',state]){
+  const activated=Boolean(item.activated_at);
+  const state=item.revoked?'Revoked':!activated?'Awaiting registration / verification':end<=Date.now()?'Expired':'Active';
+  for(const value of [item.email,activated&&Number.isFinite(end)?new Date(end).toLocaleDateString():'90 days after verification',state]){
    const td=document.createElement('td');td.textContent=value;tr.append(td)
   }
   const tdInvite=document.createElement('td');
@@ -96,7 +97,7 @@ async function list(app){
   const subject='Care & Stay '+appTitle+' beta test invitation';
   const body='You have been approved to beta test the Care & Stay '+appTitle+
     ' with complimentary access. Please register with this email address, verify your email, and sign in: '+appUrl+
-    '\\n\\nNo payment or credit card is needed. Access lasts through '+(Number.isFinite(end)?new Date(end).toLocaleDateString():'the end of the approved test')+
+    '\\n\\nNo payment or credit card is needed. Access lasts '+(activated&&Number.isFinite(end)?'through '+new Date(end).toLocaleDateString():'for 90 days from when you verify your account')+
     '. Please use fictional information during testing, and share any feedback with the Care & Stay team.';
   invitation.href='mailto:'+encodeURIComponent(item.email)+'?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(body);
   tdInvite.append(invitation);tr.append(tdInvite);
