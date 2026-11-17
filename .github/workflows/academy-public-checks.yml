@@ -1,0 +1,87 @@
+name: Academy public-page and database security checks
+on:
+  push:
+    branches: [academy-launch-foundation-20261116]
+    paths:
+      - 'academy/**'
+      - 'tools/academy/**'
+      - '.github/workflows/academy-public-checks.yml'
+      - 'index.html'
+      - 'client-portal/index.html'
+  pull_request:
+    paths:
+      - 'academy/**'
+      - 'tools/academy/**'
+      - '.github/workflows/academy-public-checks.yml'
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci_only_password
+          POSTGRES_DB: academy_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      PGPASSWORD: ci_only_password
+      PGHOST: localhost
+      PGUSER: postgres
+      PGDATABASE: academy_ci
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Test Academy public page
+        run: |
+          node --test tools/academy/smoke.test.mjs tools/academy/launch_readiness.test.mjs
+          node --check academy/learn/app.js
+          node --check academy/learn/config.js
+      - name: Set up Deno for Edge Function validation
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Check Academy manager and Stripe webhook TypeScript
+        run: |
+          deno check academy/edge-functions/academy-manager/index.ts
+          deno check academy/edge-functions/academy-stripe-webhook/index.ts
+      - name: Initialize mock Supabase auth and roles in disposable Postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 <<'SQL'
+          create schema auth;
+          create table auth.users(id uuid primary key);
+          create role anon nologin;
+          create role authenticated nologin;
+          create role service_role nologin;
+          grant usage on schema public,auth to authenticated;
+          create function auth.uid() returns uuid language sql stable as $$
+            select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid;
+          $$;
+          grant execute on function auth.uid() to authenticated;
+          SQL
+      - name: Install isolated Academy schema
+        run: psql -v ON_ERROR_STOP=1 -f academy/database/001_academy_schema.sql
+      - name: Verify Academy RLS and reviewer isolation
+        run: psql -v ON_ERROR_STOP=1 -f tools/academy/rls_smoke.sql
+      - name: Install server-only graduation gate
+        run: psql -v ON_ERROR_STOP=1 -f academy/database/002_graduation_gate.sql
+      - name: Verify graduation approvals and security
+        run: psql -v ON_ERROR_STOP=1 -f tools/academy/graduation_smoke.sql
+      - name: Install restaurant subscription and invitation schema
+        run: psql -v ON_ERROR_STOP=1 -f academy/database/003_locations_and_invitations.sql
+      - name: Verify unlimited seats and location isolation
+        run: psql -v ON_ERROR_STOP=1 -f tools/academy/location_smoke.sql
+      - name: Apply paid location content gate
+        run: psql -v ON_ERROR_STOP=1 -f academy/database/004_require_active_restaurant_for_content.sql
+      - name: Verify cancellation and manager removal revoke course access
+        run: psql -v ON_ERROR_STOP=1 -f tools/academy/paid_gate_smoke.sql
