@@ -7,7 +7,7 @@ const cors = { "Access-Control-Allow-Origin": origin, "Access-Control-Allow-Meth
 const json = (status:number, data:unknown) => new Response(JSON.stringify(data),{status,headers:{...cors,"Content-Type":"application/json","Cache-Control":"no-store"}});
 const url=env("SUPABASE_URL"), pub=env("SUPABASE_ANON_KEY"), secret=env("SUPABASE_SERVICE_ROLE_KEY");
 const admin=createClient(url,secret,{auth:{persistSession:false}});
-const stripe=new Stripe(env("STRIPE_SECRET_KEY"));
+const stripe=env("STRIPE_SECRET_KEY") ? new Stripe(env("STRIPE_SECRET_KEY")) : null;
 const active=(status:string)=>["active","trialing"].includes(status);
 const uuid=(s:unknown)=>typeof s==="string" && /^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(s);
 const cleanEmail=(s:unknown)=>String(s||"").trim().toLowerCase();
@@ -88,6 +88,7 @@ Deno.serve(async(req:Request)=>{
     if(active(loc.subscription_status))fail(409,"Already subscribed");
     if(env("ACADEMY_BILLING_ENABLED")!=="true")fail(503,"Academy billing is not yet enabled");
     if(!env("ACADEMY_STRIPE_PRICE_ID")||!env("STRIPE_SECRET_KEY"))fail(503,"Billing not configured");
+    if(!stripe)fail(503,"Stripe billing is not yet configured");
     const session=await stripe.checkout.sessions.create({
       mode:"subscription",line_items:[{price:env("ACADEMY_STRIPE_PRICE_ID"),quantity:1}],
       client_reference_id:id,customer_email:user.email,automatic_tax:{enabled:true},
@@ -104,6 +105,7 @@ Deno.serve(async(req:Request)=>{
     const loc=await location(id);
     if(loc.billing_owner_id!==user.id)fail(403,"Only the billing owner can manage billing");
     if(!loc.stripe_customer_id)fail(404,"No billing customer linked");
+    if(!stripe)fail(503,"Stripe billing is not yet configured");
     const session=await stripe.billingPortal.sessions.create({customer:loc.stripe_customer_id,return_url:origin+"/academy/learn/"});
     return json(200,{portal_url:session.url});
   }
