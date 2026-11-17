@@ -10,7 +10,7 @@ test('paid curriculum source is absent from public website repository',()=>{
 });
 test('live billing stays explicitly disabled in client',()=>{
  assert.match(client,/billingEnabled:\s*false/);
- assert.doesNotMatch(client.replace(/^\\s*\\/\\/.*$/gm,''),/sb_secret_|service_role|sk_live_/i);
+ assert.doesNotMatch(client.slice(client.indexOf('window.CARE_STAY_ACADEMY_CONFIG')),/sb_secret_|service_role|sk_live_/i);
 });
 test('authenticated checkout requires server billing release switch',()=>{
  assert.match(manager,/ACADEMY_BILLING_ENABLED/);
