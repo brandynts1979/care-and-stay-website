@@ -261,26 +261,57 @@
       box.append(feedback);detail.append(box);
     }
     const notes=await read('academy_private_reflections',q=>q.select('body').eq('enrollment_id',enrollment.id).eq('lesson_id',l.id));
-    const label=elt('label','My private reflection (not shared with reviewers)');
+    const reflectionSection=elt('section',undefined,'academy-question');
+    reflectionSection.append(elt('h3','Private reflection — just for you'));
+    reflectionSection.append(elt('p','Use this space for your own thoughts, questions, and learning. It is not shared with a GM, manager, or reviewer.'));
+    const reflectionLabel=elt('label','My private reflection');
     const input=elt('textarea',undefined,'academy-input');
-    input.rows=5;input.value=notes[0]?.body||'';label.append(input);detail.append(label);
-    detail.append(button('Save private reflection',async()=>{
+    input.rows=5;input.value=notes[0]?.body||'';
+    reflectionLabel.append(input);reflectionSection.append(reflectionLabel);
+    const reflectionStatus=elt('p','', 'academy-save-status');
+    reflectionStatus.setAttribute('role','status');reflectionStatus.setAttribute('aria-live','polite');
+    input.addEventListener('input',()=>{reflectionStatus.textContent='Unsaved changes';reflectionStatus.classList.remove('academy-error');});
+    const reflectionSave=button('Save private reflection',async()=>{
+      reflectionSave.disabled=true;reflectionStatus.textContent='Saving…';reflectionStatus.classList.remove('academy-error');
       try{
         const {error}=await db.from('academy_private_reflections').upsert({enrollment_id:enrollment.id,lesson_id:l.id,body:input.value,modified_at:new Date().toISOString()},{onConflict:'enrollment_id,lesson_id'});
-        if(error)throw error;show('Your private reflection was saved.');
-      }catch(e){safeError(e);}
-    }));
+        if(error)throw error;
+        reflectionStatus.textContent='✓ Private reflection saved successfully.';
+        show('Private reflection saved.');
+      }catch(e){reflectionStatus.textContent='Could not save reflection: '+(e?.message||'Please retry.');reflectionStatus.classList.add('academy-error');safeError(e);}
+      finally{reflectionSave.disabled=false;}
+    });
+    reflectionSection.append(reflectionSave,reflectionStatus);
+    detail.append(reflectionSection);
+
     const existing=await read('academy_submissions',q=>q.select('body').eq('enrollment_id',enrollment.id).eq('lesson_id',l.id));
-    const submitLabel=elt('label','Practice submission (visible to your assigned reviewer)');
+    const practiceSection=elt('section',undefined,'academy-question');
+    practiceSection.append(elt('h3','Put it into practice — evidence for feedback'));
+    practiceSection.append(elt('p','This is different from your private reflection. Try the activity at work, then describe what you did, what happened, and what you learned. Your submission can be reviewed by someone specifically assigned to support your development.'));
+    const practiceMatch=l.body.match(/PRACTICE EVIDENCE FOR REVIEW\\n([^\\n]+)/);
+    if(practiceMatch)practiceSection.append(elt('p','For this lesson: '+practiceMatch[1]));
+    practiceSection.append(elt('p','You can return and submit after trying the activity. You do not have to copy your private reflection here.'));
+    const submitLabel=elt('label','My real-world practice and what I learned');
     const submission=elt('textarea',undefined,'academy-input');submission.rows=4;submission.value=existing[0]?.body||'';
-    submitLabel.append(submission);detail.append(submitLabel);
-    detail.append(button('Share practice submission',async()=>{
+    submission.placeholder='What did you try? How did others respond? What will you do next?';
+    submitLabel.append(submission);practiceSection.append(submitLabel);
+    const practiceStatus=elt('p','', 'academy-save-status');
+    practiceStatus.setAttribute('role','status');practiceStatus.setAttribute('aria-live','polite');
+    submission.addEventListener('input',()=>{practiceStatus.textContent=existing.length?'Edited, not yet shared':'Not yet shared';practiceStatus.classList.remove('academy-error');});
+    const practiceSave=button(existing.length?'Update shared practice submission':'Share practice for review',async()=>{
+      if(!submission.value.trim()){practiceStatus.textContent='Please describe an action you tried before sharing.';practiceStatus.classList.add('academy-error');return;}
+      practiceSave.disabled=true;practiceStatus.textContent='Sharing…';practiceStatus.classList.remove('academy-error');
       try{
-        if(!submission.value.trim())return show('Enter a practice response before submitting.',true);
         const {error}=await db.from('academy_submissions').upsert({enrollment_id:enrollment.id,lesson_id:l.id,body:submission.value},{onConflict:'enrollment_id,lesson_id'});
-        if(error)throw error;show('Your practice response was shared with your assigned reviewer.');
-      }catch(e){safeError(e);}
-    }));
+        if(error)throw error;
+        practiceStatus.textContent='✓ Practice submission saved and available to your assigned reviewer.';
+        practiceSave.textContent='Update shared practice submission';
+        show('Practice submission saved.');
+      }catch(e){practiceStatus.textContent='Could not share practice: '+(e?.message||'Please retry.');practiceStatus.classList.add('academy-error');safeError(e);}
+      finally{practiceSave.disabled=false;}
+    });
+    practiceSection.append(practiceSave,practiceStatus);
+    detail.append(practiceSection);
     detail.append(button(completed?'Completed ✓':'Mark lesson complete',async()=>{
       try{
         const {error}=await db.from('academy_lesson_progress').upsert({enrollment_id:enrollment.id,lesson_id:l.id},{onConflict:'enrollment_id,lesson_id'});
