@@ -279,12 +279,12 @@
     const header=elt('div',undefined,'academy-study-header');
     header.append(elt('p','LEARN · REFLECT · APPLY','academy-overline'),elt('h2',l.title));
     const reading=elt('div',undefined,'academy-reading');
-    for(const part of l.body.split(/\\n\\n(?=[A-Z][A-Z &–—-]{4,}\\n)/)){
-      const match=part.match(/^([A-Z][A-Z &–—-]{4,})\\n([\\s\\S]*)$/);
+    for(const part of l.body.split(/\n\n(?=[A-Z][A-Z &–—-]{4,}\n)/)){
+      const match=part.match(/^([A-Z][A-Z &–—-]{4,})\n([\s\S]*)$/);
       if(!match){reading.append(elt('p',part));continue;}
       const section=elt('section',undefined,'academy-reading-section');
-      section.append(elt('h3',match[1].toLowerCase().replace(/\\b[a-z]/g,c=>c.toUpperCase())));
-      for(const paragraph of match[2].split(/\\n\\n/))if(paragraph.trim())section.append(elt('p',paragraph.trim()));
+      section.append(elt('h3',match[1].toLowerCase().replace(/\b[a-z]/g,c=>c.toUpperCase())));
+      for(const paragraph of match[2].split(/\n\n/))if(paragraph.trim())section.append(elt('p',paragraph.trim()));
       reading.append(section);
     }
     detail.replaceChildren(header,reading);
