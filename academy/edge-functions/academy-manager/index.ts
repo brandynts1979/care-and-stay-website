@@ -89,7 +89,7 @@ Deno.serve(async(req:Request)=>{
     if(env("ACADEMY_BILLING_ENABLED")!=="true")fail(503,"Academy billing is not yet enabled");
     if(!env("ACADEMY_STRIPE_PRICE_ID")||!env("STRIPE_SECRET_KEY"))fail(503,"Billing not configured");
     if(!stripe)fail(503,"Stripe billing is not yet configured");
-    const session=await stripe.checkout.sessions.create({
+    const session=await stripe!.checkout.sessions.create({
       mode:"subscription",line_items:[{price:env("ACADEMY_STRIPE_PRICE_ID"),quantity:1}],
       client_reference_id:id,customer_email:user.email,automatic_tax:{enabled:true},
       billing_address_collection:"required",tax_id_collection:{enabled:true},
@@ -106,7 +106,7 @@ Deno.serve(async(req:Request)=>{
     if(loc.billing_owner_id!==user.id)fail(403,"Only the billing owner can manage billing");
     if(!loc.stripe_customer_id)fail(404,"No billing customer linked");
     if(!stripe)fail(503,"Stripe billing is not yet configured");
-    const session=await stripe.billingPortal.sessions.create({customer:loc.stripe_customer_id,return_url:origin+"/academy/learn/"});
+    const session=await stripe!.billingPortal.sessions.create({customer:loc.stripe_customer_id,return_url:origin+"/academy/learn/"});
     return json(200,{portal_url:session.url});
   }
   if(action==="invite"){
