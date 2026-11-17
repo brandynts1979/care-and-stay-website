@@ -224,7 +224,7 @@
     intro.append(elt('p','YOUR LEARNING PATH','academy-overline'),elt('h2',course.title),
       elt('p','Six modules · 24 lessons · Learn, reflect, and apply at your own pace.','academy-intro'));
     lessonsNode.append(intro);
-    const modules=await read('academy_modules',q=>q.select('id,title,position').eq('course_id',course.id).order('position'));
+    const modules=await read('academy_modules',q=>q.select('id,title,position,overview').eq('course_id',course.id).order('position'));
     const progress=await read('academy_lesson_progress',q=>q.select('lesson_id').eq('enrollment_id',e.id));
     const done=new Set(progress.map(p=>p.lesson_id));
     const lessons=await read('academy_lessons',q=>q.select('id,module_id,title,body,position').in('module_id',modules.map(m=>m.id)).eq('published',true).order('position'));
@@ -252,6 +252,21 @@
       header.append(num,title,elt('span',completed+' / '+items.length+' complete','academy-count'));card.append(header);
       const content=elt('div',undefined,'academy-module-content');
       content.append(elt('p','Learning outcome: '+guide[2],'academy-outcome'));
+      if(m.overview){
+        const intro=elt('details',undefined,'academy-module-guide');
+        const trigger=elt('summary','Read the module introduction and guiding questions');
+        intro.append(trigger);
+        const reading=elt('div',undefined,'academy-reading');
+        for(const block of m.overview.split(/\\n\\n/)){
+          const match=block.match(/^([A-Z][A-Z &–—-]{4,})\\n([\\s\\S]*)$/);
+          if(!match){reading.append(elt('p',block));continue;}
+          const section=elt('section',undefined,'academy-reading-section');
+          section.append(elt('h4',match[1].toLowerCase().replace(/\\b[a-z]/g,c=>c.toUpperCase())));
+          section.append(elt('p',match[2]));
+          reading.append(section);
+        }
+        intro.append(reading);content.append(intro);
+      }
       const list=elt('ol',undefined,'academy-lesson-list');
       for(const lesson of items){
         const row=elt('li',undefined,'academy-lesson-row');
