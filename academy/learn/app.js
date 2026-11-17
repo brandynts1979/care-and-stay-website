@@ -39,6 +39,25 @@
     if(type==='text')n.setAttribute('aria-label','Restaurant location name');
     return n;
   };
+  async function loadInternalDemo(){
+    const status=await managerRequest('demo_status');
+    if(!status?.eligible)return;
+    const holder=elt('div',undefined,'academy-lesson');
+    holder.append(elt('h3','Care & Stay internal test access'));
+    if(status.active){
+      holder.append(elt('p','Your complimentary Academy test access is active through '+new Date(status.expires_at).toLocaleDateString()+'. You will not be charged.'));
+    }else{
+      holder.append(elt('p','This complimentary test is for your verified Care & Stay owner account. No Stripe charge or subscription is created.'));
+      holder.append(button('Activate my Academy test access',async()=>{
+        try{
+          const result=await managerRequest('activate_demo');
+          show('Your Academy test access is active. No payment was collected.');
+          await loadLocations();await loadCourses();
+        }catch(e){safeError(e);}
+      }));
+    }
+    locationsNode.append(holder);
+  }
   async function loadLocations(){
     const {locations}=await managerRequest('list_locations');
     locationsNode.replaceChildren(elt('h2','Restaurant locations'));
@@ -116,6 +135,7 @@
       }
       locationsNode.append(item);
     }
+    await loadInternalDemo();
   }
   async function loadInvitations(){
     const {invitations}=await managerRequest('pending_invites');
