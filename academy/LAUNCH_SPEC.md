@@ -1,10 +1,10 @@
 # Stay Culture Leadership Academy — release specification
 
 **Branch:** `academy-launch-foundation-20261116`  
-**Status:** Development only; not launched. The public information page is not an LMS.
+**Status:** Development implementation of the learner portal and dedicated Supabase backend; not yet a paid production launch.
 
 ## Carry-forward requirements
-- Six modules, 24 text lessons, 72 scenario choices and feedback; preserve the existing approved lesson content rather than inventing replacements.
+- Six modules, 24 text lessons, 72 scenario choices and feedback; a newly authored first-edition draft is staged because the earlier full wording was not recoverable. The draft requires editorial approval before production publication.
 - Text-first launch, no videos required. Optional video additions later.
 - Private personal reflections; separately shared practice submissions for assigned reviewers.
 - Progress saved per learner; authenticated access; approved reviewer decisions; graduation and portfolio with a 90-day plan.
@@ -44,15 +44,15 @@ All tenant/user isolation must be enforced by RLS or equivalent *server-side* au
 
 ## Current implementation and validation (November 16, 2026)
 - `academy/index.html`: responsive public Academy information page; enrollment closed.
-- `academy/learn/`: account sign-in/sign-up, password recovery, enrolled course navigation, lesson viewing, choices and feedback, private reflections, progress, practice submission and reviewer queue. This is **development code**: `config.js` deliberately contains no hosted backend credentials and is not linked from production.
+- `academy/learn/`: account sign-in/sign-up, password recovery, enrolled course navigation, lesson viewing, choices and feedback, private reflections, progress, practice submission and reviewer queue. This is **development code**: `config.js` contains the dedicated hosted Supabase URL and a publishable (not secret) key; it is not linked from production.
 - `academy/database/001_academy_schema.sql`: enrollment-gated RLS, private reflections, assigned reviewer access, separate server-owned enrollment and billing tables.
 - `academy/database/002_graduation_gate.sql`: server-only graduation requiring completed published lessons and approved submissions.
 - GitHub Actions checks public safety, JavaScript syntax, and runs migration/RLS/graduation security tests in disposable PostgreSQL 17. CI passing means those isolated tests passed, **not** production readiness.
 
 ## Still required before paid live release
-- Verify all approved 24 full lessons and 72 scenario answers/feedback from the original source; do not invent approved content.
-- Choose and configure an actual hosted Academy database/Auth target, including email redirects and live RLS/advisors. Do not reuse an unrelated production database without reviewing its tenant boundary.
+- Review and approve the NEW first-edition curriculum: 24 unpublished lessons, 24 scenarios and 72 feedback choices loaded. Original complete wording could not be recovered.
+- Dedicated hosted Academy Supabase project `seaxmxrnblivtjmlmtsn` is created and RLS verified. Configure site URL/allowed Auth email redirects and run real user tests.
 - Establish an approved Academy price, tax treatment, terms, and Stripe product/price in Care & Stay live account. Stripe currently has no Academy product.
-- Implement and deploy authenticated checkout creation, signed webhook handling, idempotent event processing, and the entitlement lifecycle including cancellation and expiration.
+- Checkout and signed webhook Edge Functions deployed; connect Stripe product/price and secrets and verify real event lifecycle in Stripe sandbox before billing enabled.
 - Test real learner signup, cross-account access, reviewer assignment, cross-device saves, billing, support, graduation, and mobile/keyboard flows in staging with real accounts and Stripe test mode.
 - Keep public billing and Academy enrollment inactive until those verification gates pass.
