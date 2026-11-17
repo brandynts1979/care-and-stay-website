@@ -16,7 +16,7 @@ test('Academy landing route exists and uses HTML5', () => {
 });
 test('Academy is explicitly described as not yet enrolling', () => {
   assert.match(page, /Enrollment is not yet open\./i);
-  assert.match(page, /No charge or account creation takes place on this page/i);
+  assert.match(page, /no purchase is available on this page/i);
 });
 test('Academy landing page does not launch payment or account creation', () => {
   assert.doesNotMatch(page, /<form\b/i);
@@ -59,8 +59,8 @@ test('Payment provisioning must be verified before enabling checkout', () => {
   assert.match(launch, /Stripe webhook/i);
 });
 test('Do not misrepresent information page as launched LMS', () => {
-  assert.match(launch, /not an LMS/i);
-  assert.match(page, /learner portal and payment system are being validated/i);
+  assert.match(launch, /not yet a paid production launch/i);
+  assert.match(page, /Paid enrollment will open after sales-tax registration/i);
 });
 test('Live home and client portal have no Academy checkout links', () => {
   assert.doesNotMatch(main + portal, /buy\.stripe\.com\/.*academy/i);
