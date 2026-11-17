@@ -228,14 +228,26 @@
       for(const l of lessons){
         const row=elt('div',undefined,'academy-lesson');
         row.append(elt('span',(done.has(l.id)?'✓ ':'○ ')+l.title));
-        row.append(button('Study lesson',()=>openLesson(l,done.has(l.id)).catch(safeError),true));
+        row.append(button('Study lesson',async()=>{
+          try{
+            await openLesson(l,done.has(l.id),row);
+          }catch(err){
+            safeError(err);
+            detail.append(elt('p','Unable to finish loading this lesson. '+(err?.message||'Please retry.'),'academy-error'));
+          }
+        },true));
         lessonsNode.append(row);
       }
     }
   }
-  async function openLesson(l,completed){
-    hidden(detail,false);detail.replaceChildren(elt('h2',l.title));
-    const body=elt('div');body.style.whiteSpace='pre-wrap';body.textContent=l.body;detail.append(body);
+  async function openLesson(l,completed,clickedRow){
+    // Keep the lesson directly next to the Study lesson button rather than after all 24 lessons.
+    // The previous placement looked like a nonresponsive button, especially on mobile.
+    clickedRow.after(detail);
+    hidden(detail,false);
+    detail.replaceChildren(elt('h2',l.title),elt('p','Loading lesson activities…'));
+    detail.scrollIntoView({behavior:'smooth',block:'start'});
+    const body=elt('div');body.style.whiteSpace='pre-wrap';body.textContent=l.body;detail.replaceChildren(elt('h2',l.title),body);
     const scenarios=await read('academy_scenarios',q=>q.select('id,prompt,position').eq('lesson_id',l.id).order('position'));
     for(const scenario of scenarios){
       const box=elt('section',undefined,'academy-question');
