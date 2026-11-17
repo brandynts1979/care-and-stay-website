@@ -288,7 +288,7 @@
     const practiceSection=elt('section',undefined,'academy-question');
     practiceSection.append(elt('h3','Put it into practice — evidence for feedback'));
     practiceSection.append(elt('p','This is different from your private reflection. Try the activity at work, then describe what you did, what happened, and what you learned. Your submission can be reviewed by someone specifically assigned to support your development.'));
-    const practiceMatch=l.body.match(/PRACTICE EVIDENCE FOR REVIEW\\n([^\\n]+)/);
+    const practiceMatch=l.body.match(/PRACTICE EVIDENCE FOR REVIEW\n([^\n]+)/);
     if(practiceMatch)practiceSection.append(elt('p','For this lesson: '+practiceMatch[1]));
     practiceSection.append(elt('p','You can return and submit after trying the activity. You do not have to copy your private reflection here.'));
     const submitLabel=elt('label','My real-world practice and what I learned');
