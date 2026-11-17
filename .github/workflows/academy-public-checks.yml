@@ -1,7 +1,7 @@
 name: Academy public-page and database security checks
 on:
   push:
-    branches: [academy-launch-foundation-20261116]
+    branches: [main, academy-launch-foundation-20261116]
     paths:
       - 'academy/**'
       - 'tools/academy/**'
