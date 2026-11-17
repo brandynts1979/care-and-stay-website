@@ -82,6 +82,20 @@
  #lessonDetail{padding:20px 15px}
  .academy-progress-top{align-items:flex-start;flex-direction:column}
 }
+
+.academy-module-guide{background:#f7f9f7;border:1px solid #dce8df;border-radius:12px;margin:14px 0 19px;overflow:hidden}
+.academy-module-guide summary{padding:15px 18px;font-weight:750;cursor:pointer;color:#23584d;line-height:1.45}
+.academy-module-guide summary:focus-visible{outline:3px solid #a77d40;outline-offset:-3px}
+.academy-module-guide[open] summary{border-bottom:1px solid #dce8df;background:#eef5f0}
+.academy-module-guide .academy-reading{padding:21px 24px;margin:0;max-width:none}
+.academy-module-guide .academy-reading-section{margin-bottom:19px}
+.academy-module-guide h4{font-size:1.05rem;color:#255448;margin:0 0 10px}
+.academy-module-guide p{font-size:.98rem;line-height:1.8;color:#455e56;white-space:pre-wrap}
+.academy-lesson-row:has(#lessonDetail){flex-wrap:wrap;align-items:center;border-bottom:0}
+.academy-lesson-row #lessonDetail{flex-basis:100%;width:100%;margin-top:12px}
+.academy-question button.alt{white-space:normal;text-align:left;line-height:1.48}
+@media(max-width:750px){.academy-module-guide .academy-reading{padding:15px}.academy-lesson-row #lessonDetail{margin-left:0}}
+
 </style></head><body>
 <header class="site-header"><nav class="nav container"><a class="brand" href="/"><span>Care <em>&amp;</em> Stay</span><small>Care for people. Culture for staying.</small></a><a href="/academy/">Academy overview</a></nav></header>
 <main class="academy-wrap"><p class="eyebrow">Stay Culture Leadership Academy</p><h1>My Learning</h1>
@@ -102,5 +116,5 @@
 </section></main>
 <script src="./config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.0/dist/umd/supabase.min.js" defer></script>
-<script src="./app.js?v=20261116-course-design-v2" defer></script>
+<script src="./app.js?v=20261116-deeper-academy" defer></script>
 </body></html>
