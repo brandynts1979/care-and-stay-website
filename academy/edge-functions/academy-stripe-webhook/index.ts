@@ -8,6 +8,10 @@ const respond=(status:number,payload:unknown)=>new Response(JSON.stringify(paylo
 const active=(status:string)=>["active","trialing"].includes(status);
 const subEnd=(s:any)=>s.current_period_end?new Date(s.current_period_end*1000).toISOString():null;
 async function updateLocation(subscription:any){
+ const approvedPrice=env("ACADEMY_STRIPE_PRICE_ID");
+ if(!approvedPrice || !(subscription.items?.data||[]).some((item:any)=>item.price?.id===approvedPrice)){
+   throw new Error("Stripe subscription does not contain the approved Academy price");
+ }
  const locationId=subscription.metadata?.academy_location_id;
  if(!locationId || !/^[0-9a-f-]{36}$/i.test(locationId))throw new Error("Subscription missing Academy location reference");
  const {data:location,error:findError}=await admin.from("academy_locations").select("id,billing_owner_id,stripe_subscription_id").eq("id",locationId).single();
@@ -60,7 +64,7 @@ async function updateLocation(subscription:any){
 Deno.serve(async(req:Request)=>{
  if(req.method!=="POST")return respond(405,{error:"Method not allowed"});
  const sig=req.headers.get("stripe-signature");
- if(!sig||!env("STRIPE_WEBHOOK_SECRET")||!stripe)
+ if(!sig||!env("STRIPE_WEBHOOK_SECRET")||!stripe||!env("ACADEMY_STRIPE_PRICE_ID"))
    return respond(400,{error:"Webhook signature unavailable"});
  let event:Stripe.Event;
  try{
