@@ -1,0 +1,1 @@
+alter table public.academy_modules add column if not exists overview text not null default '';
