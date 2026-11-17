@@ -63,6 +63,43 @@ Deno.serve(async(req:Request)=>{
   const user=await authenticate(req);
   const body=await req.json();
   const action=String(body.action||"");
+  if(action==="demo_status" || action==="activate_demo"){
+    const email=cleanEmail(user.email);
+    const {data:allowed,error:allowError}=await admin.from("academy_demo_authorized")
+       .select("email,enabled,location_id,expires_at").eq("email",email).maybeSingle();
+    if(allowError)throw allowError;
+    if(!allowed?.enabled){
+      if(action==="demo_status")return json(200,{eligible:false,active:false});
+      fail(403,"This is a restricted Care & Stay internal demo");
+    }
+    const stillActive=!!allowed.location_id && !!allowed.expires_at && Date.parse(allowed.expires_at)>Date.now();
+    if(action==="demo_status")return json(200,{eligible:true,active:stillActive,expires_at:allowed.expires_at});
+    if(stillActive){
+      const {data:existingMembership,error:membershipError}=await admin.from("academy_location_members")
+        .select("active").eq("location_id",allowed.location_id).eq("user_id",user.id).maybeSingle();
+      if(membershipError)throw membershipError;
+      if(!existingMembership?.active)fail(403,"This demo was activated by another account");
+      return json(200,{activated:true,already_active:true,expires_at:allowed.expires_at});
+    }
+    if(allowed.location_id)fail(403,"This demo invitation has expired. Contact Care & Stay to renew.");
+    const expires=new Date(Date.now()+30*86400000).toISOString();
+    const {data:loc,error:locError}=await admin.from("academy_locations")
+       .insert({name:"Care & Stay Internal Academy Demo",billing_owner_id:user.id,
+         subscription_status:"active",current_period_end:expires})
+       .select("id").single();
+    if(locError)throw locError;
+    const {error:membershipError}=await admin.from("academy_location_members")
+       .insert({location_id:loc.id,user_id:user.id,role:"owner"});
+    if(membershipError)throw membershipError;
+    const {data:claimed,error:claimError}=await admin.from("academy_demo_authorized")
+       .update({location_id:loc.id,activated_by:user.id,activated_at:new Date().toISOString(),expires_at:expires})
+       .eq("email",email).is("location_id",null).select("email").maybeSingle();
+    if(claimError)throw claimError;
+    if(!claimed)fail(409,"Demo already activated; refresh to see your account");
+    await grant(user.id,loc.id);
+    await admin.from("academy_audit_log").insert({actor_id:user.id,action:"internal_demo_activated",target:loc.id});
+    return json(200,{activated:true,expires_at:expires});
+  }
   if(action==="create_location"){
     const name=String(body.name||"").trim();
     if(name.length<2||name.length>150)fail(400,"Location name required");
