@@ -15,7 +15,7 @@ test('Academy landing route exists and uses HTML5', () => {
   assert.match(page, /<meta name="viewport"/i);
 });
 test('Academy is explicitly described as not yet enrolling', () => {
-  assert.match(page, /Enrollment is not yet open\./i);
+  assert.match(page, /Enrollment is being prepared\./i);
   assert.match(page, /no purchase is available on this page/i);
 });
 test('Academy landing page does not launch payment or account creation', () => {
