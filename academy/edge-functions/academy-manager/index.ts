@@ -2,7 +2,7 @@ import { createClient } from "npm:@supabase/supabase-js@2.57.0";
 import Stripe from "npm:stripe@17.7.0";
 
 const env = (k: string) => Deno.env.get(k) || "";
-const origin = env("ACADEMY_SITE_ORIGIN").replace(/\/$/,"");
+const origin = (env("ACADEMY_SITE_ORIGIN") || "https://mycareandstay.com").replace(/\/$/,"");
 const cors = { "Access-Control-Allow-Origin": origin, "Access-Control-Allow-Methods": "POST, OPTIONS", "Access-Control-Allow-Headers": "authorization, apikey, content-type", "Vary":"Origin" };
 const json = (status:number, data:unknown) => new Response(JSON.stringify(data),{status,headers:{...cors,"Content-Type":"application/json","Cache-Control":"no-store"}});
 const url=env("SUPABASE_URL"), pub=env("SUPABASE_ANON_KEY"), secret=env("SUPABASE_SERVICE_ROLE_KEY");
