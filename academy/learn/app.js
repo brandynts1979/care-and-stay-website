@@ -145,7 +145,7 @@
     try{
       const email=$('email').value.trim(),password=$('password').value;
       if(!email||password.length<8) return show('Enter your email and a password with at least 8 characters.',true);
-      const {error}=await db.auth.signUp({email,password});
+      const {error}=await db.auth.signUp({email,password,options:{emailRedirectTo:location.origin+'/academy/learn/'}});
       if(error)throw error;
       $('password').value='';
       show('Check your email to confirm your account. Course access requires a separately verified enrollment.');
