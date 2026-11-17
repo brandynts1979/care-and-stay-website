@@ -257,11 +257,11 @@
         const trigger=elt('summary','Read the module introduction and guiding questions');
         intro.append(trigger);
         const reading=elt('div',undefined,'academy-reading');
-        for(const block of m.overview.split(/\\n\\n/)){
-          const match=block.match(/^([A-Z][A-Z &–—-]{4,})\\n([\\s\\S]*)$/);
+        for(const block of m.overview.split(/\n\n/)){
+          const match=block.match(/^([A-Z][A-Z &–—-]{4,})\n([\s\S]*)$/);
           if(!match){reading.append(elt('p',block));continue;}
           const section=elt('section',undefined,'academy-reading-section');
-          section.append(elt('h4',match[1].toLowerCase().replace(/\\b[a-z]/g,c=>c.toUpperCase())));
+          section.append(elt('h4',match[1].toLowerCase().replace(/\b[a-z]/g,c=>c.toUpperCase())));
           section.append(elt('p',match[2]));
           reading.append(section);
         }
