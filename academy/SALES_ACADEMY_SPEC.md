@@ -34,3 +34,16 @@ The affirmative, jointly owned appreciative topic is the starting point, not a d
 - Shared appreciative topic: affirmative outcome jointly chosen with each referral partner, respecting choice and independence; referrals may follow genuine value, never be a condition of education.
 
 Required practical outputs: organizational niche statement; personal strengths/knowledge/passions inventory; micro-niche statement and development plan; three in-service outlines; appreciative discovery question bank; joint affirmative topic and co-designed action plan; pipeline experiments measuring meaningful engagement and shared outcomes. Revise discovery scenarios to start with successes and aspirations, not unmet needs. Assess learning through credible differentiation, curiosity, joint ownership and ethical follow-through.
+
+## Unified Stay Culture positioning: Attract. Thrive. Stay.
+Internal Stay Culture (Appreciative Leadership): attract values-aligned talent, help people thrive through strengths, development and belonging, and create conditions in which they freely choose to stay. External Stay Culture (Appreciative Business Development): attract values-aligned referral and business partners, thrive through shared affirmative topics and co-created value, and sustain active, relevant, mutually beneficial relationships. Staying is an outcome of value and trust, never an obligation or restriction on choice. Preserve the existing Seven Pillars as the organizational assessment framework. Teach organizational niche, individual micro-niche and shared appreciative topic as the three foundations of external Stay Culture. Measure partner engagement, relevance, mutual outcomes and relationship continuity alongside appropriate pipeline metrics. In healthcare, preserve patient choice, clinical appropriateness, independent referral decisions and applicable compliance requirements. Future Partnership 360 and Sales Competency 360 are exploratory products, not available features.
+
+## Revised eight-module sequence
+1. Philosophy of Appreciative Business Development and external Stay Culture
+2. Discovering Your Organizational Niche
+3. Developing Your Individual Micro-Niche
+4. Building a Strategic Business Development Pipeline
+5. Appreciative Conversations and Shared Affirmative Topics
+6. Becoming an Educator and Trusted Resource
+7. Experimentation, Innovation and Measuring Growth
+8. Co-Creating and Sustaining Extraordinary Partnerships
