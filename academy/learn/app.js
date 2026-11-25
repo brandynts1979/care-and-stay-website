@@ -116,22 +116,48 @@
           }
           }catch(e){safeError(e);}
         }));
-        item.append(button('View team',async()=>{
-          try{const {members}=await managerRequest('list_members',{location_id:loc.id});
-          let old=item.querySelector('[data-team]');if(old)old.remove();
-          const block=elt('div');block.dataset.team='true';
-          block.append(elt('p',String(members.length)+' associated team members'));
-          for(const member of members){
-            const line=elt('p',member.role+' · '+(member.active?'Active':'Inactive')+' · '+member.user_id.slice(0,8)+'…');
-            if(member.active && member.role!=='owner')line.append(button('Remove access',async()=>{
-              try{await managerRequest('deactivate_member',{location_id:loc.id,user_id:member.user_id});
-              show('Manager access removed from this location.');await loadLocations();}catch(e){safeError(e);}
-            },true));
-            block.append(line);
-          }
-          item.append(block);
+        const viewTeam=async(page=0)=>{
+          try{
+            const {members,has_more}=await managerRequest('list_members',{location_id:loc.id,page});
+            let old=item.querySelector('[data-team]');if(old)old.remove();
+            const block=elt('div');block.dataset.team='true';
+            block.append(elt('h3','Team learning progress'));
+            block.append(elt('p','Page '+String(page+1)+' · '+String(members.length)+' associated team members on this page. Private reflections and scenario responses are not shared.'));
+            for(const member of members){
+              const card=elt('div',undefined,'academy-lesson');
+              card.append(elt('p',member.role.replaceAll('_',' ')+' · '+(member.active?'Active':'Inactive')+' · '+member.user_id.slice(0,8)+'…'));
+              if(member.active){
+                if(!Array.isArray(member.progress))card.append(elt('p','Team progress is not available on this backend version.'));
+                else if(!member.progress.length)card.append(elt('p','No course enrollment recorded.'));
+                else for(const course of member.progress){
+                  const done=Number(course.lessons_completed),total=Number(course.lessons_total);
+                  const summary=course.course_title+' · '+course.status+' · '+done+' of '+total+' published lessons completed';
+                  card.append(elt('p',summary));
+                  if(total>0&&Number.isFinite(done)&&Number.isFinite(total)){
+                    const track=elt('div',undefined,'academy-track');
+                    track.setAttribute('role','progressbar');track.setAttribute('aria-label',course.course_title+' lesson progress');
+                    track.setAttribute('aria-valuemin','0');track.setAttribute('aria-valuemax',String(total));track.setAttribute('aria-valuenow',String(Math.max(0,Math.min(total,done))));
+                    const fill=elt('div',undefined,'academy-track-fill');
+                    fill.style.width=Math.max(0,Math.min(100,done/total*100))+'%';
+                    track.append(fill);card.append(track);
+                  }
+                }
+                const canRemove=loc.role==='owner'?['gm','manager','shift_leader'].includes(member.role):
+                  loc.role==='gm'&&['manager','shift_leader'].includes(member.role);
+                if(canRemove)card.append(button('Remove access',async()=>{
+                  try{await managerRequest('deactivate_member',{location_id:loc.id,user_id:member.user_id});
+                    show('Manager access removed from this location.');await loadLocations();}catch(e){safeError(e);}
+                },true));
+              }
+              block.append(card);
+            }
+            const controls=elt('div',undefined,'academy-actions');
+            if(page>0)controls.append(button('Previous team page',()=>viewTeam(page-1),true));
+            if(has_more)controls.append(button('Next team page',()=>viewTeam(page+1),true));
+            block.append(controls);item.append(block);
           }catch(e){safeError(e);}
-        },true));
+        };
+        item.append(button('View team',()=>viewTeam(),true));
       }
       locationsNode.append(item);
     }
