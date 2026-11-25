@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2.57.0";
 import Stripe from "npm:stripe@17.7.0";
+import { canDeactivateMember, summarizeTeamProgress } from "./member-policy.mjs";
 
 const env = (k: string) => Deno.env.get(k) || "";
 const origin = (env("ACADEMY_SITE_ORIGIN") || "https://mycareandstay.com").replace(/\/$/,"");
@@ -24,6 +25,44 @@ async function permission(userId:string,locationId:string){
  const row=unwrap(await admin.from("academy_location_members").select("role,active").eq("user_id",userId).eq("location_id",locationId).maybeSingle()) as {role:string,active:boolean}|null;
  if(!row||!row.active||!["owner","gm"].includes(row.role))fail(403,"Owner or GM permission required");
  return row!.role;
+}
+// Bounded, deterministic pages. A full page is not evidence that all rows were returned.
+async function readAll(factory:(from:number,to:number)=>PromiseLike<any>):Promise<any[]> {
+ const out:any[]=[]; const size=250;
+ for(let from=0;from<10000;from+=size){
+   const {data,error}=await factory(from,from+size-1);
+   if(error)throw error;
+   const rows=data||[];out.push(...rows);
+   if(rows.length<size)return out;
+ }
+ fail(503,"Team progress is temporarily too large to summarize; contact support.");
+}
+async function byIds(ids:string[],factory:(batch:string[],from:number,to:number)=>PromiseLike<any>):Promise<any[]> {
+ const unique=[...new Set(ids)];
+ const rows:any[]=[];
+ for(let i=0;i<unique.length;i+=50){
+   const batch=unique.slice(i,i+50);
+   rows.push(...await readAll((from,to)=>factory(batch,from,to)));
+ }
+ return rows;
+}
+async function teamProgress(locationId:string,members:any[]){
+ const memberIds=members.filter(m=>m.active).map(m=>m.user_id);
+ const enrollments=await byIds(memberIds,(batch,from,to)=>admin.from("academy_enrollments")
+   .select("id,user_id,location_id,course_id,status").eq("location_id",locationId).in("user_id",batch)
+   .order("id").range(from,to));
+ const courseIds=enrollments.map(e=>e.course_id);
+ const courses=await byIds(courseIds,(batch,from,to)=>admin.from("academy_courses")
+   .select("id,title").in("id",batch).order("id").range(from,to));
+ const modules=await byIds(courseIds,(batch,from,to)=>admin.from("academy_modules")
+   .select("id,course_id").in("course_id",batch).order("id").range(from,to));
+ const lessons=await byIds(modules.map(m=>m.id),(batch,from,to)=>admin.from("academy_lessons")
+   .select("id,module_id,published").in("module_id",batch).eq("published",true).order("id").range(from,to));
+ const progress=await byIds(enrollments.map(e=>e.id),(batch,from,to)=>admin.from("academy_lesson_progress")
+   .select("enrollment_id,lesson_id").in("enrollment_id",batch)
+   .order("enrollment_id").order("lesson_id").range(from,to));
+ // Deliberately never query private reflections, scenario answers, or review narratives.
+ return summarizeTeamProgress(locationId,members,enrollments,courses,modules,lessons,progress);
 }
 async function location(id:string){
  const row=unwrap(await admin.from("academy_locations").select("*").eq("id",id).single()) as any;
@@ -206,20 +245,40 @@ Deno.serve(async(req:Request)=>{
   if(action==="list_members"){
     const id=String(body.location_id||"");if(!uuid(id))fail(400,"Invalid location");
     await permission(user.id,id);
-    const {data,error}=await admin.from("academy_location_members").select("user_id,role,active,added_at").eq("location_id",id).order("added_at");
+    const page=body.page===undefined?0:Number(body.page);
+    if(!Number.isSafeInteger(page)||page<0||page>100000)fail(400,"Invalid team page");
+    const size=25,offset=page*size;
+    const {data,error}=await admin.from("academy_location_members")
+      .select("user_id,role,active,added_at").eq("location_id",id)
+      .order("added_at").order("user_id").range(offset,offset+size);
     if(error)throw error;
-    return json(200,{members:data||[]});
+    const rows=data||[],members=await teamProgress(id,rows.slice(0,size));
+    return json(200,{members,page,has_more:rows.length>size});
   }
   if(action==="deactivate_member"){
     const id=String(body.location_id||""),target=String(body.user_id||"");
     if(!uuid(id)||!uuid(target))fail(400,"Invalid user or location");
-    await permission(user.id,id);
+    const actorRole=await permission(user.id,id);
     const loc=await location(id);
-    if(target===loc.billing_owner_id)fail(403,"Cannot deactivate billing owner");
-    const {error}=await admin.from("academy_location_members").update({active:false}).eq("location_id",id).eq("user_id",target);
-    if(error)throw error;
-    await admin.from("academy_enrollments").update({status:"revoked"}).eq("location_id",id).eq("user_id",target).neq("status","completed");
-    await admin.from("academy_audit_log").insert({actor_id:user.id,action:"member_deactivated",target:id});
+    const {data:member,error:memberError}=await admin.from("academy_location_members")
+      .select("role,active").eq("location_id",id).eq("user_id",target).maybeSingle();
+    if(memberError)throw memberError;
+    if(!member)fail(404,"Team member not found");
+    if(!canDeactivateMember(actorRole,member!.role,target===loc.billing_owner_id))
+      fail(403,"Only an owner may remove a GM; owners cannot be removed here");
+    if(member!.active){
+      const {data:changed,error}=await admin.from("academy_location_members").update({active:false})
+        .eq("location_id",id).eq("user_id",target).eq("role",member!.role).eq("active",true)
+        .select("user_id").maybeSingle();
+      if(error)throw error;
+      if(!changed)fail(409,"Team membership changed; refresh and retry");
+    }
+    // Retry revocation even for an already-inactive member so a partial failure can recover.
+    const {error:revokeError}=await admin.from("academy_enrollments").update({status:"revoked"})
+      .eq("location_id",id).eq("user_id",target).neq("status","completed");
+    if(revokeError)throw revokeError;
+    const {error:auditError}=await admin.from("academy_audit_log").insert({actor_id:user.id,action:"member_deactivated",target:id});
+    if(auditError)throw auditError;
     return json(200,{deactivated:true});
   }
   return json(400,{error:"Unknown action"});
