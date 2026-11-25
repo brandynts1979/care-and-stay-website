@@ -12,7 +12,7 @@ const stripe=env("STRIPE_SECRET_KEY") ? new Stripe(env("STRIPE_SECRET_KEY")) : n
 const active=(status:string)=>["active","trialing"].includes(status);
 const uuid=(s:unknown)=>typeof s==="string" && /^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(s);
 const cleanEmail=(s:unknown)=>String(s||"").trim().toLowerCase();
-const fail=(s:number,m:string):never=>{throw Object.assign(new Error(m),{http:s});};
+function fail(s:number,m:string):never { throw Object.assign(new Error(m),{http:s}); }
 const unwrap=<T>(r:{data:T|null,error:any})=>{if(r.error)throw r.error;return r.data as T;};
 async function authenticate(req:Request){
  const token=(req.headers.get("authorization")||"").replace(/^Bearer\s+/i,"");
