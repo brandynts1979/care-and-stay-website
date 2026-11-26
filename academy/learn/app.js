@@ -233,7 +233,7 @@
     const now=Date.now();
     const eligible=data.filter(e=>['active','completed'].includes(e.status)&&(!e.expires_at||Date.parse(e.expires_at)>now));
     if(!eligible.length){coursesNode.append(elt('p','No active course access is associated with this account. Enrollment and payment activation are managed separately.'));show('Signed in. No active enrollment.');return;}
-    const courses=await read('academy_courses',q=>q.select('id,title,published').in('id',eligible.map(x=>x.course_id)));
+    const courses=await read('academy_courses',q=>q.select('id,slug,title,published').in('id',eligible.map(x=>x.course_id)));
     for(const e of eligible){
       const course=courses.find(c=>c.id===e.course_id && c.published);
       if(!course)continue;
@@ -248,12 +248,14 @@
     lessonsNode.replaceChildren();
     const intro=elt('div',undefined,'academy-course-heading');
     intro.append(elt('p','YOUR LEARNING PATH','academy-overline'),elt('h2',course.title),
-      elt('p','Six modules · 24 lessons · Learn, reflect, and apply at your own pace.','academy-intro'));
+      elt('p','Loading your course…','academy-intro'));
     lessonsNode.append(intro);
     const modules=await read('academy_modules',q=>q.select('id,title,position,overview').eq('course_id',course.id).order('position'));
     const progress=await read('academy_lesson_progress',q=>q.select('lesson_id').eq('enrollment_id',e.id));
     const done=new Set(progress.map(p=>p.lesson_id));
-    const lessons=await read('academy_lessons',q=>q.select('id,module_id,title,body,position').in('module_id',modules.map(m=>m.id)).eq('published',true).order('position'));
+    const lessons=modules.length?await read('academy_lessons',q=>q.select('id,module_id,title,body,position').in('module_id',modules.map(m=>m.id)).eq('published',true).order('position')):[];
+    intro.querySelector('.academy-intro').textContent=modules.length+' '+(modules.length===1?'module':'modules')+' · '+lessons.length+' '+(lessons.length===1?'lesson':'lessons')+' · Learn, reflect, and apply at your own pace.';
+    if(!lessons.length){lessonsNode.append(elt('p','No published lessons are currently available for this course. Contact your Academy administrator if you expect access.'));return;}
     const finished=lessons.filter(l=>done.has(l.id)).length;
     const summary=elt('div',undefined,'academy-progress-summary');
     const head=elt('div',undefined,'academy-progress-top');
@@ -267,7 +269,7 @@
     for(const m of modules){
       const items=lessons.filter(l=>l.module_id===m.id);
       const completed=items.filter(l=>done.has(l.id)).length;
-      const guide=moduleGuides[m.position-1]||['Leadership practice','Explore these lessons.','Apply the learning to your team.'];
+      const guide=(course.slug==='stay-culture-leadership-academy'?moduleGuides[m.position-1]:null)||['Leadership practice','Explore '+m.title.toLowerCase()+'.','Practice the learning objectives in the module introduction.'];
       const card=elt('details',undefined,'academy-module-card');
       if(completed>0&&completed<items.length||m.position===1&&finished===0)card.open=true;
       const header=elt('summary',undefined,'academy-module-header');
