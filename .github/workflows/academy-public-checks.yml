@@ -90,3 +90,8 @@ jobs:
         run: psql -v ON_ERROR_STOP=1 -f academy/database/staged_qsr_member_revocation.sql
       - name: Verify two-location isolation and transactional role-safe revocation
         run: psql -v ON_ERROR_STOP=1 -f tools/academy/exact_location_revocation_smoke.sql
+
+      - name: Apply staged explicit Academy course entitlements
+        run: psql -v ON_ERROR_STOP=1 -f academy/database/staged_academy_course_entitlements.sql
+      - name: Verify versioned entitlement provisioning and expiration
+        run: psql -v ON_ERROR_STOP=1 -f tools/academy/explicit_entitlements_smoke.sql
