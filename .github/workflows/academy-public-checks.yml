@@ -105,3 +105,6 @@ jobs:
         run: psql -v ON_ERROR_STOP=1 -f academy/database/staged_academy_atomic_billing.sql
       - name: Verify duplicate payment events, revision conflict and location isolation
         run: psql -v ON_ERROR_STOP=1 -f tools/academy/atomic_billing_smoke.sql
+
+      - name: Exercise concurrent invitation and billing sessions
+        run: bash tools/academy/concurrent_provisioning_smoke.sh
