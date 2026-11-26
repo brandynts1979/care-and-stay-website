@@ -11,12 +11,13 @@ const subEnd=(s:any,approvedPrice:string)=>{
  if(!values.length||values.some((v:any)=>!Number.isSafeInteger(v)||v<=0))return null;
  return new Date(Math.min(...values)*1000).toISOString();
 };
-async function updateLocation(subscription:Stripe.Subscription,event:Stripe.Event){
+async function updateLocation(subscription:Stripe.Subscription,event:Stripe.Event,session:Stripe.Checkout.Session|null){
  const approvedPrice=env("ACADEMY_STRIPE_PRICE_ID");
- // Resolve linked subscription first; metadata is only the initial binding fallback.
+ // Resolve linked subscriptions first. Initial binding requires recorded paid Checkout, never metadata alone.
  const {data:linked,error:linkError}=await admin.from("academy_locations").select("id,billing_revision,stripe_subscription_id").eq("stripe_subscription_id",subscription.id).maybeSingle();
  if(linkError)throw linkError;
- const locationId=linked?.id||subscription.metadata?.academy_location_id;
+ const locationId=linked?.id||session?.metadata?.academy_location_id;
+ if(!linked&&!session)return false;
  if(!locationId)return false;
  if(!/^[0-9a-f-]{36}$/i.test(locationId))throw new Error("Invalid Academy location reference");
  const {data:loc,error:locError}=await admin.from("academy_locations").select("id,billing_revision,stripe_subscription_id").eq("id",locationId).single();
@@ -31,11 +32,19 @@ async function updateLocation(subscription:Stripe.Subscription,event:Stripe.Even
  }
  const hasPrice=(current.items?.data||[]).some((item:any)=>item.price?.id===approvedPrice);
  const status=!hasPrice||current.status==="incomplete_expired"?"canceled":current.status;
- const {data:result,error}=await admin.rpc("academy_reconcile_subscription_atomic",{
+ const args={
    p_location:locationId,p_revision:loc.billing_revision,p_event_id:event.id,p_event_type:event.type,
    p_subscription:current.id,p_customer:typeof current.customer==="string"?current.customer:current.customer.id,
    p_status:status,p_period_end:subEnd(current,approvedPrice)
- });
+ };
+ let reconciliation;
+ if(!linked){
+   const meta=session!.metadata||{};
+   const sessionCustomer=typeof session!.customer==="string"?session!.customer:session!.customer?.id;
+   if(!sessionCustomer||sessionCustomer!==args.p_customer||session!.client_reference_id!==locationId||!meta.academy_checkout_attempt_id||!meta.academy_owner_id||current.metadata?.academy_checkout_attempt_id!==meta.academy_checkout_attempt_id||current.metadata?.academy_owner_id!==meta.academy_owner_id)throw new Error("Unverified Academy Checkout binding");
+   reconciliation=await admin.rpc("academy_bind_checkout_atomic",{...args,p_attempt:meta.academy_checkout_attempt_id,p_session:session!.id,p_owner:meta.academy_owner_id,p_price:approvedPrice});
+ }else reconciliation=await admin.rpc("academy_reconcile_subscription_atomic",args);
+ const {data:result,error}=reconciliation;
  if(error)throw error;
  if(result!=="applied"&&result!=="duplicate")throw new Error("Academy reconciliation: "+String(result));
  return true;
@@ -56,12 +65,14 @@ Deno.serve(async(req:Request)=>{
   if(lookup)throw lookup;
   if(existing?.processed_at)return respond(200,{received:true,duplicate:true});
   let subscription:Stripe.Subscription|null=null;
+  let checkout:Stripe.Checkout.Session|null=null;
   switch(event.type){
    case "checkout.session.completed":
    case "checkout.session.async_payment_succeeded":{
     const session=event.data.object as Stripe.Checkout.Session;
-    if(session.mode==="subscription"&&session.subscription&&["paid","no_payment_required"].includes(session.payment_status))
-     subscription=await stripe!.subscriptions.retrieve(typeof session.subscription==="string"?session.subscription:session.subscription.id);
+    if(session.mode==="subscription"&&session.subscription&&["paid","no_payment_required"].includes(session.payment_status)){
+     checkout=session;subscription=await stripe!.subscriptions.retrieve(typeof session.subscription==="string"?session.subscription:session.subscription.id);
+    }
     break;
    }
    case "customer.subscription.created":
@@ -76,7 +87,7 @@ Deno.serve(async(req:Request)=>{
     break;
    }
   }
-  if(subscription&&await updateLocation(subscription,event))return respond(200,{received:true});
+  if(subscription&&await updateLocation(subscription,event,checkout))return respond(200,{received:true});
   // A non-Academy or unsupported event must not mutate the enrollment system.
   // Do not claim it was reconciled or consume the event ID before a relevant event is applied.
   return respond(200,{received:true});

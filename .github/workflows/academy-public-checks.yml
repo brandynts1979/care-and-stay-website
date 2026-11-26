@@ -13,6 +13,9 @@ on:
       - 'academy/**'
       - 'tools/academy/**'
       - '.github/workflows/academy-public-checks.yml'
+concurrency:
+  group: academy-public-checks-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   smoke:
     runs-on: ubuntu-latest
@@ -113,3 +116,8 @@ jobs:
         run: psql -v ON_ERROR_STOP=1 -f academy/database/staged_academy_module_media.sql
       - name: Verify media entitlement and nonpublic manifest
         run: psql -v ON_ERROR_STOP=1 -f tools/academy/module_media_smoke.sql
+
+      - name: Install owner-authorized checkout reservations
+        run: psql -v ON_ERROR_STOP=1 -f academy/database/staged_academy_checkout_binding.sql
+      - name: Verify duplicate checkout and first-subscription binding
+        run: psql -v ON_ERROR_STOP=1 -f tools/academy/checkout_binding_smoke.sql

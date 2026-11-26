@@ -173,15 +173,36 @@ Deno.serve(async(req:Request)=>{
     if(env("ACADEMY_BILLING_ENABLED")!=="true")fail(503,"Academy billing is not yet enabled");
     if(!env("ACADEMY_STRIPE_PRICE_ID")||!env("STRIPE_SECRET_KEY"))fail(503,"Billing not configured");
     if(!stripe)fail(503,"Stripe billing is not yet configured");
-    const session=await stripe!.checkout.sessions.create({
-      mode:"subscription",line_items:[{price:env("ACADEMY_STRIPE_PRICE_ID"),quantity:1}],
-      client_reference_id:id,customer_email:user.email,automatic_tax:{enabled:true},
-      billing_address_collection:"required",tax_id_collection:{enabled:true},
-      subscription_data:{metadata:{academy_location_id:id}},
-      metadata:{academy_location_id:id,academy_owner_id:user.id},
-      success_url:origin+"/academy/learn/?checkout=success",
-      cancel_url:origin+"/academy/learn/?checkout=cancel"
-    },{idempotencyKey:"academy-checkout-"+id+"-"+user.id+"-"+Math.floor(Date.now()/300000)});
+    const price=env("ACADEMY_STRIPE_PRICE_ID");
+    const reservation=unwrap(await admin.rpc("academy_reserve_checkout",{p_location:id,p_owner:user.id,p_email:user.email!,p_price:price})) as any;
+    if(reservation?.result==="forbidden")fail(403,"Active billing owner required");
+    if(reservation?.result!=="reserved")fail(409,"Existing or unresolved subscription; use billing portal or contact support");
+    const attempt=reservation.attempt;
+    let session:Stripe.Checkout.Session;
+    if(attempt.stripe_session_id){
+      session=await stripe!.checkout.sessions.retrieve(attempt.stripe_session_id);
+      if(session.status==="expired"){
+        const {error}=await admin.from("academy_checkout_attempts").update({state:"expired"}).eq("id",attempt.id).eq("state","pending").eq("stripe_session_id",session.id);
+        if(error)throw error;
+        fail(409,"Previous Checkout expired. Select Subscribe again.");
+      }
+      if(session.status!=="open")fail(409,"Checkout already submitted; awaiting payment confirmation");
+    }else{
+      // A durable attempt survives request retries. Never reuse an unknown
+      // Stripe idempotency key outside a conservative retry window.
+      if(Date.now()-Date.parse(attempt.created_at)>15*60*1000)fail(409,"Checkout recovery requires support review");
+      const metadata={academy_location_id:id,academy_owner_id:user.id,academy_checkout_attempt_id:attempt.id};
+      session=await stripe!.checkout.sessions.create({
+        mode:"subscription",line_items:[{price:attempt.price_id,quantity:1}],
+        client_reference_id:id,...(attempt.customer_id?{customer:attempt.customer_id}:{customer_email:attempt.owner_email}),
+        automatic_tax:{enabled:true},billing_address_collection:"required",tax_id_collection:{enabled:true},
+        subscription_data:{metadata},metadata,
+        success_url:origin+"/academy/learn/?checkout=success",cancel_url:origin+"/academy/learn/?checkout=cancel"
+      },{idempotencyKey:"academy-checkout-"+attempt.id});
+      const recorded=unwrap(await admin.rpc("academy_record_checkout_session",{p_attempt:attempt.id,p_session:session.id}));
+      if(recorded!==true)fail(409,"Checkout recording failed; contact support");
+    }
+    if(session.status!=="open"||!session.url)fail(409,"Checkout unavailable");
     return json(200,{checkout_url:session.url});
   }
   if(action==="billing_portal"){
