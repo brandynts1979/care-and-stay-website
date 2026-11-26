@@ -26,6 +26,7 @@ insert into public.academy_enrollments(id,user_id,course_id,status,location_id) 
  ('98400000-0000-4000-8000-000000000002','97000000-0000-4000-8000-000000000001','98000000-0000-4000-8000-000000000002','active','98300000-0000-4000-8000-000000000002'),
  ('98400000-0000-4000-8000-000000000003','97000000-0000-4000-8000-000000000001','98000000-0000-4000-8000-000000000003','active','98300000-0000-4000-8000-000000000001');
 DO $$ BEGIN
+ if has_function_privilege('anon','public.academy_learner_available_enrollments()','EXECUTE') or not has_function_privilege('authenticated','public.academy_learner_available_enrollments()','EXECUTE') then raise exception 'Learner RPC privileges incorrect'; end if;
  if has_function_privilege('authenticated','public.academy_entitled_course_ids(uuid)','EXECUTE') or has_function_privilege('anon','public.academy_entitled_course_ids(uuid)','EXECUTE') then raise exception 'Provisioning RPC exposed'; end if;
  if has_table_privilege('authenticated','public.academy_location_course_entitlements','INSERT') or has_table_privilege('authenticated','public.academy_location_course_entitlements','UPDATE') or has_table_privilege('anon','public.academy_location_course_entitlements','SELECT') then raise exception 'Grant administration exposed'; end if;
 END $$;
@@ -40,6 +41,7 @@ RESET ROLE;
 SET LOCAL ROLE authenticated;
 select set_config('request.jwt.claim.sub','97000000-0000-4000-8000-000000000001',true);
 DO $$ BEGIN
+ if (select count(*) from public.academy_learner_available_enrollments())<>1 or not exists(select 1 from public.academy_learner_available_enrollments() where id='98400000-0000-4000-8000-000000000001' and location_name='Fictional A') then raise exception 'Learner selector includes stale or hidden course'; end if;
  if not exists(select 1 from public.academy_courses where slug='fictional-v2-course-ci') then raise exception 'Explicit A enrollment hidden'; end if;
  if exists(select 1 from public.academy_courses where slug='fictional-unpublished-ci') then raise exception 'Unpublished course exposed'; end if;
  insert into public.academy_lesson_progress(enrollment_id,lesson_id) values('98400000-0000-4000-8000-000000000001','98200000-0000-4000-8000-000000000002');
@@ -65,6 +67,7 @@ END $$;
 RESET ROLE;
 SET LOCAL ROLE authenticated;
 DO $$ BEGIN
+ if exists(select 1 from public.academy_learner_available_enrollments()) then raise exception 'Expired course remains selectable'; end if;
  if exists(select 1 from public.academy_courses where slug='fictional-v2-course-ci') then raise exception 'Expired V2 grant still exposes course'; end if;
  if not exists(select 1 from public.academy_lesson_progress where enrollment_id='98400000-0000-4000-8000-000000000001') then raise exception 'Historical progress lost'; end if;
 END $$;
