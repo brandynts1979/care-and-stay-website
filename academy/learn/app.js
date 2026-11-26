@@ -228,16 +228,16 @@
     await loadLocations();await loadInvitations();await loadCourses();await loadReviews();
   }
   async function loadCourses(){
-    const data=await read('academy_enrollments',q=>q.select('id,course_id,status,expires_at').order('created_at',{ascending:false}));
+    const {data,error}=await db.rpc('academy_learner_available_enrollments');
+    if(error)throw error;
     coursesNode.replaceChildren(elt('h2','My courses'));
-    const now=Date.now();
-    const eligible=data.filter(e=>['active','completed'].includes(e.status)&&(!e.expires_at||Date.parse(e.expires_at)>now));
+    const eligible=data||[];
     if(!eligible.length){coursesNode.append(elt('p','No active course access is associated with this account. Enrollment and payment activation are managed separately.'));show('Signed in. No active enrollment.');return;}
     const courses=await read('academy_courses',q=>q.select('id,slug,title,published').in('id',eligible.map(x=>x.course_id)));
     for(const e of eligible){
       const course=courses.find(c=>c.id===e.course_id && c.published);
       if(!course)continue;
-      const item=elt('div',undefined,'academy-lesson');item.append(elt('strong',course.title+' · '+e.status));
+      const item=elt('div',undefined,'academy-lesson');item.append(elt('strong',course.title+' · '+e.location_name+' · '+e.status));
       item.append(button('Open course',()=>loadLessons(e,course).catch(safeError),true));coursesNode.append(item);
     }
     show('Your Academy courses are ready.');
