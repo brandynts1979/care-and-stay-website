@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { normalize, renderRehearsal, summarize } from './curriculum-rehearsal.mjs';
+import { normalize, renderRehearsal, renderStagedImport, summarize } from './curriculum-rehearsal.mjs';
 
 const id = value => '00000000-0000-4000-8000-' + String(value).padStart(12, '0');
 const plan = {
@@ -32,4 +32,14 @@ test('import rehearsal rejects published, draft, mislinked and conflicting row i
   assert.throws(() => normalize({ ...plan, lessons: [{ ...plan.lessons[0], module_id: id(9) }] }), /Unknown lessons parent/);
   assert.throws(() => normalize({ ...plan, lessons: [plan.lessons[0], plan.lessons[0]] }), /Duplicate row identity/);
   assert.throws(() => normalize({ ...plan, lessons: [plan.lessons[0], { ...plan.lessons[1], position: 1 }] }), /Duplicate lessons position/);
+});
+
+test('staging import requires the reviewed digest and writes its receipt in the same transaction', () => {
+  const sha = 'b'.repeat(40);
+  const approved = summarize(plan, sha).sha256;
+  const staged = renderStagedImport(plan, sha, approved, id(35));
+  assert.match(staged, /Academy staging import target mismatch/);
+  assert.match(staged, /curriculum_import_receipts[\s\S]*COMMIT;\n$/);
+  assert.throws(() => renderStagedImport(plan, sha, 'c'.repeat(64), id(35)), /digest mismatch/);
+  assert.throws(() => renderStagedImport(plan, sha, approved, 'production'), /target UUID/);
 });

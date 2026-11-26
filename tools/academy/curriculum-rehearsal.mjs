@@ -70,15 +70,14 @@ export function summarize(plan, sourceCommit) {
   };
 }
 
-export function renderRehearsal(plan) {
-  const rows = normalize(plan);
+function renderImport(rows, gate, finish) {
   const commands = [
     '\\set ON_ERROR_STOP on',
     'BEGIN;',
     'SET LOCAL standard_conforming_strings = on;',
     "SET LOCAL lock_timeout = '5s';",
     "SET LOCAL statement_timeout = '30s';",
-    "DO $$ BEGIN IF current_database() <> 'academy_curriculum_rehearsal' OR to_regclass('public.academy_curriculum_fixture_guard') IS NULL THEN RAISE EXCEPTION 'Disposable Academy curriculum database required'; END IF; END $$;",
+    gate,
   ];
   for (const [table, , fields] of tables) {
     const columns = Object.keys(fields).join(', ');
@@ -90,15 +89,46 @@ export function renderRehearsal(plan) {
       `FROM jsonb_to_recordset(convert_from(decode('${payload}', 'hex'), 'UTF8')::jsonb) AS rows(${types});`,
     );
   }
-  commands.push('ROLLBACK;');
+  commands.push(...finish);
   return commands.join('\n') + '\n';
+}
+
+export function renderRehearsal(plan) {
+  return renderImport(normalize(plan),
+    "DO $$ BEGIN IF current_database() <> 'academy_curriculum_rehearsal' OR to_regclass('public.academy_curriculum_fixture_guard') IS NULL THEN RAISE EXCEPTION 'Disposable Academy curriculum database required'; END IF; END $$;",
+    ['ROLLBACK;']);
+}
+
+export function renderStagedImport(plan, sourceCommit, approvedDigest, targetId) {
+  const summary = summarize(plan, sourceCommit);
+  assert.equal(summary.sha256, approvedDigest, 'Reviewed curriculum digest mismatch');
+  assert.ok(typeof targetId === 'string' && uuid.test(targetId), 'A staging target UUID is required');
+  const rows = normalize(plan);
+  const targetGate = [
+    'DO $$ BEGIN',
+    "  IF NOT EXISTS (SELECT 1 FROM academy_internal.curriculum_staging_target",
+    `    WHERE singleton AND target_id='${targetId}'::uuid) THEN`,
+    "    RAISE EXCEPTION 'Academy staging import target mismatch';",
+    '  END IF;',
+    'END $$;',
+  ].join('\n');
+  const receipt = 'INSERT INTO academy_internal.curriculum_import_receipts(course_id, source_commit, content_sha256) ' +
+    `VALUES ('${rows.courses[0].id}'::uuid, '${sourceCommit}', '${summary.sha256}');`;
+  return renderImport(rows, targetGate, [receipt, 'COMMIT;']);
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const [mode, filename, sourceCommit, ...extra] = process.argv.slice(2);
-  assert.ok(filename && sourceCommit && !extra.length && ['summary', 'sql'].includes(mode),
-    'Usage: curriculum-rehearsal.mjs <summary|sql> <private-plan.json> <source-commit>');
+  assert.ok(filename && sourceCommit && (
+    (['summary', 'sql'].includes(mode) && extra.length === 0) ||
+    (mode === 'stage' && extra.length === 2)
+  ), 'Usage: curriculum-rehearsal.mjs <summary|sql|stage> <private-plan.json> <source-commit> [<approved-digest> <staging-target-uuid>]');
+
   const plan = JSON.parse(readFileSync(filename, 'utf8'));
-  const summary = summarize(plan, sourceCommit);
-  process.stdout.write(mode === 'sql' ? renderRehearsal(plan) : JSON.stringify(summary, null, 2) + '\n');
+  if (mode === 'stage') {
+    process.stdout.write(renderStagedImport(plan, sourceCommit, ...extra));
+  } else {
+    const summary = summarize(plan, sourceCommit);
+    process.stdout.write(mode === 'sql' ? renderRehearsal(plan) : JSON.stringify(summary, null, 2) + '\n');
+  }
 }
