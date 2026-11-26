@@ -92,8 +92,27 @@ BEGIN
     raise exception 'Worksheet accepted a non-text answer';
   exception when insufficient_privilege then null; end;
 END $$;
+DO $$ BEGIN
+ if exists(select 1 from public.academy_my_completion_certificate('98400000-0000-4000-8000-000000000001'))
+ then raise exception 'Active course yielded a certificate'; end if;
+END $$;
+RESET ROLE;
+update public.academy_enrollments set status='completed' where id in
+ ('98400000-0000-4000-8000-000000000001','98400000-0000-4000-8000-000000000002');
+insert into public.academy_graduations(enrollment_id,approved_by) values
+ ('98400000-0000-4000-8000-000000000001','97000000-0000-4000-8000-000000000002'),
+ ('98400000-0000-4000-8000-000000000002','97000000-0000-4000-8000-000000000002');
+SET LOCAL ROLE authenticated;
+DO $$ BEGIN
+ if (select course_title from public.academy_my_completion_certificate('98400000-0000-4000-8000-000000000001'))
+    is distinct from 'New version CI' then raise exception 'Own approved certificate unavailable'; end if;
+ if exists(select 1 from public.academy_my_completion_certificate('98400000-0000-4000-8000-000000000002'))
+ then raise exception 'Certificate allowed across location entitlement'; end if;
+END $$;
 select set_config('request.jwt.claim.sub','97000000-0000-4000-8000-000000000002',true);
 DO $$ BEGIN
+ if exists(select 1 from public.academy_my_completion_certificate('98400000-0000-4000-8000-000000000001'))
+ then raise exception 'Other user read certificate'; end if;
  if exists(select 1 from public.academy_worksheet_responses) then
    raise exception 'GM or assigned reviewer accessed a private worksheet';
  end if;
@@ -109,6 +128,8 @@ RESET ROLE;
 SET LOCAL ROLE authenticated;
 DO $$ BEGIN
  if exists(select 1 from public.academy_learner_available_enrollments()) then raise exception 'Expired course remains selectable'; end if;
+ if exists(select 1 from public.academy_my_completion_certificate('98400000-0000-4000-8000-000000000001'))
+ then raise exception 'Expired grant exposed certificate'; end if;
  if exists(select 1 from public.academy_worksheet_responses) then raise exception 'Expired grant exposed private worksheet'; end if;
  if exists(select 1 from public.academy_courses where slug='fictional-v2-course-ci') then raise exception 'Expired V2 grant still exposes course'; end if;
  if not exists(select 1 from public.academy_lesson_progress where enrollment_id='98400000-0000-4000-8000-000000000001') then raise exception 'Historical progress lost'; end if;

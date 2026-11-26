@@ -296,6 +296,39 @@
     show('Your Academy courses are ready.');
   }
   const moduleGuides=[["Discover strengths","Recognize the conditions that make this team effective.","Identify specific successes and design an appreciative improvement experiment."],["Lead authentically","Make values, service and healthy boundaries visible in daily work.","Practice credible, fair decisions that combine care and accountability."],["Build belonging","Create trust, psychological safety and reasons employees choose to stay.","Listen to employees and turn insight into meaningful action."],["Coach for growth","Use curiosity, feedback and delegation to develop people.","Guide development conversations and create visible growth opportunities."],["Transform conflict","Respond to tension with courage, empathy and accountability.","Navigate a difficult conversation and develop a constructive agreement."],["Sustain the culture","Build practical leadership routines and evidence of improvement.","Create a 30/60/90-day leadership plan that can be measured and sustained."]];
+  async function downloadCertificate(enrollmentId, current) {
+    if (!current()) return;
+    const {data, error} = await db.rpc('academy_my_completion_certificate', {p_enrollment: enrollmentId});
+    if (!current()) return;
+    if (error) throw error;
+    const certificate = data?.[0];
+    if (!certificate) {
+      show('An approved completion certificate is unavailable for this enrollment.');
+      return;
+    }
+
+    const page = document.implementation.createHTMLDocument('Academy certificate of completion');
+    page.documentElement.lang = 'en';
+    const style = page.createElement('style');
+    style.textContent = 'body{font:18px Georgia,serif;color:#16342d;line-height:1.5;margin:10vh auto;text-align:center;max-width:650px;padding:2rem}h1{margin-top:2rem}strong{font-size:1.4rem}@media print{body{margin:2rem auto}}';
+    page.head.append(style);
+    page.body.append(
+      elt('p', 'Care & Stay Academy'),
+      elt('h1', 'Certificate of completion'),
+      elt('p', 'Awarded to'),
+      elt('strong', user.email || user.id),
+      elt('p', 'For completing ' + certificate.course_title),
+      elt('p', 'Awarded ' + new Intl.DateTimeFormat(undefined, {dateStyle: 'long', timeZone: 'UTC'})
+        .format(new Date(certificate.awarded_at))),
+    );
+    const url = URL.createObjectURL(new Blob(['<!doctype html>', page.documentElement.outerHTML], {type: 'text/html'}));
+    const link = elt('a');
+    link.href = url;
+    link.download = 'academy-certificate-of-completion.html';
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    show('Certificate downloaded. Open the file to print or save it as a PDF.');
+  }
   async function loadLessons(e,course){
     if(!user||recovering)return;
     clearModulePlayers();const epoch=mediaEpoch;
@@ -328,6 +361,13 @@
     track.setAttribute('aria-valuemax',String(lessons.length));track.setAttribute('aria-valuenow',String(finished));track.setAttribute('aria-label','Course progress');
     const fill=elt('div',undefined,'academy-track-fill');fill.style.width=(lessons.length?100*finished/lessons.length:0)+'%';
     track.append(fill);summary.append(head,track);lessonsNode.append(summary);
+    if (e.status === 'completed') {
+      const current = () => epoch === mediaEpoch && enrollment?.id === e.id && !!user && !recovering;
+      summary.append(button('Download completion certificate', async () => {
+        try { await downloadCertificate(e.id, current); }
+        catch { if (current()) show('Could not retrieve your certificate. Please retry.', true); }
+      }, true));
+    }
     const cards=elt('div',undefined,'academy-modules');
     for(const m of modules){
       const items=lessons.filter(l=>l.module_id===m.id);

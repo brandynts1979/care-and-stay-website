@@ -90,3 +90,11 @@ The lesson screen supports versioned private text worksheets attached to publish
 ### Commercial decision before checkout
 
 The staged learner UI contains a generic $199/month label. The founding partner delivery pack describes a separate $99/location/month offer plus applicable tax. Keep checkout disabled until the operator confirms which offer the staged flow serves and verifies the approved Stripe price, checkout display, tax and provisions against that offer. The current Academy checkout covers Academy entitlements. The three-product founding partner bundle requires its own coordinated provisioning evidence.
+
+### Certificate and assessment checkpoint
+
+Apply `staged_academy_certificates.sql` after the graduation gate and course entitlements. The learner can download a printable HTML certificate while the exact completed enrollment is eligible and has a trusted graduation record. It uses the signed-in account email as the recipient and carries no public verification link. Disposable PostgreSQL verified approved retrieval and denial for active-only, other-user, other-location and expired entitlements. Confirm learner-facing display name, post-expiry access and hosted print/download before commercial rollout.
+
+The Appreciative Business Development workspace specifies consented individual developmental summaries and a versioned Sales 360 competency mapping. Obtain the published competency IDs, consent and revocation contract, exact organization and identity mapping, and approved course-module crosswalk before integrating real assessment data. Keep raw rater responses out of Academy and organizational aggregates out of individual recommendations. The AQI workspace proposes aggregate-only agency exchanges and separate approval for any future Academy linkage.
+
+Read-only hosted discovery found zero Supabase development branches on the Academy project. The other named projects serve existing products. Continue with an authorized isolated Academy target when available.

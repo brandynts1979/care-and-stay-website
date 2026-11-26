@@ -101,7 +101,10 @@ jobs:
       - name: Install versioned private worksheets
         run: psql -v ON_ERROR_STOP=1 -f academy/database/staged_academy_worksheets.sql
 
-      - name: Verify versioned entitlements and private worksheets
+      - name: Install private completion certificates
+        run: psql -v ON_ERROR_STOP=1 -f academy/database/staged_academy_certificates.sql
+
+      - name: Verify versioned entitlements, private worksheets and certificates
         run: psql -v ON_ERROR_STOP=1 -f tools/academy/explicit_entitlements_smoke.sql
 
       - name: Apply staged atomic invitation and member grant functions
