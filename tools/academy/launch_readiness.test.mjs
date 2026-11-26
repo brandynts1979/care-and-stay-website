@@ -24,19 +24,22 @@ test('webhook fails closed unless approved Academy price is present',()=>{
  assert.match(webhook,/subscription\.items\?\.data/);
  assert.match(webhook,/academy_billing_events/);
 });
-test('invitation acceptance checks email, subscription and inviter role',()=>{
- assert.match(manager,/cleanEmail\(invite\.invited_email\)/);
- assert.match(manager,/inviter\.data\?\.active/);
- assert.match(manager,/Location billing inactive/);
+test('invitation acceptance uses verified server identity and transactional checks',()=>{
+ assert.match(manager,/rpc\("academy_accept_invitation_atomic"/);
+ assert.match(manager,/p_user:user.id,p_verified_email:cleanEmail\(user.email\)/);
+ const sql=readFileSync('academy/database/staged_academy_atomic_invites.sql','utf8');
+ assert.match(sql,/lower\(trim\(p_verified_email\)\)<>inv.invited_email/);
+ assert.match(sql,/inviter_role not in \('owner','gm'\)/);
+ assert.match(sql,/for update/);
+ assert.match(sql,/already_joined/);
 });
-
-test('legacy billing and invitations use the service-only location entitlement resolver',()=>{
- for(const code of [manager,webhook]){
-  assert.match(code,/rpc\("academy_entitled_course_ids",\{p_location:locationId\}\)/);
-  assert.doesNotMatch(code,/from\("academy_courses"\)\.select\("id"\)\.eq\("published",true\)/);
-  assert.match(code,/Approved Academy course unavailable/);
- }
+test('legacy billing and invitations resolve only entitled courses',()=>{
  const sql=readFileSync('academy/database/staged_academy_course_entitlements.sql','utf8');
+ const grants=readFileSync('academy/database/staged_academy_atomic_invites.sql','utf8');
+ assert.match(manager,/rpc\("academy_grant_member_atomic"/);
+ assert.match(grants,/academy_entitled_course_ids\(p_location\)/);
+ assert.match(webhook,/rpc\("academy_entitled_course_ids",\{p_location:locationId\}\)/);
+ assert.doesNotMatch(manager+webhook,/from\("academy_courses"\)\.select\("id"\)\.eq\("published",true\)/);
  assert.match(sql,/c\.slug='stay-culture-leadership-academy' or exists/);
  assert.match(sql,/g\.location_id=loc\.id and g\.course_id=c\.id and g\.active/);
 });
