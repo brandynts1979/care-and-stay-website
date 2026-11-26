@@ -218,9 +218,9 @@
   });
   // No vendor or permanent file URLs in the public JavaScript. A short-lived
   // playback URL is requested on a deliberate learner action, not during listing.
-  let mediaEpoch=0,authEpoch=0;
+  let mediaEpoch=0,authEpoch=0,lessonEpoch=0;
   function clearModulePlayers(){
-    mediaEpoch++;
+    mediaEpoch++;lessonEpoch++;
     for(const video of lessonsNode.querySelectorAll('video')){
       video.pause();video.removeAttribute('src');video.load();
     }
@@ -367,8 +367,10 @@
         const copy=elt('div');copy.append(elt('strong',lesson.title),elt('small','Lesson '+lesson.position+' · Learn · Reflect · Apply'));
         label.append(copy);
         row.append(label,button(done.has(lesson.id)?'Review lesson':'Study lesson',async()=>{
-          try{await openLesson(lesson,done.has(lesson.id),row);}
-          catch(err){safeError(err);detail.append(elt('p','Unable to load this lesson. '+(err?.message||'Please retry.'),'academy-error'));}
+          if(epoch!==mediaEpoch||enrollment?.id!==e.id||!user||recovering)return;
+          const request=++lessonEpoch;
+          try{await openLesson(lesson,done.has(lesson.id),row,e.id,request);}
+          catch(err){if(request===lessonEpoch&&enrollment?.id===e.id&&user&&!recovering){safeError(err);detail.append(elt('p','Unable to load this lesson. '+(err?.message||'Please retry.'),'academy-error'));}}
         },true));
         list.append(row);
       }
@@ -376,7 +378,9 @@
     }
     lessonsNode.append(cards);
   }
-  async function openLesson(l,completed,clickedRow){
+  async function openLesson(l,completed,clickedRow,enrollmentId,request){
+    const current=()=>request===lessonEpoch&&enrollment?.id===enrollmentId&&!!user&&!recovering&&clickedRow.isConnected;
+    if(!current())return;
     // Keep the lesson directly next to the Study lesson button rather than after all 24 lessons.
     // The previous placement looked like a nonresponsive button, especially on mobile.
     clickedRow.append(detail);
@@ -396,10 +400,12 @@
     }
     detail.replaceChildren(header,reading);
     const scenarios=await read('academy_scenarios',q=>q.select('id,prompt,position').eq('lesson_id',l.id).order('position'));
+    if(!current())return;
     for(const scenario of scenarios){
       const box=elt('section',undefined,'academy-question');
       box.append(elt('strong',scenario.prompt));
       const choices=await read('academy_choices',q=>q.select('id,choice_text,feedback,position').eq('scenario_id',scenario.id).order('position'));
+    if(!current())return;
       const feedback=elt('p');feedback.setAttribute('aria-live','polite');
       choices.forEach(ch=>{
         const b=button(ch.choice_text,()=>{feedback.textContent=ch.feedback;},true);
@@ -407,7 +413,8 @@
       });
       box.append(feedback);detail.append(box);
     }
-    const notes=await read('academy_private_reflections',q=>q.select('body').eq('enrollment_id',enrollment.id).eq('lesson_id',l.id));
+    const notes=await read('academy_private_reflections',q=>q.select('body').eq('enrollment_id',enrollmentId).eq('lesson_id',l.id));
+    if(!current())return;
     const reflectionSection=elt('section',undefined,'academy-question');
     reflectionSection.append(elt('h3','Private reflection — just for you'));
     reflectionSection.append(elt('p','Use this space for your own thoughts, questions, and learning. It is not shared with a GM, manager, or reviewer.'));
@@ -419,19 +426,22 @@
     reflectionStatus.setAttribute('role','status');reflectionStatus.setAttribute('aria-live','polite');
     input.addEventListener('input',()=>{reflectionStatus.textContent='Unsaved changes';reflectionStatus.classList.remove('academy-error');});
     const reflectionSave=button('Save private reflection',async()=>{
+      if(!current())return;
       reflectionSave.disabled=true;reflectionStatus.textContent='Saving…';reflectionStatus.classList.remove('academy-error');
       try{
-        const {error}=await db.from('academy_private_reflections').upsert({enrollment_id:enrollment.id,lesson_id:l.id,body:input.value,modified_at:new Date().toISOString()},{onConflict:'enrollment_id,lesson_id'});
+        const {error}=await db.from('academy_private_reflections').upsert({enrollment_id:enrollmentId,lesson_id:l.id,body:input.value,modified_at:new Date().toISOString()},{onConflict:'enrollment_id,lesson_id'});
+        if(!current())return;
         if(error)throw error;
         reflectionStatus.textContent='✓ Private reflection saved successfully.';
         show('Private reflection saved.');
-      }catch(e){reflectionStatus.textContent='Could not save reflection: '+(e?.message||'Please retry.');reflectionStatus.classList.add('academy-error');safeError(e);}
+      }catch(e){if(!current())return;reflectionStatus.textContent='Could not save reflection: '+(e?.message||'Please retry.');reflectionStatus.classList.add('academy-error');safeError(e);}
       finally{reflectionSave.disabled=false;}
     });
     reflectionSection.append(reflectionSave,reflectionStatus);
     detail.append(reflectionSection);
 
-    const existing=await read('academy_submissions',q=>q.select('body').eq('enrollment_id',enrollment.id).eq('lesson_id',l.id));
+    const existing=await read('academy_submissions',q=>q.select('body').eq('enrollment_id',enrollmentId).eq('lesson_id',l.id));
+    if(!current())return;
     const practiceSection=elt('section',undefined,'academy-question');
     practiceSection.append(elt('h3','Put it into practice — evidence for feedback'));
     practiceSection.append(elt('p','This is different from your private reflection. Try the activity at work, then describe what you did, what happened, and what you learned. Your submission can be reviewed by someone specifically assigned to support your development.'));
@@ -446,24 +456,28 @@
     practiceStatus.setAttribute('role','status');practiceStatus.setAttribute('aria-live','polite');
     submission.addEventListener('input',()=>{practiceStatus.textContent=existing.length?'Edited, not yet shared':'Not yet shared';practiceStatus.classList.remove('academy-error');});
     const practiceSave=button(existing.length?'Update shared practice submission':'Share practice for review',async()=>{
+      if(!current())return;
       if(!submission.value.trim()){practiceStatus.textContent='Please describe an action you tried before sharing.';practiceStatus.classList.add('academy-error');return;}
       practiceSave.disabled=true;practiceStatus.textContent='Sharing…';practiceStatus.classList.remove('academy-error');
       try{
-        const {error}=await db.from('academy_submissions').upsert({enrollment_id:enrollment.id,lesson_id:l.id,body:submission.value},{onConflict:'enrollment_id,lesson_id'});
+        const {error}=await db.from('academy_submissions').upsert({enrollment_id:enrollmentId,lesson_id:l.id,body:submission.value},{onConflict:'enrollment_id,lesson_id'});
+        if(!current())return;
         if(error)throw error;
         practiceStatus.textContent='✓ Practice submission saved and available to your assigned reviewer.';
         practiceSave.textContent='Update shared practice submission';
         show('Practice submission saved.');
-      }catch(e){practiceStatus.textContent='Could not share practice: '+(e?.message||'Please retry.');practiceStatus.classList.add('academy-error');safeError(e);}
+      }catch(e){if(!current())return;practiceStatus.textContent='Could not share practice: '+(e?.message||'Please retry.');practiceStatus.classList.add('academy-error');safeError(e);}
       finally{practiceSave.disabled=false;}
     });
     practiceSection.append(practiceSave,practiceStatus);
     detail.append(practiceSection);
     detail.append(button(completed?'Completed ✓':'Mark lesson complete',async()=>{
+      if(!current())return;
       try{
-        const {error}=await db.from('academy_lesson_progress').upsert({enrollment_id:enrollment.id,lesson_id:l.id},{onConflict:'enrollment_id,lesson_id'});
+        const {error}=await db.from('academy_lesson_progress').upsert({enrollment_id:enrollmentId,lesson_id:l.id},{onConflict:'enrollment_id,lesson_id'});
+        if(!current())return;
         if(error)throw error;show('Lesson progress saved.');
-      }catch(e){safeError(e);}
+      }catch(e){if(current())safeError(e);}
     },true));
   }
   async function loadReviews(){
