@@ -29,3 +29,20 @@ test('invitation acceptance checks email, subscription and inviter role',()=>{
  assert.match(manager,/inviter\.data\?\.active/);
  assert.match(manager,/Location billing inactive/);
 });
+
+test('legacy billing and invitations never automatically grant new published courses',()=>{
+ for(const code of [manager,webhook]){
+  assert.match(code,/\.eq\("slug","stay-culture-leadership-academy"\)\.eq\("published",true\)/);
+  assert.doesNotMatch(code,/from\("academy_courses"\)\.select\("id"\)\.eq\("published",true\)/);
+  assert.match(code,/Approved Academy course unavailable/);
+ }
+});
+test('course rendering uses actual module and lesson counts rather than assuming six modules',()=>{
+ const app=readFileSync('academy/learn/app.js','utf8');
+ assert.match(app,/select\('id,slug,title,published'\)/);
+ assert.match(app,/modules\.length\+' '\+/);
+ assert.match(app,/lessons\.length\+' '\+/);
+ assert.doesNotMatch(app,/Six modules · 24 lessons/);
+ assert.match(app,/course\.slug==='stay-culture-leadership-academy'/);
+ assert.match(app,/No published lessons are currently available/);
+});
