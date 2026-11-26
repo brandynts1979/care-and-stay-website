@@ -21,7 +21,7 @@ test('authenticated checkout requires server billing release switch',()=>{
 test('webhook fails closed unless approved Academy price is present',()=>{
  assert.match(webhook,/constructEventAsync/);
  assert.match(webhook,/approvedPrice/);
- assert.match(webhook,/subscription\.items\?\.data/);
+ assert.match(webhook,/current\.items\?\.data/);
  assert.match(webhook,/academy_billing_events/);
 });
 test('invitation acceptance uses verified server identity and transactional checks',()=>{
@@ -38,7 +38,11 @@ test('legacy billing and invitations resolve only entitled courses',()=>{
  const grants=readFileSync('academy/database/staged_academy_atomic_invites.sql','utf8');
  assert.match(manager,/rpc\("academy_grant_member_atomic"/);
  assert.match(grants,/academy_entitled_course_ids\(p_location\)/);
- assert.match(webhook,/rpc\("academy_entitled_course_ids",\{p_location:locationId\}\)/);
+ assert.match(webhook,/rpc\("academy_reconcile_subscription_atomic"/);
+ const billing=readFileSync('academy/database/staged_academy_atomic_billing.sql','utf8');
+ assert.match(billing,/academy_entitled_course_ids\(p_location\)/);
+ assert.match(billing,/loc.billing_revision<>p_revision/);
+ assert.match(billing,/processed_at=now\(\)/);
  assert.doesNotMatch(manager+webhook,/from\("academy_courses"\)\.select\("id"\)\.eq\("published",true\)/);
  assert.match(sql,/c\.slug='stay-culture-leadership-academy' or exists/);
  assert.match(sql,/g\.location_id=loc\.id and g\.course_id=c\.id and g\.active/);
