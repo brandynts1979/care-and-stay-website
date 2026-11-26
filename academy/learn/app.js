@@ -369,7 +369,7 @@
         row.append(label,button(done.has(lesson.id)?'Review lesson':'Study lesson',async()=>{
           if(epoch!==mediaEpoch||enrollment?.id!==e.id||!user||recovering)return;
           const request=++lessonEpoch;
-          try{await openLesson(lesson,done.has(lesson.id),row,e.id,request);}
+          try{await openLesson(lesson,done.has(lesson.id),row,e.id,request,course.slug);}
           catch(err){if(request===lessonEpoch&&enrollment?.id===e.id&&user&&!recovering){safeError(err);detail.append(elt('p','Unable to load this lesson. '+(err?.message||'Please retry.'),'academy-error'));}}
         },true));
         list.append(row);
@@ -378,7 +378,54 @@
     }
     lessonsNode.append(cards);
   }
-  async function openLesson(l,completed,clickedRow,enrollmentId,request){
+  async function loadWorksheets(lessonId, enrollmentId, current) {
+    const templates = await read('academy_worksheet_templates', q =>
+      q.select('id,title,prompts,version').eq('lesson_id', lessonId).order('title'));
+    if (!current() || !templates.length) return;
+    const responses = await read('academy_worksheet_responses', q =>
+      q.select('template_id,answers').eq('enrollment_id', enrollmentId).in('template_id', templates.map(t => t.id)));
+    if (!current()) return;
+    for (const template of templates) {
+      const saved = responses.find(response => response.template_id === template.id)?.answers || {};
+      const section = elt('section', undefined, 'academy-question');
+      section.append(elt('h3', template.title));
+      section.append(elt('p', 'Your answers are private. Use fictional or de-identified examples.'));
+      const status = elt('p', '', 'academy-save-status');
+      status.setAttribute('role', 'status');
+      const inputs = template.prompts.map((prompt, index) => {
+        const label = elt('label', prompt);
+        const input = elt('textarea', undefined, 'academy-input');
+        input.maxLength = 2000;
+        input.rows = 3;
+        input.value = saved[String(index + 1)] || '';
+        label.append(input);
+        section.append(label);
+        return input;
+      });
+      const save = button('Save private worksheet', async () => {
+        if (!current()) return;
+        save.disabled = true;
+        inputs.forEach(input => { input.disabled = true; });
+        status.textContent = 'Saving…';
+        try {
+          const answers = Object.fromEntries(inputs.map((input, index) => [String(index + 1), input.value]));
+          const {error} = await db.rpc('academy_save_worksheet', {
+            p_enrollment: enrollmentId, p_template: template.id, p_answers: answers,
+          });
+          if (error) throw error;
+          if (current()) status.textContent = 'Private worksheet saved.';
+        } catch {
+          if (current()) status.textContent = 'Could not save your worksheet. Please retry.';
+        } finally {
+          save.disabled = false;
+          inputs.forEach(input => { input.disabled = false; });
+        }
+      });
+      section.append(save, status);
+      detail.append(section);
+    }
+  }
+  async function openLesson(l,completed,clickedRow,enrollmentId,request,courseSlug){
     const current=()=>request===lessonEpoch&&enrollment?.id===enrollmentId&&!!user&&!recovering&&clickedRow.isConnected;
     if(!current())return;
     // Keep the lesson directly next to the Study lesson button rather than after all 24 lessons.
@@ -471,6 +518,14 @@
     });
     practiceSection.append(practiceSave,practiceStatus);
     detail.append(practiceSection);
+    if (courseSlug !== 'stay-culture-leadership-academy') {
+      try {
+        await loadWorksheets(l.id, enrollmentId, current);
+      } catch {
+        if (current()) detail.append(elt('p', 'Private worksheets are temporarily unavailable.'));
+      }
+      if (!current()) return;
+    }
     detail.append(button(completed?'Completed ✓':'Mark lesson complete',async()=>{
       if(!current())return;
       try{

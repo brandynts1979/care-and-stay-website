@@ -98,7 +98,10 @@ jobs:
 
       - name: Apply staged explicit Academy course entitlements
         run: psql -v ON_ERROR_STOP=1 -f academy/database/staged_academy_course_entitlements.sql
-      - name: Verify versioned entitlement provisioning and expiration
+      - name: Install versioned private worksheets
+        run: psql -v ON_ERROR_STOP=1 -f academy/database/staged_academy_worksheets.sql
+
+      - name: Verify versioned entitlements and private worksheets
         run: psql -v ON_ERROR_STOP=1 -f tools/academy/explicit_entitlements_smoke.sql
 
       - name: Apply staged atomic invitation and member grant functions
