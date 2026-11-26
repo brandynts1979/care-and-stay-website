@@ -10,7 +10,7 @@ create function public.academy_reconcile_subscription_atomic(
 declare loc public.academy_locations%rowtype;
  event_done timestamptz; is_active boolean; course_count integer;
 begin
- if p_event_id is null or p_event_type is null or p_subscription is null or p_customer is null
+ if p_revision is null or p_revision<0 or p_event_id is null or p_event_type is null or p_subscription is null or p_customer is null
     or p_status is null or p_status not in ('trialing','active','past_due','canceled','unpaid','incomplete','paused')
  then return 'invalid'; end if;
  select * into loc from public.academy_locations where id=p_location for update;
