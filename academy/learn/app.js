@@ -218,13 +218,19 @@
   });
   // No vendor or permanent file URLs in the public JavaScript. A short-lived
   // playback URL is requested on a deliberate learner action, not during listing.
-  let mediaEpoch=0;
+  let mediaEpoch=0,authEpoch=0;
   function clearModulePlayers(){
     mediaEpoch++;
     for(const video of lessonsNode.querySelectorAll('video')){
       video.pause();video.removeAttribute('src');video.load();
     }
     for(const node of lessonsNode.querySelectorAll('.academy-media-player'))node.replaceChildren();
+  }
+  function invalidateLearningSession(){
+    authEpoch++;clearModulePlayers();enrollment=null;user=null;
+    hidden(detail,true);hidden(lessonsNode,true);
+    detail.replaceChildren();lessonsNode.replaceChildren();coursesNode.replaceChildren();reviewsNode.replaceChildren();
+    locationsNode.replaceChildren();invitationsNode.replaceChildren();
   }
   function moduleVideoCard(m,e,metadata,epoch){
     const section=elt('section',undefined,'academy-module-video');
@@ -236,11 +242,11 @@
     const holder=elt('div',undefined,'academy-media-player');
     const status=elt('p','','academy-media-meta');status.setAttribute('role','status');
     const play=button('Watch module video',async()=>{
-      if(epoch!==mediaEpoch||enrollment?.id!==e.id||!user)return;
+      if(epoch!==mediaEpoch||enrollment?.id!==e.id||!user||recovering)return;
       play.disabled=true;status.textContent='Preparing secure playback…';
       try{
         const data=await managerRequest('play_module_media',{enrollment_id:e.id,module_id:m.id});
-        if(epoch!==mediaEpoch||enrollment?.id!==e.id||!user||!section.isConnected)return;
+        if(epoch!==mediaEpoch||enrollment?.id!==e.id||!user||recovering||!section.isConnected)return;
         const url=new URL(data?.url);
         if(url.protocol!=='https:'||url.origin!==new URL(cfg.supabaseUrl).origin||
           !url.pathname.startsWith('/storage/v1/object/sign/academy-module-media/')||!url.searchParams.get('token'))throw Error('Unexpected playback URL');
@@ -258,16 +264,21 @@
     return section;
   }
   async function refresh(){
+    invalidateLearningSession();const authRequest=authEpoch;
+    hidden(memberPanel,true);
     const {data:{user:next},error}=await db.auth.getUser();
+    if(authRequest!==authEpoch)return;
     if(error && error.name!=='AuthSessionMissingError')throw error;
     user=next||null;
     hidden(authPanel,!!user || recovering);hidden(memberPanel,!user || recovering);hidden($('recoveryPanel'),!recovering);
-    clearModulePlayers();enrollment=null;
-    hidden(detail,true);hidden(lessonsNode,true);
+    if(recovering)return;
     if(!user){show('Sign in to access an active Academy enrollment.');return;}
     $('userLabel').textContent=user.email||'Signed in';
     show('Signed in securely. Loading your enrollment…');
-    await loadLocations();await loadInvitations();await loadCourses();await loadReviews();
+    await loadLocations();if(authRequest!==authEpoch)return;
+    await loadInvitations();if(authRequest!==authEpoch)return;
+    await loadCourses();if(authRequest!==authEpoch)return;
+    await loadReviews();
   }
   async function loadCourses(){
     const {data,error}=await db.rpc('academy_learner_available_enrollments');
@@ -286,6 +297,7 @@
   }
   const moduleGuides=[["Discover strengths","Recognize the conditions that make this team effective.","Identify specific successes and design an appreciative improvement experiment."],["Lead authentically","Make values, service and healthy boundaries visible in daily work.","Practice credible, fair decisions that combine care and accountability."],["Build belonging","Create trust, psychological safety and reasons employees choose to stay.","Listen to employees and turn insight into meaningful action."],["Coach for growth","Use curiosity, feedback and delegation to develop people.","Guide development conversations and create visible growth opportunities."],["Transform conflict","Respond to tension with courage, empathy and accountability.","Navigate a difficult conversation and develop a constructive agreement."],["Sustain the culture","Build practical leadership routines and evidence of improvement.","Create a 30/60/90-day leadership plan that can be measured and sustained."]];
   async function loadLessons(e,course){
+    if(!user||recovering)return;
     clearModulePlayers();const epoch=mediaEpoch;
     enrollment=e; hidden(lessonsNode,false);hidden(detail,true);
     lessonsNode.replaceChildren();
@@ -301,10 +313,10 @@
       const response=await managerRequest('list_module_media',{enrollment_id:e.id});
       moduleMedia=new Map((response?.modules||[]).filter(m=>m.captioned===true).map(m=>[m.module_id,m]));
     }catch{/* Optional video service must not prevent access to the lessons. */}
-    if(epoch!==mediaEpoch||enrollment?.id!==e.id||!user)return;
+    if(epoch!==mediaEpoch||enrollment?.id!==e.id||!user||recovering)return;
 
     const lessons=modules.length?await read('academy_lessons',q=>q.select('id,module_id,title,body,position').in('module_id',modules.map(m=>m.id)).eq('published',true).order('position')):[];
-    if(epoch!==mediaEpoch||enrollment?.id!==e.id||!user)return;
+    if(epoch!==mediaEpoch||enrollment?.id!==e.id||!user||recovering)return;
     intro.querySelector('.academy-intro').textContent=modules.length+' '+(modules.length===1?'module':'modules')+' · '+lessons.length+' '+(lessons.length===1?'lesson':'lessons')+' · Learn, reflect, and apply at your own pace.';
     if(!lessons.length){lessonsNode.append(elt('p','No published lessons are currently available for this course. Contact your Academy administrator if you expect access.'));return;}
     const finished=lessons.filter(l=>done.has(l.id)).length;
@@ -472,6 +484,15 @@
       reviewsNode.append(item);
     }
   }
-  db.auth.onAuthStateChange((event)=>{if(event==='PASSWORD_RECOVERY'){recovering=true;hidden(authPanel,true);hidden(memberPanel,true);hidden($('recoveryPanel'),false);show('Enter a new password to finish account recovery.');}if(event==='SIGNED_OUT'){user=null;hidden(memberPanel,true);hidden(authPanel,false);}});
+  db.auth.onAuthStateChange((event)=>{
+    if(event==='PASSWORD_RECOVERY'){
+      invalidateLearningSession();recovering=true;hidden(authPanel,true);hidden(memberPanel,true);hidden($('recoveryPanel'),false);
+      show('Enter a new password to finish account recovery.');
+    }
+    if(event==='SIGNED_OUT'){
+      invalidateLearningSession();recovering=false;hidden(memberPanel,true);hidden(authPanel,false);hidden($('recoveryPanel'),true);
+      show('Sign in to access an active Academy enrollment.');
+    }
+  });
   refresh().catch(safeError);
 })();
