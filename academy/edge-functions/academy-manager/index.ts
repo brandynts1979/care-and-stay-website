@@ -85,6 +85,31 @@ Deno.serve(async(req:Request)=>{
   const user=await authenticate(req);
   const body=await req.json();
   const action=String(body.action||"");
+  // Only authorized learners receive temporary access to reviewed private files.
+  // Never accept a bucket name, object path, user id or a signed URL from a client.
+  if(action==="list_module_media" || action==="play_module_media"){
+    const enrollmentId=String(body.enrollment_id||"");
+    const moduleId=String(body.module_id||"");
+    if(!uuid(enrollmentId)||(action==="play_module_media"&&!uuid(moduleId)))fail(400,"Invalid module or enrollment");
+    const {data:rows,error:mediaError}=await admin.rpc("academy_module_media_for_enrollment",{
+      p_user:user.id,p_enrollment:enrollmentId
+    });
+    if(mediaError)throw mediaError;
+    const media=rows||[];
+    if(action==="list_module_media"){
+      return json(200,{modules:media.map((m:any)=>({module_id:m.module_id,title:m.title,duration_seconds:m.duration_seconds,captioned:m.captioned}))});
+    }
+    const selected=media.find((m:any)=>m.module_id===moduleId);
+    if(!selected)fail(403,"Module video is unavailable for this enrollment");
+    // Defense in depth: ensure the bucket has not been made public accidentally.
+    const {data:bucket,error:bucketError}=await admin.storage.getBucket("academy-module-media");
+    if(bucketError||!bucket||bucket.public!==false)fail(503,"Secure module video storage is unavailable");
+    if(typeof selected.object_path!=="string"||!new RegExp("^"+moduleId+"/[a-f0-9]{64}\\.mp4$").test(selected.object_path))fail(503,"Module video configuration invalid");
+    const seconds=600;
+    const {data:signed,error:signError}=await admin.storage.from("academy-module-media").createSignedUrl(selected.object_path,seconds);
+    if(signError||!signed?.signedUrl)fail(503,"Module video temporarily unavailable");
+    return json(200,{url:signed!.signedUrl,expires_in:seconds,title:selected.title});
+  }
   if(action==="demo_status" || action==="activate_demo"){
     const email=cleanEmail(user.email);
     const {data:allowed,error:allowError}=await admin.from("academy_demo_authorized")
