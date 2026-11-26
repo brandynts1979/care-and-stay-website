@@ -39,9 +39,9 @@
     if(type==='text')n.setAttribute('aria-label','Restaurant location name');
     return n;
   };
-  async function loadInternalDemo(){
+  async function loadInternalDemo(current){
     const status=await managerRequest('demo_status');
-    if(!status?.eligible)return;
+    if(!current()||!status?.eligible)return;
     const holder=elt('div',undefined,'academy-lesson');
     holder.append(elt('h3','Care & Stay internal test access'));
     if(status.active){
@@ -59,7 +59,10 @@
     locationsNode.append(holder);
   }
   async function loadLocations(){
+    const current=sessionGuard();
+    if(!current())return;
     const {locations}=await managerRequest('list_locations');
+    if(!current())return;
     locationsNode.replaceChildren(elt('h2','Restaurant locations'));
     if(!locations?.length){
       locationsNode.append(elt('p','Create a restaurant location to set up an owner subscription. No charge occurs until you complete Stripe Checkout.'));
@@ -118,7 +121,9 @@
         }));
         const viewTeam=async(page=0)=>{
           try{
+            if(!current()||!item.isConnected)return;
             const {members,has_more}=await managerRequest('list_members',{location_id:loc.id,page});
+            if(!current()||!item.isConnected)return;
             let old=item.querySelector('[data-team]');if(old)old.remove();
             const block=elt('div');block.dataset.team='true';
             block.append(elt('h3','Team learning progress'));
@@ -161,10 +166,13 @@
       }
       locationsNode.append(item);
     }
-    await loadInternalDemo();
+    await loadInternalDemo(current);
   }
   async function loadInvitations(){
+    const current=sessionGuard();
+    if(!current())return;
     const {invitations}=await managerRequest('pending_invites');
+    if(!current())return;
     hidden(invitationsNode,!invitations?.length);
     invitationsNode.replaceChildren(elt('h2','Invitations for you'));
     for(const invite of invitations||[]){
@@ -219,6 +227,10 @@
   // No vendor or permanent file URLs in the public JavaScript. A short-lived
   // playback URL is requested on a deliberate learner action, not during listing.
   let mediaEpoch=0,authEpoch=0,lessonEpoch=0;
+  function sessionGuard(){
+    const epoch=authEpoch;
+    return ()=>epoch===authEpoch&&!!user&&!recovering;
+  }
   function clearModulePlayers(){
     mediaEpoch++;lessonEpoch++;
     for(const video of lessonsNode.querySelectorAll('video')){
@@ -281,12 +293,16 @@
     await loadReviews();
   }
   async function loadCourses(){
+    const current=sessionGuard();
+    if(!current())return;
     const {data,error}=await db.rpc('academy_learner_available_enrollments');
+    if(!current())return;
     if(error)throw error;
     coursesNode.replaceChildren(elt('h2','My courses'));
     const eligible=data||[];
     if(!eligible.length){coursesNode.append(elt('p','No active course access is associated with this account. Enrollment and payment activation are managed separately.'));show('Signed in. No active enrollment.');return;}
     const courses=await read('academy_courses',q=>q.select('id,slug,title,published').in('id',eligible.map(x=>x.course_id)));
+    if(!current())return;
     for(const e of eligible){
       const course=courses.find(c=>c.id===e.course_id && c.published);
       if(!course)continue;
@@ -576,19 +592,26 @@
     },true));
   }
   async function loadReviews(){
-    const assignments=await read('academy_reviewer_assignments',q=>q.select('enrollment_id').eq('reviewer_user_id',user.id));
+    const current=sessionGuard();
+    if(!current())return;
+    const reviewerId=user.id;
+    const assignments=await read('academy_reviewer_assignments',q=>q.select('enrollment_id').eq('reviewer_user_id',reviewerId));
+    if(!current())return;
     if(!assignments.length){hidden(reviewsNode,true);return;}
     hidden(reviewsNode,false);reviewsNode.replaceChildren(elt('h2','Assigned practice reviews'));
     const submissions=await read('academy_submissions',q=>q.select('id,enrollment_id,body,submitted_at').in('enrollment_id',assignments.map(a=>a.enrollment_id)));
+    if(!current())return;
     if(!submissions.length){reviewsNode.append(elt('p','No submissions yet.'));return;}
     for(const s of submissions){
       const item=elt('div',undefined,'academy-lesson');item.append(elt('p',s.body));
       const comment=elt('textarea',undefined,'academy-input');comment.placeholder='Write constructive reviewer feedback';comment.rows=3;item.append(comment);
       for(const decision of ['approved','changes_requested'])item.append(button(decision==='approved'?'Approve':'Request changes',async()=>{
+        if(!current()||!item.isConnected)return;
         try{
-          const {error}=await db.from('academy_reviews').upsert({submission_id:s.id,reviewer_user_id:user.id,decision,feedback:comment.value},{onConflict:'submission_id'});
+          const {error}=await db.from('academy_reviews').upsert({submission_id:s.id,reviewer_user_id:reviewerId,decision,feedback:comment.value},{onConflict:'submission_id'});
+          if(!current())return;
           if(error)throw error;show('Your review was saved.');
-        }catch(e){safeError(e);}
+        }catch(e){if(current())safeError(e);}
       },decision!=='approved'));
       reviewsNode.append(item);
     }

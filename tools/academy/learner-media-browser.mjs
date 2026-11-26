@@ -13,8 +13,12 @@ const origin='https://fixture.supabase.co';
 window.CARE_STAY_ACADEMY_CONFIG={supabaseUrl:origin,publishableKey:'fictional-browser-test'};
 let currentUser={id:'fixture-user',email:'learner@example.invalid'},authCallback;
 let playResponse={url:origin+'/storage/v1/object/sign/academy-module-media/module/file.mp4?token=fictional'};
-let deferred=null,playRequests=0,listFails=false,reflectionDeferred=null,writes=[],certificateBlob=null;
-URL.createObjectURL=blob=>{certificateBlob=blob;return 'blob:fictional-certificate';};
+let deferred=null,playRequests=0,listFails=false,reflectionDeferred=null,writes=[],certificateMarkup=null,reviewDeferred=null;
+const NativeBlob=window.Blob;
+window.Blob=class extends NativeBlob{
+ constructor(parts,options){super(parts,options);certificateMarkup=parts.join('');}
+};
+URL.createObjectURL=()=> 'blob:fictional-certificate';
 URL.revokeObjectURL=()=>{};
 HTMLAnchorElement.prototype.click=function(){};
 
@@ -36,6 +40,11 @@ function query(table){
      if(reflectionDeferred&&filters.enrollment_id===e.id){reflectionDeferred.resolve=()=>resolve(result([{body:'STALE PRIVATE LOCATION ONE'}]));return;}
      return resolve(result([{body:filters.enrollment_id===e2.id?'Second location reflection':'First location reflection'}]));
    }
+   if(table==='academy_reviewer_assignments'&&reviewDeferred)
+     return resolve(result([{enrollment_id:e.id}]));
+   if(table==='academy_submissions'&&reviewDeferred){
+     reviewDeferred.resolve=()=>resolve(result([{id:'old-review',body:'STALE PRIVATE REVIEW'}]));return;
+   }
    resolve(result(data[table]||[]));
  },upsert:async(row)=>{writes.push({table,row});return result([]);}};
  q.eq=(key,value)=>{filters[key]=value;return q;};
@@ -51,7 +60,7 @@ window.supabase={createClient:()=>({
    if(name==='academy_save_worksheet'){writes.push({table:'worksheet',row:params});return result(null);}
    if(name==='academy_my_completion_certificate'){
      check(params.p_enrollment===e2.id,'Certificate requires exact completed enrollment');
-     return result([{course_title:'Fictional <script>text</script>',awarded_at:'2026-11-25T00:00:00Z'}]);
+     return result([{course_title:'Fictional <script>text<'+ '/script>',awarded_at:'2026-11-25T00:00:00Z'}]);
    }
    throw Error('Unexpected RPC '+name);
  },
@@ -121,12 +130,14 @@ async function run(){
  worksheetInput.value='Updated fictional draft';
  worksheetSave.click();await waitFor(()=>writes.length===2,'worksheet save');
  check(writes[1].table==='worksheet'&&writes[1].row.p_enrollment===e2.id&&writes[1].row.p_answers['1']==='Updated fictional draft','Worksheet save uses exact enrollment');
- btn('Download completion certificate').click();await waitFor(()=>certificateBlob,'certificate download');
- const certificate=await certificateBlob.text();
- check(certificate.includes('learner@example.invalid')&&certificate.includes('Fictional &lt;script&gt;text&lt;/script&gt;'),'Certificate escapes supplied title and uses signed-in learner');
+ btn('Download completion certificate').click();await waitFor(()=>certificateMarkup,'certificate download');
+ check(certificateMarkup.includes('learner@example.invalid')&&certificateMarkup.includes('Fictional &lt;script&gt;text&lt;/script&gt;'),'Certificate escapes supplied title and uses signed-in learner');
  const staleSave=btn('Save private reflection');
  currentUser=null;authCallback('SIGNED_OUT');staleSave.click();worksheetSave.click();await tick();
  check(writes.length===2,'Detached reflection and worksheet saves cannot write after sign-out');
+ reviewDeferred={};await signIn();await waitFor(()=>reviewDeferred.resolve,'pending reviewer submissions');
+ currentUser=null;authCallback('SIGNED_OUT');reviewDeferred.resolve();await tick();
+ check(!document.getElementById('reviewer').textContent.includes('STALE PRIVATE REVIEW'),'Late reviewer response cannot restore private submissions');
  document.body.setAttribute('data-result','PASS');
 }
 window.addEventListener('load',()=>run().catch(err=>{document.body.setAttribute('data-result','FAIL');document.body.setAttribute('data-error',err.message);}));
@@ -138,5 +149,5 @@ try{
  const chrome=process.env.CHROME_BIN||'google-chrome';
  const dom=execFileSync(chrome,['--headless','--no-sandbox','--disable-gpu','--disable-background-networking','--disable-extensions','--no-first-run','--virtual-time-budget=15000','--dump-dom','--user-data-dir='+join(dir,'profile'),'file://'+path],{encoding:'utf8',timeout:45000,maxBuffer:2*1024*1024});
  assert.match(dom,/<body data-result="PASS"/,dom.match(/<body[^>]*>/)?.[0]||'No browser result');
- console.log('PASS: private video request, native player, sign-out cleanup, invalid URL, stale recovery response, media outage fallback, exact-location reflection race, detached saves, worksheet drafts and certificate download (fictional browser only).');
+ console.log('PASS: private video request, native player, sign-out cleanup, invalid URL, stale recovery response, media outage fallback, exact-location reflection race, detached saves, worksheet drafts certificate download and delayed reviewer response (fictional browser only).');
 }finally{rmSync(dir,{recursive:true,force:true});}
