@@ -70,31 +70,11 @@ async function location(id:string){
  return row;
 }
 async function grant(userId:string,locationId:string){
- const loc=await location(locationId);
- if(!active(loc.subscription_status))fail(403,"Location subscription not active");
- const {data:entitled,error}=await admin.rpc("academy_entitled_course_ids",{p_location:locationId});
- const courses=(entitled||[]).map((row:{course_id:string})=>({id:row.course_id}));
+ const {data,error}=await admin.rpc("academy_grant_member_atomic",{p_location:locationId,p_user:userId});
  if(error)throw error;
- if(!courses?.length)fail(503,"Approved Academy course unavailable");
- // Version 2 and future pathways require separate, explicit entitlement configuration.
- for(const course of courses||[]){
-   const {data:existing,error:readError}=await admin.from("academy_enrollments")
-     .select("id,status").eq("location_id",locationId).eq("user_id",userId).eq("course_id",course.id).maybeSingle();
-   if(readError)throw readError;
-   if(existing){
-     const {error:upError}=await admin.from("academy_enrollments").update({
-       status:existing.status==="completed"?"completed":"active",
-       stripe_subscription_id:loc.stripe_subscription_id,expires_at:null
-     }).eq("id",existing.id);
-     if(upError)throw upError;
-   }else{
-     const {error:insError}=await admin.from("academy_enrollments").insert({
-       user_id:userId,course_id:course.id,location_id:locationId,
-       status:"active",stripe_subscription_id:loc.stripe_subscription_id,granted_at:new Date().toISOString()
-     });
-     if(insError)throw insError;
-   }
- }
+ if(data==="inactive"||data==="forbidden")fail(403,"Active location membership required");
+ if(data==="not_found")fail(404,"Location not found");
+ if(data!=="granted")fail(503,"Approved Academy course unavailable");
 }
 Deno.serve(async(req:Request)=>{
  if(req.method==="OPTIONS")return new Response(null,{status:204,headers:cors});
@@ -225,25 +205,15 @@ Deno.serve(async(req:Request)=>{
   }
   if(action==="accept_invite"){
     const inviteId=String(body.invitation_id||"");if(!uuid(inviteId))fail(400,"Invalid invitation");
-    const invite=unwrap(await admin.from("academy_invitations").select("*").eq("id",inviteId).single()) as any;
-    if(cleanEmail(invite.invited_email)!==cleanEmail(user.email) || invite.accepted_at || invite.revoked_at
-       || Date.parse(invite.expires_at)<Date.now())fail(403,"Invitation invalid or expired");
-    const loc=await location(invite.location_id);if(!active(loc.subscription_status))fail(403,"Location billing inactive");
-    const inviter=await admin.from("academy_location_members").select("role,active").eq("location_id",invite.location_id).eq("user_id",invite.invited_by).maybeSingle();
-    if(inviter.error||!inviter.data?.active||!["owner","gm"].includes(inviter.data.role))fail(403,"Inviting manager is no longer authorized");
-    const {data:existingMember,error:existingError}=await admin.from("academy_location_members")
-      .select("role").eq("location_id",invite.location_id).eq("user_id",user.id).maybeSingle();
-    if(existingError)throw existingError;
-    // An invitation must never demote an owner or existing GM.
-    const safeRole=existingMember&&["owner","gm"].includes(existingMember.role)?existingMember.role:invite.intended_role;
-    const {error:memberError}=await admin.from("academy_location_members").upsert({
-      location_id:invite.location_id,user_id:user.id,role:safeRole,active:true
-    },{onConflict:"location_id,user_id"});if(memberError)throw memberError;
-    const {error:upError}=await admin.from("academy_invitations").update({accepted_by:user.id,accepted_at:new Date().toISOString()}).eq("id",inviteId).is("accepted_at",null);
-    if(upError)throw upError;
-    await grant(user.id,invite.location_id);
-    await admin.from("academy_audit_log").insert({actor_id:user.id,action:"invite_accepted",target:invite.location_id});
-    return json(200,{joined:true,location_id:invite.location_id});
+    const {data,error}=await admin.rpc("academy_accept_invitation_atomic",{
+      p_invitation:inviteId,p_user:user.id,p_verified_email:cleanEmail(user.email)
+    });
+    if(error)throw error;
+    if(data?.result==="invalid"||data?.result==="forbidden")fail(403,"Invitation invalid or expired");
+    if(data?.result==="inactive")fail(403,"Location billing inactive");
+    if(data?.result==="no_course")fail(503,"Approved Academy course unavailable");
+    if(!["joined","already_joined"].includes(data?.result))fail(503,"Unable to confirm invitation acceptance");
+    return json(200,{joined:true,already_joined:data.result==="already_joined",location_id:data.location_id});
   }
   if(action==="list_members"){
     const id=String(body.location_id||"");if(!uuid(id))fail(400,"Invalid location");
