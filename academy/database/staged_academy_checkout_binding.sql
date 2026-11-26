@@ -60,7 +60,7 @@ begin
  select * into loc from public.academy_locations where id=p_location for update;
  if not found then return 'not_found'; end if;
  select * into attempt from public.academy_checkout_attempts where id=p_attempt and location_id=p_location for update;
- if not found or attempt.stripe_session_id is distinct from p_session or attempt.owner_id<>p_owner or attempt.price_id<>p_price
+ if not found or p_session is null or attempt.stripe_session_id is null or attempt.stripe_session_id is distinct from p_session or attempt.owner_id<>p_owner or attempt.price_id<>p_price
    or loc.billing_owner_id<>p_owner or not exists(select 1 from public.academy_location_members m where m.location_id=p_location and m.user_id=p_owner and m.active and m.role='owner')
    or (attempt.customer_id is not null and attempt.customer_id<>p_customer)
    or p_event_type not in ('checkout.session.completed','checkout.session.async_payment_succeeded')

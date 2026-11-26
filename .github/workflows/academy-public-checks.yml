@@ -121,3 +121,8 @@ jobs:
         run: psql -v ON_ERROR_STOP=1 -f academy/database/staged_academy_checkout_binding.sql
       - name: Verify duplicate checkout and first-subscription binding
         run: psql -v ON_ERROR_STOP=1 -f tools/academy/checkout_binding_smoke.sql
+
+      - name: Install payment risk review inbox
+        run: psql -v ON_ERROR_STOP=1 -f academy/database/staged_academy_billing_risk.sql
+      - name: Verify risk event idempotency, verified association and privacy
+        run: psql -v ON_ERROR_STOP=1 -f tools/academy/billing_risk_smoke.sql

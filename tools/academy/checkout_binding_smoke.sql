@@ -15,6 +15,7 @@ DO $$ DECLARE lid uuid='e2000000-0000-4000-8000-000000000001'; own uuid='e100000
  if aid is null then raise exception 'Reservation failed'; end if;
  if (public.academy_reserve_checkout(lid,own,'owner@example.invalid','price_ci')->'attempt'->>'id')::uuid<>aid then raise exception 'Duplicate reservation'; end if;
  if public.academy_reserve_checkout(lid,own,'owner@example.invalid','price_other')->>'result'<>'review_required' then raise exception 'Price change silently accepted'; end if;
+ if public.academy_bind_checkout_atomic(lid,0,aid,null,own,'price_ci','evt_ci_null','checkout.session.completed','sub_ci_bind','cus_ci_bind','active',period)<>'mismatch' then raise exception 'Null session allowed'; end if;
  if public.academy_bind_checkout_atomic(lid,0,aid,'cs_ci',own,'price_ci','evt_ci_bind','checkout.session.completed','sub_ci_bind','cus_ci_bind','active',period)<>'mismatch' then raise exception 'Unrecorded checkout allowed'; end if;
  if not public.academy_record_checkout_session(aid,'cs_ci') or public.academy_record_checkout_session(aid,'cs_other') then raise exception 'Session recording not idempotent'; end if;
  if public.academy_bind_checkout_atomic(lid,0,aid,'cs_ci',own,'price_ci','evt_ci_invoice','invoice.paid','sub_ci_bind','cus_ci_bind','active',period)<>'mismatch' then raise exception 'Invoice bound first subscription'; end if;

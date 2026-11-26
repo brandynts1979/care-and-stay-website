@@ -8,3 +8,8 @@ Engineering owner: QSR launch workspace; coordinate with private curriculum bran
 - Media: poll actual completed object inventory on user follow-up; inspect original bytes and captions, hash, verify exact module mapping, move through Storage API to immutable paths; confirm upload quota and playback. Preserve local masters. No public vendor URLs.
 - Staging: no dedicated hosted branch presently verified. Use approved isolated environment only; actual owner/GM/learner browser, purchase and playback E2E required. No paid infrastructure without approval. Monday Nov 30 demo: keep current live site and offline fallback intact.
 - Owner decisions by exception: tax registration/classification, staging expense if required, access to real authenticated browser if connector cannot complete. No user intervention required for code testing.
+
+## Verified update
+- Checkout batch cc624d4edbe16d7deb26adae5df5f482ecef8341: CI 45756164592, job 139695157142, success including first subscription binding. No signed hosted checkout tested.
+- Private Academy bucket owner-created; no completed objects observed at latest read-only check. User's browser transfer may still be in progress; do not disrupt.
+- Risk review and null-session guard added; verify latest CI and correct failures. Next: verified terminal subscription replacement and actual signed sandbox tests. No live changes.

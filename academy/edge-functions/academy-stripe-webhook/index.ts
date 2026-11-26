@@ -49,6 +49,36 @@ async function updateLocation(subscription:Stripe.Subscription,event:Stripe.Even
  if(result!=="applied"&&result!=="duplicate")throw new Error("Academy reconciliation: "+String(result));
  return true;
 }
+
+// Resolve risk signals from authoritative Stripe objects. Pinned legacy SDK invoice
+// linkage is supported; unresolvable links go to operator review, never metadata guessing.
+const objectId=(v:any):string|null=>typeof v==="string"?v:typeof v?.id==="string"?v.id:null;
+async function recordRisk(event:Stripe.Event){
+ const object=event.data.object as any;
+ const chargeId=event.type==="charge.refunded"?objectId(object):objectId(object.charge);
+ if(!chargeId)throw new Error("Stripe risk signal missing charge ID");
+ const charge=await stripe!.charges.retrieve(chargeId);
+ let invoiceId=objectId((charge as any).invoice);
+ if(!invoiceId&&charge.payment_intent){
+   const intent=await stripe!.paymentIntents.retrieve(objectId(charge.payment_intent)!);
+   invoiceId=objectId((intent as any).invoice);
+ }
+ let subscriptionId:string|null=null;
+ let customerId=objectId(charge.customer);
+ if(invoiceId){
+   const invoice=await stripe!.invoices.retrieve(invoiceId);
+   subscriptionId=objectId((invoice as any).parent?.subscription_details?.subscription??(invoice as any).subscription);
+   const invoiceCustomer=objectId(invoice.customer);
+   if(!customerId||!invoiceCustomer||customerId!==invoiceCustomer)customerId=null;
+ }
+ const {data,error}=await admin.rpc("academy_record_billing_risk",{
+   p_event:event.id,p_type:event.type,p_charge:chargeId,p_invoice:invoiceId,p_subscription:subscriptionId,p_customer:customerId
+ });
+ if(error)throw error;
+ if(!["matched","unresolved","duplicate"].includes(String(data)))throw new Error("Risk inbox reconciliation failed");
+ if(data!=="duplicate")console.warn("Academy billing risk review required",event.id,String(data));
+}
+
 Deno.serve(async(req:Request)=>{
  if(req.method!=="POST")return respond(405,{error:"Method not allowed"});
  const sig=req.headers.get("stripe-signature");
@@ -64,6 +94,9 @@ Deno.serve(async(req:Request)=>{
   const {data:existing,error:lookup}=await admin.from("academy_billing_events").select("processed_at").eq("stripe_event_id",event.id).maybeSingle();
   if(lookup)throw lookup;
   if(existing?.processed_at)return respond(200,{received:true,duplicate:true});
+  if(["charge.dispute.created","charge.refunded","radar.early_fraud_warning.created"].includes(event.type)){
+    await recordRisk(event);return respond(200,{received:true,risk_review:true});
+  }
   let subscription:Stripe.Subscription|null=null;
   let checkout:Stripe.Checkout.Session|null=null;
   switch(event.type){
