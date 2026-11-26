@@ -98,3 +98,5 @@ Apply `staged_academy_certificates.sql` after the graduation gate and course ent
 The Appreciative Business Development workspace specifies consented individual developmental summaries and a versioned Sales 360 competency mapping. Obtain the published competency IDs, consent and revocation contract, exact organization and identity mapping, and approved course-module crosswalk before integrating real assessment data. Keep raw rater responses out of Academy and organizational aggregates out of individual recommendations. The AQI workspace proposes aggregate-only agency exchanges and separate approval for any future Academy linkage.
 
 Read-only hosted discovery found zero Supabase development branches on the Academy project. The other named projects serve existing products. Continue with an authorized isolated Academy target when available.
+
+The five import rehearsals were repeated with a synthetic legacy learner, published legacy course, enrollment and progress row. Their combined row snapshot was identical before and after all five runs. The public Academy landing and learner URLs returned HTTP 200. Authenticated demo and hosted checks remain with the operator.

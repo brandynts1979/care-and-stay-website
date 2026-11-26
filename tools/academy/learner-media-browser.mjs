@@ -13,14 +13,20 @@ const origin='https://fixture.supabase.co';
 window.CARE_STAY_ACADEMY_CONFIG={supabaseUrl:origin,publishableKey:'fictional-browser-test'};
 let currentUser={id:'fixture-user',email:'learner@example.invalid'},authCallback;
 let playResponse={url:origin+'/storage/v1/object/sign/academy-module-media/module/file.mp4?token=fictional'};
-let deferred=null,playRequests=0,listFails=false,reflectionDeferred=null,writes=[];
+let deferred=null,playRequests=0,listFails=false,reflectionDeferred=null,writes=[],certificateBlob=null;
+URL.createObjectURL=blob=>{certificateBlob=blob;return 'blob:fictional-certificate';};
+URL.revokeObjectURL=()=>{};
+HTMLAnchorElement.prototype.click=function(){};
+
 const e={id:'fixture-enrollment',course_id:'fixture-course',location_name:'Fictional restaurant',status:'active'};
-const e2={...e,id:'fixture-enrollment-2',location_name:'Second fictional restaurant'};
+const e2={...e,id:'fixture-enrollment-2',location_name:'Second fictional restaurant',status:'completed'};
 const data={
  academy_courses:[{id:e.course_id,slug:'qsr-fixture-v2',title:'Fictional QSR Academy',published:true}],
  academy_modules:[{id:'fixture-module',title:'Learn with care',position:1,overview:''}],
  academy_lessons:[{id:'fixture-lesson',module_id:'fixture-module',position:1,title:'Fictional lesson',body:'Practice listening.'}],
- academy_lesson_progress:[],academy_reviewer_assignments:[]
+ academy_lesson_progress:[],academy_reviewer_assignments:[],
+ academy_worksheet_templates:[{id:'fixture-worksheet',title:'Fictional worksheet',prompts:['What would you try?'],version:1}],
+ academy_worksheet_responses:[{template_id:'fixture-worksheet',answers:{'1':'Stored fictional draft'}}]
 };
 const result=data=>({data,error:null});
 function query(table){
@@ -40,7 +46,15 @@ window.supabase={createClient:()=>({
  auth:{getUser:async()=>result({user:currentUser}),onAuthStateChange:cb=>{authCallback=cb;},
  signInWithPassword:async()=>{currentUser={id:'fixture-user',email:'learner@example.invalid'};return result({});},
  signOut:async()=>{currentUser=null;authCallback('SIGNED_OUT');return result({});}},
- from:query,rpc:async()=>result([e,e2]),
+ from:query,rpc:async(name,params)=>{
+   if(name==='academy_learner_available_enrollments')return result([e,e2]);
+   if(name==='academy_save_worksheet'){writes.push({table:'worksheet',row:params});return result(null);}
+   if(name==='academy_my_completion_certificate'){
+     check(params.p_enrollment===e2.id,'Certificate requires exact completed enrollment');
+     return result([{course_title:'Fictional <script>text</script>',awarded_at:'2026-11-25T00:00:00Z'}]);
+   }
+   throw Error('Unexpected RPC '+name);
+ },
  functions:{invoke:async(name,{body})=>{
    if(body.action==='list_locations')return result({locations:[]});
    if(body.action==='demo_status')return result({eligible:false});
@@ -100,8 +114,19 @@ async function run(){
  check(!document.getElementById('lessonDetail').textContent.includes('STALE PRIVATE LOCATION ONE')&&document.querySelector('#lessonDetail textarea')===currentInput&&currentInput.value==='Second location reflection','Late first-location reflection cannot replace current lesson');
  currentInput.value='Second location practice';btn('Save private reflection').click();await waitFor(()=>writes.length===1,'reflection write');
  check(writes[0].table==='academy_private_reflections'&&writes[0].row.enrollment_id===e2.id&&writes[0].row.body==='Second location practice','Write remains bound to selected enrollment');
+ await waitFor(()=>btn('Save private worksheet'),'worksheet controls');
+ const worksheetSave=btn('Save private worksheet');
+ const worksheetInput=[...document.querySelectorAll('#lessonDetail textarea')].find(input=>input.value==='Stored fictional draft');
+ check(!!worksheetInput,'Worksheet draft restored');
+ worksheetInput.value='Updated fictional draft';
+ worksheetSave.click();await waitFor(()=>writes.length===2,'worksheet save');
+ check(writes[1].table==='worksheet'&&writes[1].row.p_enrollment===e2.id&&writes[1].row.p_answers['1']==='Updated fictional draft','Worksheet save uses exact enrollment');
+ btn('Download completion certificate').click();await waitFor(()=>certificateBlob,'certificate download');
+ const certificate=await certificateBlob.text();
+ check(certificate.includes('learner@example.invalid')&&certificate.includes('Fictional &lt;script&gt;text&lt;/script&gt;'),'Certificate escapes supplied title and uses signed-in learner');
  const staleSave=btn('Save private reflection');
- currentUser=null;authCallback('SIGNED_OUT');staleSave.click();await tick();check(writes.length===1,'Detached save cannot write after sign-out');
+ currentUser=null;authCallback('SIGNED_OUT');staleSave.click();worksheetSave.click();await tick();
+ check(writes.length===2,'Detached reflection and worksheet saves cannot write after sign-out');
  document.body.setAttribute('data-result','PASS');
 }
 window.addEventListener('load',()=>run().catch(err=>{document.body.setAttribute('data-result','FAIL');document.body.setAttribute('data-error',err.message);}));
@@ -113,5 +138,5 @@ try{
  const chrome=process.env.CHROME_BIN||'google-chrome';
  const dom=execFileSync(chrome,['--headless','--no-sandbox','--disable-gpu','--disable-background-networking','--disable-extensions','--no-first-run','--virtual-time-budget=15000','--dump-dom','--user-data-dir='+join(dir,'profile'),'file://'+path],{encoding:'utf8',timeout:45000,maxBuffer:2*1024*1024});
  assert.match(dom,/<body data-result="PASS"/,dom.match(/<body[^>]*>/)?.[0]||'No browser result');
- console.log('PASS: private video request, native player, sign-out cleanup, invalid URL, stale recovery response, media outage fallback, exact-location reflection race and detached save (fictional browser only).');
+ console.log('PASS: private video request, native player, sign-out cleanup, invalid URL, stale recovery response, media outage fallback, exact-location reflection race, detached saves, worksheet drafts and certificate download (fictional browser only).');
 }finally{rmSync(dir,{recursive:true,force:true});}
