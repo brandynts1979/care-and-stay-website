@@ -1,22 +1,15 @@
-# QSR commercial launch execution queue
+# Shared Academy engineering queue
 
-Engineering owner: QSR launch workspace; coordinate with private curriculum branch and MultiIndustry Academy Expansion. No TinyFish, no new spend, no production merges without release gates.
+This is the authoritative platform queue. Track release evidence and the QSR Product Launch Review operator handoff in [QSR_STAGED_RELEASE.md](QSR_STAGED_RELEASE.md). The platform work belongs on draft website PR #6. Private PRs #10, #11 and #12 remain the curriculum and asset sources.
 
-- Verified: native CI 45746696878 passed secure module media, invitation, entitlement and billing regression. Eight videos rendered; owner uploading originals to private Academy bucket (0 completed objects at last observation). V2 private curriculum 32 lessons; no hosted V2 import or playback.
-- This batch: durable checkout reservation, authenticated first binding, expiry handling, tests, and branch-specific CI cancellation. Verify current commit CI before marking passed.
-- Next: verify checkout test logs and correct failures; add risk event reconciliation and safe canceled subscription replacement; actual signed sandbox checkout; review confirmed tax registration and classification. No new live charges.
-- Media: poll actual completed object inventory on user follow-up; inspect original bytes and captions, hash, verify exact module mapping, move through Storage API to immutable paths; confirm upload quota and playback. Preserve local masters. No public vendor URLs.
-- Staging: no dedicated hosted branch presently verified. Use approved isolated environment only; actual owner/GM/learner browser, purchase and playback E2E required. No paid infrastructure without approval. Monday Nov 30 demo: keep current live site and offline fallback intact.
-- Owner decisions by exception: tax registration/classification, staging expense if required, access to real authenticated browser if connector cannot complete. No user intervention required for code testing.
+| Order | Work | Exit evidence |
+| --- | --- | --- |
+| 1 | Protect the November 30 QSR demonstration | Preserve current live legacy course, accounts, enrollments and progress. Rehearse the existing online path and offline fallback. Keep test checkout and staging changes away from the demo. |
+| 2 | Staged shared content and media | Rehearse private versioned imports in disposable Postgres. Verify hosted target, source approval, reviewed asset hashes, exact course grants and real authorized and denied playback before release. |
+| 3 | Authentication, location administration, learner progress and reporting | Verify real owner, GM and learner sign-ins, invitations, membership removal, exact location and course switching, delayed saves and reflection privacy. Confirm customer report pagination, access boundaries and field minimization. |
+| 4 | Subscription entitlements | Verify owner-authorized signed Stripe sandbox checkout, retry and replay, failed payment, renewal, cancellation and replacement. Confirm commercial decisions and separate approvals before a live cutover. |
+| 5 | Interactive practice | Adapt private PR #12 worksheet design to versioned course and lesson mappings across pathways. Wire learner-only drafts and accessible field rendering, test cross-tenant and stale-save denial, and confirm customer reports exclude answers. |
+| 6 | Recommendations and certificates | Establish private versioned assessment contracts and consent. Verify recommendations against active course grants and graduation-backed completion certificates per exact enrollment. |
+| 7 | Remaining pathways and commercial release | Onboard additional approved leadership versions and Appreciative Business Development when their private contracts are ready. Require the same import, privacy and commercial checks for future AQI Academy. Obtain hosted release evidence and decision. |
 
-## Verified update
-- Checkout batch cc624d4edbe16d7deb26adae5df5f482ecef8341: CI 45756164592, job 139695157142, success including first subscription binding. No signed hosted checkout tested.
-- Private Academy bucket owner-created; no completed objects observed at latest read-only check. User's browser transfer may still be in progress; do not disrupt.
-- Risk review and null-session guard added; verify latest CI and correct failures. Next: verified terminal subscription replacement and actual signed sandbox tests. No live changes.
-
-## Current release checkpoint — November 25 MT
-- Eight exact private MP4 uploads, 672,541,097 bytes, verified. No direct object policies. Hosted live still has one published legacy course and no new media manifest. No further QSR upload or render needed. Do not treat multipart ETags as SHA-256.
-- Private native curriculum and storage preflight CI 45766430867 success. Website checkout/risk CI 45756372619 success. Both use disposable fixtures, not real hosted payment or video.
-- Learner auth invalidation patch 1f379e1894eda33213430187348be52c19fe19a7 immediately stops/removes video player and invalidates outstanding media requests on signed-out/password-recovery events, including other tabs; guards stale auth refresh. Browser regression added e154c579e8993733def201e448d8037ce1960f32 and CI 087519249c80c13ec4f12fc9b2797ad90a02f609 (run 45766752970 in progress at checkpoint, fictional adapter, no actual streaming).
-- Private offline registration compiler e0e84e3d75030bc77e6ed0f70e32e6719affdcbb requires exact eight module bindings, independent reviewed video/audio/captions/script/rights, remote and canonical hash evidence; generates rollback-only unpublished insert rehearsal. CI 45766817549 queued at checkpoint. Flags are not independent verification; operator must verify evidence.
-- Remaining hard dependency: supported authorized operator runtime with private Storage binary access. Supabase connector only provides DB metadata; no download/copy/invoke or service credential access. Do not expose bucket or credentials, do not create SQL metadata rows or bypass connector controls. Run the private preflight in an authorized local operator or Codex environment using securely configured existing Academy Storage service credential, independently review all files, copy via supported Storage API to canonical immutable paths without removing originals, verify copied bytes, then use registration compiler. No additional paid resources approved. No existing hosted Academy branch. Real learner/owner sign-in, exact entitlement playback, signed Stripe sandbox checkout and registration/tax approval before release. Keep live legacy and Monday demo unchanged pending gates.
+Use verified private originals for the eight QSR and eight universal videos. Keep instructional source and generated row payloads in the private curriculum workspace or the authorized operator runtime.

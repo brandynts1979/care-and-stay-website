@@ -63,4 +63,52 @@ DO $$ DECLARE learner uuid='d1000000-0000-4000-8000-000000000002'; ea uuid='d500
  if exists(select 1 from public.academy_module_media_for_enrollment(learner,ea)) then raise exception 'Removed learner allowed'; end if;
 END $$;
 RESET ROLE;
+-- Exercise the same asset through two courses against the real Academy schema.
+update public.academy_location_members set active=true
+ where location_id='d4000000-0000-4000-8000-000000000001';
+update public.academy_courses set published=true
+ where id='d2000000-0000-4000-8000-000000000002';
+delete from public.academy_module_media
+ where module_id='d3000000-0000-4000-8000-000000000003';
+insert into public.academy_shared_media_assets
+ (asset_key,title,sha256,object_path,duration_seconds,captioned,reviewed_at,rights_reviewed_at,published)
+ values ('foundation-v1-m01','Shared Foundation',repeat('d',64),
+  'shared/foundation-v1-m01/'||repeat('d',64)||'.mp4',150,true,now(),now(),true);
+insert into public.academy_shared_module_media(module_id,asset_key,published)
+ select id,'foundation-v1-m01',true from public.academy_modules where id::text like 'd3000000-%';
+DO $$ BEGIN
+ if has_table_privilege('anon','public.academy_shared_media_assets','SELECT')
+ or has_table_privilege('authenticated','public.academy_shared_module_media','SELECT')
+ then raise exception 'Shared manifest exposed'; end if;
+ BEGIN
+ update public.academy_shared_media_assets set rights_reviewed_at=null;
+ raise exception 'Unreviewed shared asset allowed';
+ EXCEPTION WHEN check_violation THEN NULL;
+ END;
+END $$;
+SET LOCAL ROLE service_role;
+DO $$
+DECLARE
+ learner uuid='d1000000-0000-4000-8000-000000000002';
+ main_enrollment uuid='d5000000-0000-4000-8000-000000000001';
+ other_enrollment uuid='d5000000-0000-4000-8000-000000000003';
+ shared_path text='shared/foundation-v1-m01/'||repeat('d',64)||'.mp4';
+BEGIN
+ if (select array_agg(object_path) from public.academy_module_media_for_enrollment(learner,main_enrollment))
+    is distinct from ARRAY['d3000000-0000-4000-8000-000000000001/'||repeat('a',64)||'.mp4']
+ then raise exception 'Shared mapping overrode reviewed or withheld module-specific media'; end if;
+ if (select array_agg(object_path) from public.academy_module_media_for_enrollment(learner,other_enrollment))
+    is distinct from ARRAY[shared_path]
+ then raise exception 'Shared asset missing for entitled course'; end if;
+ delete from public.academy_module_media where module_id='d3000000-0000-4000-8000-000000000002';
+ if not exists(select 1 from public.academy_module_media_for_enrollment(learner,main_enrollment) where object_path=shared_path)
+ then raise exception 'Shared asset cannot serve two courses'; end if;
+ if exists(select 1 from public.academy_module_media_for_enrollment(learner,'d5000000-0000-4000-8000-000000000002'))
+ then raise exception 'Shared asset crossed exact location entitlement'; end if;
+ update public.academy_shared_module_media set published=false
+  where module_id='d3000000-0000-4000-8000-000000000003';
+ if exists(select 1 from public.academy_module_media_for_enrollment(learner,other_enrollment))
+ then raise exception 'Unpublished shared mapping exposed'; end if;
+END $$;
+RESET ROLE;
 ROLLBACK;

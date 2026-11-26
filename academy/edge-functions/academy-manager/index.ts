@@ -1,3 +1,4 @@
+import { validModuleMediaPath } from "./media-path.mjs";
 import { createClient } from "npm:@supabase/supabase-js@2.57.0";
 import Stripe from "npm:stripe@17.7.0";
 import { summarizeTeamProgress } from "./member-policy.mjs";
@@ -104,7 +105,7 @@ Deno.serve(async(req:Request)=>{
     // Defense in depth: ensure the bucket has not been made public accidentally.
     const {data:bucket,error:bucketError}=await admin.storage.getBucket("academy-module-media");
     if(bucketError||!bucket||bucket.public!==false)fail(503,"Secure module video storage is unavailable");
-    if(typeof selected.object_path!=="string"||!new RegExp("^"+moduleId+"/[a-f0-9]{64}\\.mp4$").test(selected.object_path))fail(503,"Module video configuration invalid");
+    if(!validModuleMediaPath(moduleId,selected.object_path))fail(503,"Module video configuration invalid");
     const seconds=600;
     const {data:signed,error:signError}=await admin.storage.from("academy-module-media").createSignedUrl(selected.object_path,seconds);
     if(signError||!signed?.signedUrl)fail(503,"Module video temporarily unavailable");
