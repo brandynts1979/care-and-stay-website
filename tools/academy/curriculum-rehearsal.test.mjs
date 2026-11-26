@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { normalize, renderRehearsal, renderStagedImport, summarize } from './curriculum-rehearsal.mjs';
 
@@ -42,4 +44,49 @@ test('staging import requires the reviewed digest and writes its receipt in the 
   assert.match(staged, /curriculum_import_receipts[\s\S]*COMMIT;\n$/);
   assert.throws(() => renderStagedImport(plan, sha, 'c'.repeat(64), id(35)), /digest mismatch/);
   assert.throws(() => renderStagedImport(plan, sha, approved, 'production'), /target UUID/);
+});
+
+test('PostgreSQL commits a matching target and rolls back a late row conflict', {
+  skip: process.env.ACADEMY_IMPORT_TEST !== '1',
+}, () => {
+  assert.equal(process.env.PGDATABASE, 'academy_ci');
+  assert.equal(process.env.PGHOST, 'localhost');
+  const target = id(35);
+  const source = 'b'.repeat(40);
+  const digest = summarize(plan, source).sha256;
+
+  function psql(input, errorPattern, ...args) {
+    const result = spawnSync('psql', ['-XqAt', '-v', 'ON_ERROR_STOP=1', ...args], {
+      input, encoding: 'utf8',
+    });
+    assert.ifError(result.error);
+    if (errorPattern) {
+      assert.notEqual(result.status, 0);
+      assert.match(result.stderr, errorPattern);
+    } else {
+      assert.equal(result.status, 0, result.stderr);
+    }
+    return result.stdout.trim();
+  }
+
+  const setup = readFileSync(new URL('./staging-import-target.sql', import.meta.url), 'utf8');
+  psql(setup, null, '-v', 'academy_target_uuid=' + target);
+  const staged = renderStagedImport(plan, source, digest, target);
+  psql(renderStagedImport(plan, source, digest, id(36)), /target mismatch/);
+  assert.equal(psql('select count(*) from academy_internal.curriculum_import_receipts;'), '0');
+  psql(staged);
+  assert.equal(psql(`select content_sha256 from academy_internal.curriculum_import_receipts where course_id='${id(1)}';`), digest);
+  assert.equal(psql(`select count(*) from public.academy_lessons where module_id='${id(2)}' and not published;`), '2');
+  psql(staged, /duplicate key/);
+
+  const conflicting = {
+    ...plan,
+    course: { ...plan.course, id: id(5), slug: 'stay-culture-fictional-v3' },
+    modules: [{ ...plan.modules[0], id: id(6), course_id: id(5) }],
+    lessons: [{ ...plan.lessons[0], module_id: id(6) }],
+  };
+  psql(renderStagedImport(conflicting, source, summarize(conflicting, source).sha256, target), /duplicate key/);
+  assert.equal(psql(`select count(*) from public.academy_courses where id='${id(5)}';`), '0');
+  assert.equal(psql(`select count(*) from public.academy_modules where id='${id(6)}';`), '0');
+  assert.equal(psql('select count(*) from academy_internal.curriculum_import_receipts;'), '1');
 });

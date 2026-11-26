@@ -137,3 +137,8 @@ jobs:
         run: psql -v ON_ERROR_STOP=1 -f academy/database/staged_academy_billing_risk.sql
       - name: Verify risk event idempotency, verified association and privacy
         run: psql -v ON_ERROR_STOP=1 -f tools/academy/billing_risk_smoke.sql
+
+      - name: Rehearse curriculum staging commit and rollback in disposable PostgreSQL
+        run: |
+          psql -X -v ON_ERROR_STOP=1 -f academy/database/008_module_overviews.sql
+          ACADEMY_IMPORT_TEST=1 node --test tools/academy/curriculum-rehearsal.test.mjs
