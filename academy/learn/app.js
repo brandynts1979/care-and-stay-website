@@ -216,11 +216,53 @@
       show('Password updated. Your session is secured.');await refresh();
     }catch(err){safeError(err);}
   });
+  // No vendor or permanent file URLs in the public JavaScript. A short-lived
+  // playback URL is requested on a deliberate learner action, not during listing.
+  let mediaEpoch=0;
+  function clearModulePlayers(){
+    mediaEpoch++;
+    for(const video of lessonsNode.querySelectorAll('video')){
+      video.pause();video.removeAttribute('src');video.load();
+    }
+    for(const node of lessonsNode.querySelectorAll('.academy-media-player'))node.replaceChildren();
+  }
+  function moduleVideoCard(m,e,metadata,epoch){
+    const section=elt('section',undefined,'academy-module-video');
+    const title=String(metadata.title||'Module introduction');
+    const seconds=Number(metadata.duration_seconds);
+    const time=Number.isInteger(seconds)&&seconds>0?Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0'):'';
+    section.append(elt('p','MODULE VIDEO','academy-overline'),elt('h4',title),
+      elt('p',[time,'English captions','Optional introduction'].filter(Boolean).join(' · '),'academy-media-meta'));
+    const holder=elt('div',undefined,'academy-media-player');
+    const status=elt('p','','academy-media-meta');status.setAttribute('role','status');
+    const play=button('Watch module video',async()=>{
+      if(epoch!==mediaEpoch||enrollment?.id!==e.id||!user)return;
+      play.disabled=true;status.textContent='Preparing secure playback…';
+      try{
+        const data=await managerRequest('play_module_media',{enrollment_id:e.id,module_id:m.id});
+        if(epoch!==mediaEpoch||enrollment?.id!==e.id||!user||!section.isConnected)return;
+        const url=new URL(data?.url);
+        if(url.protocol!=='https:'||url.origin!==new URL(cfg.supabaseUrl).origin||
+          !url.pathname.startsWith('/storage/v1/object/sign/academy-module-media/')||!url.searchParams.get('token'))throw Error('Unexpected playback URL');
+        for(const old of holder.querySelectorAll('video')){old.pause();old.removeAttribute('src');old.load();}
+        const video=elt('video');video.controls=true;video.playsInline=true;video.preload='metadata';
+        video.setAttribute('aria-label',title+' — captioned instructional video');
+        video.addEventListener('error',()=>{status.textContent='Playback unavailable or the access link expired. Select Watch module video to retry.';play.disabled=false;});
+        video.src=url.href;holder.replaceChildren(video);
+        status.textContent='Video ready. Press play to begin. Captions are included in the video.';
+      }catch{
+        if(epoch===mediaEpoch&&section.isConnected)status.textContent='Video unavailable. Your reading and exercises remain available; retry playback later.';
+      }finally{play.disabled=false;}
+    },true);
+    section.append(play,holder,status);
+    return section;
+  }
   async function refresh(){
     const {data:{user:next},error}=await db.auth.getUser();
     if(error && error.name!=='AuthSessionMissingError')throw error;
     user=next||null;
     hidden(authPanel,!!user || recovering);hidden(memberPanel,!user || recovering);hidden($('recoveryPanel'),!recovering);
+    clearModulePlayers();enrollment=null;
     hidden(detail,true);hidden(lessonsNode,true);
     if(!user){show('Sign in to access an active Academy enrollment.');return;}
     $('userLabel').textContent=user.email||'Signed in';
@@ -244,6 +286,7 @@
   }
   const moduleGuides=[["Discover strengths","Recognize the conditions that make this team effective.","Identify specific successes and design an appreciative improvement experiment."],["Lead authentically","Make values, service and healthy boundaries visible in daily work.","Practice credible, fair decisions that combine care and accountability."],["Build belonging","Create trust, psychological safety and reasons employees choose to stay.","Listen to employees and turn insight into meaningful action."],["Coach for growth","Use curiosity, feedback and delegation to develop people.","Guide development conversations and create visible growth opportunities."],["Transform conflict","Respond to tension with courage, empathy and accountability.","Navigate a difficult conversation and develop a constructive agreement."],["Sustain the culture","Build practical leadership routines and evidence of improvement.","Create a 30/60/90-day leadership plan that can be measured and sustained."]];
   async function loadLessons(e,course){
+    clearModulePlayers();const epoch=mediaEpoch;
     enrollment=e; hidden(lessonsNode,false);hidden(detail,true);
     lessonsNode.replaceChildren();
     const intro=elt('div',undefined,'academy-course-heading');
@@ -253,7 +296,15 @@
     const modules=await read('academy_modules',q=>q.select('id,title,position,overview').eq('course_id',course.id).order('position'));
     const progress=await read('academy_lesson_progress',q=>q.select('lesson_id').eq('enrollment_id',e.id));
     const done=new Set(progress.map(p=>p.lesson_id));
+    let moduleMedia=new Map();
+    try{
+      const response=await managerRequest('list_module_media',{enrollment_id:e.id});
+      moduleMedia=new Map((response?.modules||[]).filter(m=>m.captioned===true).map(m=>[m.module_id,m]));
+    }catch{/* Optional video service must not prevent access to the lessons. */}
+    if(epoch!==mediaEpoch||enrollment?.id!==e.id||!user)return;
+
     const lessons=modules.length?await read('academy_lessons',q=>q.select('id,module_id,title,body,position').in('module_id',modules.map(m=>m.id)).eq('published',true).order('position')):[];
+    if(epoch!==mediaEpoch||enrollment?.id!==e.id||!user)return;
     intro.querySelector('.academy-intro').textContent=modules.length+' '+(modules.length===1?'module':'modules')+' · '+lessons.length+' '+(lessons.length===1?'lesson':'lessons')+' · Learn, reflect, and apply at your own pace.';
     if(!lessons.length){lessonsNode.append(elt('p','No published lessons are currently available for this course. Contact your Academy administrator if you expect access.'));return;}
     const finished=lessons.filter(l=>done.has(l.id)).length;
@@ -280,6 +331,7 @@
       header.append(num,title,elt('span',completed+' / '+items.length+' complete','academy-count'));card.append(header);
       const content=elt('div',undefined,'academy-module-content');
       content.append(elt('p','Learning outcome: '+guide[2],'academy-outcome'));
+      if(moduleMedia.has(m.id))content.append(moduleVideoCard(m,e,moduleMedia.get(m.id),epoch));
       if(m.overview){
         const intro=elt('details',undefined,'academy-module-guide');
         const trigger=elt('summary','Read the module introduction and guiding questions');
