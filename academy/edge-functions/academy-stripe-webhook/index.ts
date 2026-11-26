@@ -39,7 +39,8 @@ async function updateLocation(subscription:any){
  const {data:members,error:memberError}=await admin.from("academy_location_members").select("user_id")
    .eq("location_id",locationId).eq("active",true);
  if(memberError)throw memberError;
- const {data:courses,error:courseError}=await admin.from("academy_courses").select("id").eq("slug","stay-culture-leadership-academy").eq("published",true);
+ const {data:entitled,error:courseError}=await admin.rpc("academy_entitled_course_ids",{p_location:locationId});
+ const courses=(entitled||[]).map((row:{course_id:string})=>({id:row.course_id}));
  if(courseError)throw courseError;
  if(!courses?.length)throw new Error("Approved Academy course unavailable");
  // New courses must never inherit an unrelated location subscription automatically.
