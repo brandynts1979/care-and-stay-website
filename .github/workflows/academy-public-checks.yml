@@ -95,3 +95,8 @@ jobs:
         run: psql -v ON_ERROR_STOP=1 -f academy/database/staged_academy_course_entitlements.sql
       - name: Verify versioned entitlement provisioning and expiration
         run: psql -v ON_ERROR_STOP=1 -f tools/academy/explicit_entitlements_smoke.sql
+
+      - name: Apply staged atomic invitation and member grant functions
+        run: psql -v ON_ERROR_STOP=1 -f academy/database/staged_academy_atomic_invites.sql
+      - name: Verify invitation identity, role, expiration, replay and grant idempotency
+        run: psql -v ON_ERROR_STOP=1 -f tools/academy/atomic_invites_smoke.sql
