@@ -72,8 +72,10 @@ async function location(id:string){
 async function grant(userId:string,locationId:string){
  const loc=await location(locationId);
  if(!active(loc.subscription_status))fail(403,"Location subscription not active");
- const {data:courses,error}=await admin.from("academy_courses").select("id").eq("published",true);
+ const {data:courses,error}=await admin.from("academy_courses").select("id").eq("slug","stay-culture-leadership-academy").eq("published",true);
  if(error)throw error;
+ if(!courses?.length)fail(503,"Approved Academy course unavailable");
+ // Version 2 and future pathways require separate, explicit entitlement configuration.
  for(const course of courses||[]){
    const {data:existing,error:readError}=await admin.from("academy_enrollments")
      .select("id,status").eq("location_id",locationId).eq("user_id",userId).eq("course_id",course.id).maybeSingle();
