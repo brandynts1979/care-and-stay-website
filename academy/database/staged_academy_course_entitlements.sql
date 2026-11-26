@@ -136,7 +136,7 @@ grant execute on function public.academy_entitled_course_ids(uuid) to service_ro
 -- must not make a stale enrollment at another location appear selectable.
 create function public.academy_learner_available_enrollments()
 returns table(id uuid,course_id uuid,location_id uuid,location_name text,status text,expires_at timestamptz)
-language sql stable security invoker set search_path=pg_catalog,public as $
+language sql stable security invoker set search_path=pg_catalog,public as $$
  select e.id,e.course_id,e.location_id,loc.name,e.status,e.expires_at
  from public.academy_enrollments e
  join public.academy_courses c on c.id=e.course_id
@@ -152,7 +152,7 @@ language sql stable security invoker set search_path=pg_catalog,public as $
        and (g.expires_at is null or g.expires_at>now())
    ))
  order by e.created_at desc,e.id;
-$;
+$$;
 revoke all on function public.academy_learner_available_enrollments() from public,anon,authenticated;
 grant execute on function public.academy_learner_available_enrollments() to authenticated;
 COMMIT;
