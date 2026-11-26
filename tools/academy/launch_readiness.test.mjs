@@ -30,12 +30,15 @@ test('invitation acceptance checks email, subscription and inviter role',()=>{
  assert.match(manager,/Location billing inactive/);
 });
 
-test('legacy billing and invitations never automatically grant new published courses',()=>{
+test('legacy billing and invitations use the service-only location entitlement resolver',()=>{
  for(const code of [manager,webhook]){
-  assert.match(code,/\.eq\("slug","stay-culture-leadership-academy"\)\.eq\("published",true\)/);
+  assert.match(code,/rpc\("academy_entitled_course_ids",\{p_location:locationId\}\)/);
   assert.doesNotMatch(code,/from\("academy_courses"\)\.select\("id"\)\.eq\("published",true\)/);
   assert.match(code,/Approved Academy course unavailable/);
  }
+ const sql=readFileSync('academy/database/staged_academy_course_entitlements.sql','utf8');
+ assert.match(sql,/c\.slug='stay-culture-leadership-academy' or exists/);
+ assert.match(sql,/g\.location_id=loc\.id and g\.course_id=c\.id and g\.active/);
 });
 test('course rendering uses actual module and lesson counts rather than assuming six modules',()=>{
  const app=readFileSync('academy/learn/app.js','utf8');
