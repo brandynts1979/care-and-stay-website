@@ -1,6 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2.57.0";
 import Stripe from "npm:stripe@17.7.0";
-import { canDeactivateMember, summarizeTeamProgress } from "./member-policy.mjs";
+import { summarizeTeamProgress } from "./member-policy.mjs";
 
 const env = (k: string) => Deno.env.get(k) || "";
 const origin = (env("ACADEMY_SITE_ORIGIN") || "https://mycareandstay.com").replace(/\/$/,"");
@@ -260,27 +260,15 @@ Deno.serve(async(req:Request)=>{
   if(action==="deactivate_member"){
     const id=String(body.location_id||""),target=String(body.user_id||"");
     if(!uuid(id)||!uuid(target))fail(400,"Invalid user or location");
-    const actorRole=await permission(user.id,id);
-    const loc=await location(id);
-    const {data:member,error:memberError}=await admin.from("academy_location_members")
-      .select("role,active").eq("location_id",id).eq("user_id",target).maybeSingle();
-    if(memberError)throw memberError;
-    if(!member)fail(404,"Team member not found");
-    if(!canDeactivateMember(actorRole,member!.role,target===loc.billing_owner_id))
-      fail(403,"Only an owner may remove a GM; owners cannot be removed here");
-    if(member!.active){
-      const {data:changed,error}=await admin.from("academy_location_members").update({active:false})
-        .eq("location_id",id).eq("user_id",target).eq("role",member!.role).eq("active",true)
-        .select("user_id").maybeSingle();
-      if(error)throw error;
-      if(!changed)fail(409,"Team membership changed; refresh and retry");
-    }
-    // Retry revocation even for an already-inactive member so a partial failure can recover.
-    const {error:revokeError}=await admin.from("academy_enrollments").update({status:"revoked"})
-      .eq("location_id",id).eq("user_id",target).neq("status","completed");
-    if(revokeError)throw revokeError;
-    const {error:auditError}=await admin.from("academy_audit_log").insert({actor_id:user.id,action:"member_deactivated",target:id});
-    if(auditError)throw auditError;
+    // Atomic service-only RPC repeats actor and target role checks under row locks.
+    // Apply the staged SQL before deploying this Edge Function.
+    const {data:result,error}=await admin.rpc("academy_deactivate_member_atomic",{
+      p_actor:user.id,p_location:id,p_target:target
+    });
+    if(error)throw error;
+    if(result==="not_found")fail(404,"Team member or location not found");
+    if(result==="forbidden")fail(403,"Not authorized to remove this team member");
+    if(result!=="deactivated")fail(503,"Unable to confirm member removal");
     return json(200,{deactivated:true});
   }
   return json(400,{error:"Unknown action"});
