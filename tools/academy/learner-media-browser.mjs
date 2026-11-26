@@ -13,8 +13,9 @@ const origin='https://fixture.supabase.co';
 window.CARE_STAY_ACADEMY_CONFIG={supabaseUrl:origin,publishableKey:'fictional-browser-test'};
 let currentUser={id:'fixture-user',email:'learner@example.invalid'},authCallback;
 let playResponse={url:origin+'/storage/v1/object/sign/academy-module-media/module/file.mp4?token=fictional'};
-let deferred=null,playRequests=0,listFails=false;
+let deferred=null,playRequests=0,listFails=false,reflectionDeferred=null,writes=[];
 const e={id:'fixture-enrollment',course_id:'fixture-course',location_name:'Fictional restaurant',status:'active'};
+const e2={...e,id:'fixture-enrollment-2',location_name:'Second fictional restaurant'};
 const data={
  academy_courses:[{id:e.course_id,slug:'qsr-fixture-v2',title:'Fictional QSR Academy',published:true}],
  academy_modules:[{id:'fixture-module',title:'Learn with care',position:1,overview:''}],
@@ -23,15 +24,23 @@ const data={
 };
 const result=data=>({data,error:null});
 function query(table){
- const q={then(resolve){resolve(result(data[table]||[]));}};
- for(const op of ['select','eq','in','order'])q[op]=()=>q;
+ const filters={};
+ const q={then(resolve){
+   if(table==='academy_private_reflections'){
+     if(reflectionDeferred&&filters.enrollment_id===e.id){reflectionDeferred.resolve=()=>resolve(result([{body:'STALE PRIVATE LOCATION ONE'}]));return;}
+     return resolve(result([{body:filters.enrollment_id===e2.id?'Second location reflection':'First location reflection'}]));
+   }
+   resolve(result(data[table]||[]));
+ },upsert:async(row)=>{writes.push({table,row});return result([]);}};
+ q.eq=(key,value)=>{filters[key]=value;return q;};
+ for(const op of ['select','in','order'])q[op]=()=>q;
  return q;
 }
 window.supabase={createClient:()=>({
  auth:{getUser:async()=>result({user:currentUser}),onAuthStateChange:cb=>{authCallback=cb;},
  signInWithPassword:async()=>{currentUser={id:'fixture-user',email:'learner@example.invalid'};return result({});},
  signOut:async()=>{currentUser=null;authCallback('SIGNED_OUT');return result({});}},
- from:query,rpc:async()=>result([e]),
+ from:query,rpc:async()=>result([e,e2]),
  functions:{invoke:async(name,{body})=>{
    if(body.action==='list_locations')return result({locations:[]});
    if(body.action==='demo_status')return result({eligible:false});
@@ -81,6 +90,18 @@ async function run(){
  currentUser=null;authCallback('SIGNED_OUT');listFails=true;
  await signIn();await open();
  check(!!btn('Study lesson')&&!btn('Watch module video'),'Optional media outage must preserve reading');
+ reflectionDeferred={};btn('Study lesson').click();await waitFor(()=>reflectionDeferred.resolve,'pending private reflection read');
+ const second=[...document.querySelectorAll('button')].filter(b=>b.textContent==='Open course')[1];
+ second.click();await waitFor(()=>btn('Study lesson'),'second location lessons');
+ btn('Study lesson').click();await waitFor(()=>btn('Save private reflection'),'second location reflection');
+ const currentInput=document.querySelector('#lessonDetail textarea');
+ check(currentInput.value==='Second location reflection','Correct location reflection loaded');
+ reflectionDeferred.resolve();reflectionDeferred=null;await tick();await tick();
+ check(!document.getElementById('lessonDetail').textContent.includes('STALE PRIVATE LOCATION ONE')&&document.querySelector('#lessonDetail textarea')===currentInput&&currentInput.value==='Second location reflection','Late first-location reflection cannot replace current lesson');
+ currentInput.value='Second location practice';btn('Save private reflection').click();await waitFor(()=>writes.length===1,'reflection write');
+ check(writes[0].table==='academy_private_reflections'&&writes[0].row.enrollment_id===e2.id&&writes[0].row.body==='Second location practice','Write remains bound to selected enrollment');
+ const staleSave=btn('Save private reflection');
+ currentUser=null;authCallback('SIGNED_OUT');staleSave.click();await tick();check(writes.length===1,'Detached save cannot write after sign-out');
  document.body.setAttribute('data-result','PASS');
 }
 window.addEventListener('load',()=>run().catch(err=>{document.body.setAttribute('data-result','FAIL');document.body.setAttribute('data-error',err.message);}));
@@ -92,5 +113,5 @@ try{
  const chrome=process.env.CHROME_BIN||'google-chrome';
  const dom=execFileSync(chrome,['--headless','--no-sandbox','--disable-gpu','--disable-background-networking','--disable-extensions','--no-first-run','--virtual-time-budget=15000','--dump-dom','--user-data-dir='+join(dir,'profile'),'file://'+path],{encoding:'utf8',timeout:45000,maxBuffer:2*1024*1024});
  assert.match(dom,/<body data-result="PASS"/,dom.match(/<body[^>]*>/)?.[0]||'No browser result');
- console.log('PASS: private video request, native player, sign-out cleanup, invalid URL, stale recovery response, media outage fallback (fictional browser only).');
+ console.log('PASS: private video request, native player, sign-out cleanup, invalid URL, stale recovery response, media outage fallback, exact-location reflection race and detached save (fictional browser only).');
 }finally{rmSync(dir,{recursive:true,force:true});}
