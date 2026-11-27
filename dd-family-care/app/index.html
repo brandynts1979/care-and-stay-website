@@ -17,7 +17,7 @@
 <div id="app" class="hide">
 <div class="card flex"><div><strong id="signedin"></strong><p class="muted">Only you can see records you create in this current version.</p></div><div style="text-align:right"><button id="signout" class="secondary">Sign out</button></div></div>
 <section class="card" aria-labelledby="billingHeading"><h2 id="billingHeading">DD Family Care subscription</h2><p id="ddBillingStatus" role="status">Checking subscription availability…</p><p class="muted"><small>Your subscription is verified after payment. Only enter family care information after confirmation of paid access.</small></p><button id="ddBillingRefresh" type="button" class="secondary">Refresh subscription status</button><p><label for="ddAcceptTerms" style="font-weight:400"><input type="checkbox" id="ddAcceptTerms" style="width:auto;margin-right:9px">I agree to the <a href="/legal/dd-family-subscription-terms/" target="_blank" rel="noopener">DD Family Care subscription terms</a> and understand the $39 monthly price plus applicable tax, the 12-month minimum commitment ($468 before tax), and the refund policy.</label></p><button id="ddStartCheckout" type="button" class="hide" disabled>Subscribe — $39/month + tax</button><button id="ddManageBilling" type="button" class="hide" disabled>Manage subscription</button></section>
-<section id="dashboard"><div class="card"><h2>Family Care Dashboard</h2><p>Helping children and adults with developmental disabilities build on strengths, choices, autonomy and quality of life.</p><p class="muted">Select a module. Features marked planned are not yet available. Please review your subscription status before entering care information.</p></div><div class="dashboard-grid"><button type="button" class="dashboard-tile ready" id="openStrengths"><strong>🌱 Strengths & Possibilities</strong><span>Personal goals, interests, practice steps and progress notes.</span><span class="tag">Available now</span></button>
+<section id="sponsorRedemptionPanel" class="card" hidden style="display:none"><h3>Accept sponsored family access</h3><p>Use the private invitation code provided by your organization. Sign in using the verified email address to which the invitation was issued. Your invitation does not authorize sharing care records. Access is subject to verified sponsorship coverage, and no payment is collected by accepting it.</p><label for="sponsorCode">Invitation code</label><input id="sponsorCode" type="password" autocomplete="off" spellcheck="false" maxlength="43"><label><input id="sponsorAcknowledged" type="checkbox" style="width:auto"> I acknowledge the sponsorship disclosure and understand that activation may take time.</label><button id="sponsorRedeem" type="button" disabled>Accept invitation</button><p id="sponsorNotice" role="status" aria-live="polite"></p></section><section id="dashboard"><div class="card"><h2>Family Care Dashboard</h2><p>Helping children and adults with developmental disabilities build on strengths, choices, autonomy and quality of life.</p><p class="muted">Select a module. Features marked planned are not yet available. Please review your subscription status before entering care information.</p></div><div class="dashboard-grid"><button type="button" class="dashboard-tile ready" id="openStrengths"><strong>🌱 Strengths & Possibilities</strong><span>Personal goals, interests, practice steps and progress notes.</span><span class="tag">Available now</span></button>
 <button type="button" class="dashboard-tile ready" id="openTeam"><strong>👥 My Care Team</strong><span>Invite supporters and accept read-only access to a shared profile.</span><span class="tag">Available now</span></button>
 <button type="button" class="dashboard-tile ready" id="openTasks"><strong>📅 Shared Care Tasks</strong><span>Assign tasks to accepted supporters and track their progress.</span><span class="tag">Available now</span></button>
 <button type="button" class="dashboard-tile ready" id="openDocuments"><strong>📁 Documents & Records</strong><span>Upload and download private documents.</span><span class="tag">Available now</span></button>
@@ -185,6 +185,12 @@ async function loadDdBillingStatus(){
    $('ddStartCheckout').classList.add('hide');$('ddStartCheckout').disabled=true;
    $('ddManageBilling').classList.add('hide');$('ddManageBilling').disabled=true;
    $('ddAcceptTerms').closest('p').classList.add('hide');
+  }else if(data.sponsored_access===true&&data.entitled===true){
+   status.textContent='Sponsored access active. No new subscription is needed while coverage remains active.';
+   $('ddStartCheckout').classList.add('hide');$('ddStartCheckout').disabled=true;
+   const direct=data.subscription_status!=='sponsored_access'&&data.subscription_status!=='none';
+   $('ddManageBilling').classList.toggle('hide',!direct);$('ddManageBilling').disabled=!direct;
+   $('ddAcceptTerms')?.closest('p')?.classList.add('hide');
   }else if(data.checkout_enabled===true){
    $('ddAcceptTerms').closest('p').classList.remove('hide');
    status.textContent='Subscription status: '+String(data.subscription_status||'none')+'.';
@@ -270,9 +276,9 @@ $('coachSend').addEventListener('click',async()=>{
  finally{coachBusy=false;$('coachSend').disabled=!(coachConfigured&&coachEntitled);}
 });
 
-async function loggedIn(){if(!session?.access_token)return;sessionStorage.setItem('dd_family_session',JSON.stringify(session));$('auth').classList.add('hide');$('app').classList.remove('hide');$('signedin').textContent=session.user?.email||'Signed in';notify('Signed in to DD Family Care. Confirm your subscription status before entering family information.');navigate('home');await Promise.allSettled([loadPeople(),loadTeam(),loadDdBillingStatus()])}
+async function loggedIn(){if(!session?.access_token)return;resetSponsorUI();updateSponsorUI();sessionStorage.setItem('dd_family_session',JSON.stringify(session));$('auth').classList.add('hide');$('app').classList.remove('hide');$('signedin').textContent=session.user?.email||'Signed in';notify('Signed in to DD Family Care. Confirm your subscription status before entering family information.');navigate('home');await Promise.allSettled([loadPeople(),loadTeam(),loadDdBillingStatus()])}
 function clearSession(message='Session expired. Please sign in again.'){
- session=null;person=null;strengths=[];goals=[];peopleCache=[];
+ resetSponsorUI();session=null;updateSponsorUI();person=null;strengths=[];goals=[];peopleCache=[];
  sessionStorage.removeItem('dd_family_session');
  $('app').classList.add('hide');$('auth').classList.remove('hide');
  $('signedin').textContent='';$('password').value='';
@@ -593,6 +599,42 @@ async function inviteTeam(){
 
 
 // Archive and reviewed-deletion release gate. Do not enable before authenticated hosted acceptance.
+const sponsorSession=()=>session,sponsorBase=()=>URL,sponsorRefreshStatus=()=>loadDdBillingStatus();
+
+const SPONSOR_UI_RELEASE=false;
+// Must match reviewed disclosure version configured by authorized operator. No implicit consent.
+const SPONSOR_DISCLOSURE_VERSION='';
+let sponsorEpoch=0,sponsorAbort=null,sponsorBusy=false;
+const sponsorEl=id=>document.getElementById(id);
+function resetSponsorUI(){
+ sponsorEpoch++;sponsorAbort?.abort();sponsorAbort=null;sponsorBusy=false;
+ sponsorEl('sponsorCode').value='';sponsorEl('sponsorAcknowledged').checked=false;sponsorEl('sponsorNotice').textContent='';sponsorEl('sponsorRedeem').disabled=true;
+}
+function sponsorUIReady(){return SPONSOR_UI_RELEASE&&!!SPONSOR_DISCLOSURE_VERSION&&!!sponsorSession()?.access_token}
+function updateSponsorUI(){
+ const available=sponsorUIReady(),panel=sponsorEl('sponsorRedemptionPanel');panel.hidden=!available;panel.style.display=available?'':'none';
+ sponsorEl('sponsorRedeem').disabled=!available||sponsorBusy||!sponsorEl('sponsorAcknowledged').checked||!/^[A-Za-z0-9_-]{43}$/.test(sponsorEl('sponsorCode').value.trim());
+}
+async function redeemSponsorUI(){
+ if(!sponsorUIReady()||sponsorBusy||sponsorEl('sponsorRedeem').disabled)return;
+ const token=sponsorSession().access_token,code=sponsorEl('sponsorCode').value.trim(),epoch=++sponsorEpoch;
+ sponsorEl('sponsorCode').value='';sponsorEl('sponsorAcknowledged').checked=false;sponsorBusy=true;updateSponsorUI();
+ const controller=new AbortController();sponsorAbort=controller;const timer=setTimeout(()=>controller.abort(),20000);
+ try{
+  const response=await fetch(sponsorBase()+'/functions/v1/sponsor-consumer-redemption-staging',{method:'POST',redirect:'error',credentials:'omit',signal:controller.signal,headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({token:code,disclosure_version:SPONSOR_DISCLOSURE_VERSION})});
+  if(epoch!==sponsorEpoch||sponsorSession()?.access_token!==token)return;
+  const result=await response.json();
+  if(epoch!==sponsorEpoch||sponsorSession()?.access_token!==token)return;
+  if(response.status!==202||result?.status!=='pending_activation')throw Error('Unavailable');
+  sponsorEl('sponsorNotice').textContent='Invitation accepted for processing. Access is pending verification. Check your account access again later; no payment has been taken.';
+  await sponsorRefreshStatus();
+ }catch{if(epoch===sponsorEpoch&&sponsorSession()?.access_token===token)sponsorEl('sponsorNotice').textContent='Invitation could not be confirmed. Check the code and your verified email, or contact support.'}
+ finally{clearTimeout(timer);if(epoch===sponsorEpoch){sponsorAbort=null;sponsorBusy=false;updateSponsorUI()}}
+}
+sponsorEl('sponsorCode').oninput=updateSponsorUI;
+sponsorEl('sponsorAcknowledged').onchange=updateSponsorUI;
+sponsorEl('sponsorRedeem').onclick=redeemSponsorUI;
+
 const DD_PRIVACY_ARCHIVE_ENABLED=false;
 const archiveId=v=>typeof v==='string'&&/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/.test(v);
 let archiveEpoch=0,archiveAbort=null,archivePage=null,archiveCursor=null,archiveBusy=false,archiveDeletion=null;
@@ -685,7 +727,7 @@ $('signin').onclick=()=>authenticate('signin');$('signup').onclick=()=>authentic
 $('forgotPassword').onclick=requestPasswordReset;
 $('saveResetPassword').onclick=updateRecoveredPassword;
 $('cancelPasswordReset').onclick=()=>{recoveryToken=null;$('resetPassword').value='';$('resetPasswordConfirm').value='';$('passwordReset').classList.add('hide');$('auth').classList.remove('hide');notify('Return to sign-in or request a new reset link.');};
-$('signout').onclick=async()=>{clearArchive();try{await request('/auth/v1/logout','POST',{},true)}catch{}clearSession('Signed out.')};
+$('signout').onclick=async()=>{resetSponsorUI();clearArchive();try{await request('/auth/v1/logout','POST',{},true)}catch{}clearSession('Signed out.')};
 wire('savePerson',savePerson);wire('addStrength',addStrength);wire('addGoal',addGoal);wire('addStep',addStep);wire('addNote',addNote);
 $('people').onchange=()=>retry(selectPerson);$('activeGoal').onchange=()=>retry(loadProgress);
 (async()=>{
