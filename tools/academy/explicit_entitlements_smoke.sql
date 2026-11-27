@@ -25,6 +25,13 @@ insert into public.academy_enrollments(id,user_id,course_id,status,location_id) 
  ('98400000-0000-4000-8000-000000000001','97000000-0000-4000-8000-000000000001','98000000-0000-4000-8000-000000000002','active','98300000-0000-4000-8000-000000000001'),
  ('98400000-0000-4000-8000-000000000002','97000000-0000-4000-8000-000000000001','98000000-0000-4000-8000-000000000002','active','98300000-0000-4000-8000-000000000002'),
  ('98400000-0000-4000-8000-000000000003','97000000-0000-4000-8000-000000000001','98000000-0000-4000-8000-000000000003','active','98300000-0000-4000-8000-000000000001');
+insert into public.academy_care_settings(course_id,setting_key,label,published) values
+ ('98000000-0000-4000-8000-000000000002','assisted_living','Assisted living',true),
+ ('98000000-0000-4000-8000-000000000002','memory_care','Memory care',false);
+insert into public.academy_lesson_applications(course_id,setting_key,lesson_id,kind,body,published) values
+ ('98000000-0000-4000-8000-000000000002','assisted_living','98200000-0000-4000-8000-000000000002','case_study','Assisted living example',true),
+ ('98000000-0000-4000-8000-000000000002','assisted_living','98200000-0000-4000-8000-000000000002','exercise','Draft exercise',false),
+ ('98000000-0000-4000-8000-000000000002','memory_care','98200000-0000-4000-8000-000000000002','case_study','Unreleased setting',true);
 insert into public.academy_worksheet_templates(id,lesson_id,template_key,version,title,prompts,published)
  values
  ('98500000-0000-4000-8000-000000000001','98200000-0000-4000-8000-000000000002','ci-practice',1,'Fictional practice',ARRAY['What would you try?'],true),
@@ -49,6 +56,17 @@ RESET ROLE;
 SET LOCAL ROLE authenticated;
 select set_config('request.jwt.claim.sub','97000000-0000-4000-8000-000000000001',true);
 DO $$ BEGIN
+ if (select array_agg(setting_key) from public.academy_my_care_settings('98400000-0000-4000-8000-000000000001'))
+    is distinct from array['assisted_living'] then raise exception 'Wrong published context list'; end if;
+ if (select array_agg(kind) from public.academy_my_lesson_applications(
+      '98400000-0000-4000-8000-000000000001','98200000-0000-4000-8000-000000000002','assisted_living'))
+    is distinct from array['case_study'] then raise exception 'Wrong published lesson application'; end if;
+ if exists(select from public.academy_my_care_settings('98400000-0000-4000-8000-000000000002'))
+  or exists(select from public.academy_my_lesson_applications(
+      '98400000-0000-4000-8000-000000000002','98200000-0000-4000-8000-000000000002','assisted_living'))
+  or exists(select from public.academy_my_lesson_applications(
+      '98400000-0000-4000-8000-000000000001','98200000-0000-4000-8000-000000000002','memory_care'))
+ then raise exception 'Context leaked across location or publication state'; end if;
  if (select count(*) from public.academy_learner_available_enrollments())<>1 or not exists(select 1 from public.academy_learner_available_enrollments() where id='98400000-0000-4000-8000-000000000001' and location_name='Fictional A') then raise exception 'Learner selector includes stale or hidden course'; end if;
  if not exists(select 1 from public.academy_courses where slug='fictional-v2-course-ci') then raise exception 'Explicit A enrollment hidden'; end if;
  if exists(select 1 from public.academy_courses where slug='fictional-unpublished-ci') then raise exception 'Unpublished course exposed'; end if;
@@ -128,6 +146,8 @@ RESET ROLE;
 SET LOCAL ROLE authenticated;
 DO $$ BEGIN
  if exists(select 1 from public.academy_learner_available_enrollments()) then raise exception 'Expired course remains selectable'; end if;
+ if exists(select from public.academy_care_settings) or exists(select from public.academy_lesson_applications)
+ then raise exception 'Expired entitlement exposes contextual content'; end if;
  if exists(select 1 from public.academy_my_completion_certificate('98400000-0000-4000-8000-000000000001'))
  then raise exception 'Expired grant exposed certificate'; end if;
  if exists(select 1 from public.academy_worksheet_responses) then raise exception 'Expired grant exposed private worksheet'; end if;

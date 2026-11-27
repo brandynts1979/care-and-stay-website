@@ -104,7 +104,10 @@ jobs:
       - name: Install private completion certificates
         run: psql -v ON_ERROR_STOP=1 -f academy/database/staged_academy_certificates.sql
 
-      - name: Verify versioned entitlements, private worksheets and certificates
+      - name: Install course care settings and contextual lesson applications
+        run: psql -v ON_ERROR_STOP=1 -f academy/database/staged_academy_care_settings.sql
+
+      - name: Verify versioned entitlements, private worksheets, certificates and care settings
         run: psql -v ON_ERROR_STOP=1 -f tools/academy/explicit_entitlements_smoke.sql
 
       - name: Apply staged atomic invitation and member grant functions

@@ -345,6 +345,57 @@
     setTimeout(() => URL.revokeObjectURL(url), 1000);
     show('Certificate downloaded. Open the file to print or save it as a PDF.');
   }
+  const careSettingCourses = new Set([
+    'stay-culture-leadership-academy-senior-care-v2',
+    'stay-culture-leadership-academy-hospice-v2',
+  ]);
+  const applicationLabels = {
+    case_study: 'Case study', scenario: 'Scenario', simulation: 'Simulation',
+    exercise: 'Exercise', reflection: 'Reflection question', fieldwork: 'Fieldwork',
+    recommendation: 'Developmental recommendation',
+  };
+  async function loadCareSettings(course, enrollmentId, intro, current) {
+    if (!careSettingCourses.has(course.slug)) return null;
+    try {
+      const {data, error} = await db.rpc('academy_my_care_settings', {p_enrollment: enrollmentId});
+      if (!current() || error || !data?.length) return null;
+      const label = elt('label', 'Care setting for the next lesson you open');
+      const select = elt('select', undefined, 'academy-input');
+      const foundation = elt('option', 'Shared foundation');
+      foundation.value = '';
+      select.append(foundation);
+      for (const setting of data) {
+        const option = elt('option', setting.label);
+        option.value = setting.setting_key;
+        select.append(option);
+      }
+      label.append(select);
+      intro.append(label);
+      return select;
+    } catch {
+      return null;
+    }
+  }
+  async function showLessonApplications(lessonId, enrollmentId, setting, current) {
+    if (!setting) return;
+    try {
+      const {data, error} = await db.rpc('academy_my_lesson_applications', {
+        p_enrollment: enrollmentId, p_lesson: lessonId, p_setting: setting.key,
+      });
+      if (!current() || error || !data?.length) return;
+      const section = elt('section', undefined, 'academy-question');
+      section.append(elt('h3', 'Practice for ' + setting.label));
+      for (const application of data) {
+        const label = applicationLabels[application.kind];
+        if (!label) continue;
+        section.append(elt('h4', label));
+        for (const paragraph of application.body.split(/\n\n+/)) section.append(elt('p', paragraph));
+      }
+      detail.append(section);
+    } catch {
+      // Shared lesson content remains available if the optional application request fails.
+    }
+  }
   async function loadLessons(e,course){
     if(!user||recovering)return;
     clearModulePlayers();const epoch=mediaEpoch;
@@ -368,6 +419,9 @@
     if(epoch!==mediaEpoch||enrollment?.id!==e.id||!user||recovering)return;
     intro.querySelector('.academy-intro').textContent=modules.length+' '+(modules.length===1?'module':'modules')+' · '+lessons.length+' '+(lessons.length===1?'lesson':'lessons')+' · Learn, reflect, and apply at your own pace.';
     if(!lessons.length){lessonsNode.append(elt('p','No published lessons are currently available for this course. Contact your Academy administrator if you expect access.'));return;}
+    const currentCourse = () => epoch === mediaEpoch && enrollment?.id === e.id && !!user && !recovering;
+    const settings = careSettingCourses.has(course.slug) ? await loadCareSettings(course, e.id, intro, currentCourse) : null;
+    if (!currentCourse()) return;
     const finished=lessons.filter(l=>done.has(l.id)).length;
     const summary=elt('div',undefined,'academy-progress-summary');
     const head=elt('div',undefined,'academy-progress-top');
@@ -425,7 +479,8 @@
         row.append(label,button(done.has(lesson.id)?'Review lesson':'Study lesson',async()=>{
           if(epoch!==mediaEpoch||enrollment?.id!==e.id||!user||recovering)return;
           const request=++lessonEpoch;
-          try{await openLesson(lesson,done.has(lesson.id),row,e.id,request,course.slug);}
+          try{await openLesson(lesson,done.has(lesson.id),row,e.id,request,course.slug,
+            settings?.value ? {key: settings.value, label: settings.selectedOptions[0].textContent} : null);}
           catch(err){if(request===lessonEpoch&&enrollment?.id===e.id&&user&&!recovering){safeError(err);detail.append(elt('p','Unable to load this lesson. '+(err?.message||'Please retry.'),'academy-error'));}}
         },true));
         list.append(row);
@@ -481,7 +536,7 @@
       detail.append(section);
     }
   }
-  async function openLesson(l,completed,clickedRow,enrollmentId,request,courseSlug){
+  async function openLesson(l,completed,clickedRow,enrollmentId,request,courseSlug,setting){
     const current=()=>request===lessonEpoch&&enrollment?.id===enrollmentId&&!!user&&!recovering&&clickedRow.isConnected;
     if(!current())return;
     // Keep the lesson directly next to the Study lesson button rather than after all 24 lessons.
@@ -502,6 +557,8 @@
       reading.append(section);
     }
     detail.replaceChildren(header,reading);
+    if (setting) await showLessonApplications(l.id, enrollmentId, setting, current);
+    if (!current()) return;
     const scenarios=await read('academy_scenarios',q=>q.select('id,prompt,position').eq('lesson_id',l.id).order('position'));
     if(!current())return;
     for(const scenario of scenarios){

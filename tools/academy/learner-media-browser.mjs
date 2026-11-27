@@ -25,7 +25,7 @@ HTMLAnchorElement.prototype.click=function(){};
 const e={id:'fixture-enrollment',course_id:'fixture-course',location_name:'Fictional restaurant',status:'active'};
 const e2={...e,id:'fixture-enrollment-2',location_name:'Second fictional restaurant',status:'completed'};
 const data={
- academy_courses:[{id:e.course_id,slug:'qsr-fixture-v2',title:'Fictional QSR Academy',published:true}],
+ academy_courses:[{id:e.course_id,slug:'stay-culture-leadership-academy-senior-care-v2',title:'Fictional QSR Academy',published:true}],
  academy_modules:[{id:'fixture-module',title:'Learn with care',position:1,overview:''}],
  academy_lessons:[{id:'fixture-lesson',module_id:'fixture-module',position:1,title:'Fictional lesson',body:'Practice listening.'}],
  academy_lesson_progress:[],academy_reviewer_assignments:[],
@@ -57,6 +57,12 @@ window.supabase={createClient:()=>({
  signOut:async()=>{currentUser=null;authCallback('SIGNED_OUT');return result({});}},
  from:query,rpc:async(name,params)=>{
    if(name==='academy_learner_available_enrollments')return result([e,e2]);
+   if(name==='academy_my_care_settings')return result([{setting_key:'assisted_living',label:'Assisted living'}]);
+   if(name==='academy_my_lesson_applications'){
+     check(params.p_enrollment===e2.id&&params.p_lesson==='fixture-lesson'&&params.p_setting==='assisted_living',
+       'Context should use exact enrollment, lesson and selected setting');
+     return result([{kind:'case_study',body:'Fictional assisted living example'}]);
+   }
    if(name==='academy_save_worksheet'){writes.push({table:'worksheet',row:params});return result(null);}
    if(name==='academy_my_completion_certificate'){
      check(params.p_enrollment===e2.id,'Certificate requires exact completed enrollment');
@@ -116,9 +122,14 @@ async function run(){
  reflectionDeferred={};btn('Study lesson').click();await waitFor(()=>reflectionDeferred.resolve,'pending private reflection read');
  const second=[...document.querySelectorAll('button')].filter(b=>b.textContent==='Open course')[1];
  second.click();await waitFor(()=>btn('Study lesson'),'second location lessons');
+ const setting=document.querySelector('#lessons select');
+ check(setting&&setting.value==='','Shared foundation is the default');
+ setting.value='assisted_living';
  btn('Study lesson').click();await waitFor(()=>btn('Save private reflection'),'second location reflection');
  const currentInput=document.querySelector('#lessonDetail textarea');
  check(currentInput.value==='Second location reflection','Correct location reflection loaded');
+ check(document.getElementById('lessonDetail').textContent.includes('Fictional assisted living example'),
+   'Selected care setting adds lesson practice');
  reflectionDeferred.resolve();reflectionDeferred=null;await tick();await tick();
  check(!document.getElementById('lessonDetail').textContent.includes('STALE PRIVATE LOCATION ONE')&&document.querySelector('#lessonDetail textarea')===currentInput&&currentInput.value==='Second location reflection','Late first-location reflection cannot replace current lesson');
  currentInput.value='Second location practice';btn('Save private reflection').click();await waitFor(()=>writes.length===1,'reflection write');
