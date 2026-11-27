@@ -13,6 +13,50 @@ const tables = [
   ['choices', 'scenario_id', { id: 'uuid', scenario_id: 'uuid', position: 'integer', choice_text: 'text', feedback: 'text' }],
 ];
 
+const contextTables = [
+  ['care_settings', { course_id: 'uuid', setting_key: 'text', label: 'text', published: 'boolean' }],
+  ['lesson_applications', { course_id: 'uuid', setting_key: 'text', lesson_id: 'uuid', kind: 'text', body: 'text', published: 'boolean' }],
+];
+const applicationKinds = new Set(['case_study', 'scenario', 'simulation', 'exercise', 'reflection', 'fieldwork', 'recommendation']);
+
+function normalizeContext(plan, normalized) {
+  const {care_settings: settings, lesson_applications: applications} = plan;
+  if (settings === undefined && applications === undefined) return;
+  assert.ok(Array.isArray(settings) && settings.length && Array.isArray(applications) && applications.length,
+    'Both nonempty context row sets are required');
+  const courseId = normalized.courses[0].id;
+  const lessonIds = new Set(normalized.lessons.map(row => row.id));
+  const settingKeys = new Set();
+  const applicationKeys = new Set();
+  for (const [table, fields] of contextTables) {
+    const rows = plan[table];
+    normalized[table] = rows.map(row => {
+      assert.ok(row && typeof row === 'object' && !Array.isArray(row), `Invalid ${table} row`);
+      assert.equal(Object.keys(row).length, Object.keys(fields).length, `Unexpected ${table} fields`);
+      for (const [name, type] of Object.entries(fields)) {
+        assert.ok(validValue(type, row[name]), `Invalid ${table}.${name}`);
+      }
+      assert.equal(row.course_id, courseId, 'Context row refers to another course');
+      assert.match(row.setting_key, /^[a-z][a-z0-9_]{0,47}$/, 'Invalid care setting key');
+      if (table === 'care_settings') {
+        assert.ok(row.label.trim().length <= 100, 'Care setting label is too long');
+        assert.ok(!settingKeys.has(row.setting_key), 'Duplicate care setting');
+        settingKeys.add(row.setting_key);
+      } else {
+        assert.ok(lessonIds.has(row.lesson_id) && settingKeys.has(row.setting_key),
+          'Unknown contextual lesson or care setting');
+        assert.ok(applicationKinds.has(row.kind) && row.body.trim().length <= 12000, 'Invalid lesson application');
+        const key = [row.setting_key, row.lesson_id, row.kind].join(':');
+        assert.ok(!applicationKeys.has(key), 'Duplicate lesson application');
+        applicationKeys.add(key);
+      }
+      return Object.fromEntries(Object.keys(fields).map(key => [key, row[key]]));
+    }).sort((a, b) => a.setting_key.localeCompare(b.setting_key, 'en')
+      || (a.lesson_id || '').localeCompare(b.lesson_id || '', 'en')
+      || (a.kind || '').localeCompare(b.kind || '', 'en'));
+  }
+}
+
 function validValue(type, value) {
   switch (type) {
     case 'uuid': return typeof value === 'string' && uuid.test(value);
@@ -56,6 +100,7 @@ export function normalize(plan) {
   }
   const withChoices = new Set(normalized.choices.map(row => row.scenario_id));
   assert.ok(normalized.scenarios.every(row => withChoices.has(row.id)), 'Scenario lacks choices');
+  normalizeContext(plan, normalized);
   return normalized;
 }
 
@@ -66,7 +111,7 @@ export function summarize(plan, sourceCommit) {
     slug: rows.courses[0].slug,
     sourceCommit,
     sha256: createHash('sha256').update(JSON.stringify(rows)).digest('hex'),
-    counts: Object.fromEntries(tables.map(([table]) => [table, rows[table].length])),
+    counts: Object.fromEntries(Object.entries(rows).map(([table, entries]) => [table, entries.length])),
   };
 }
 
@@ -79,7 +124,9 @@ function renderImport(rows, gate, finish) {
     "SET LOCAL statement_timeout = '30s';",
     gate,
   ];
-  for (const [table, , fields] of tables) {
+  const importTables = tables.map(([table, , fields]) => [table, fields]).concat(contextTables);
+  for (const [table, fields] of importTables) {
+    if (!Object.hasOwn(rows, table)) continue;
     const columns = Object.keys(fields).join(', ');
     const types = Object.entries(fields).map(([name, type]) => `${name} ${type}`).join(', ');
     // Hex safely transports private UTF-8 without embedding source text in SQL syntax.

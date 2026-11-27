@@ -16,6 +16,25 @@ const plan = {
   choices: [],
 };
 
+const setting = {course_id: id(1), setting_key: 'hospice', label: 'Hospice', published: false};
+const application = {
+  course_id: id(1), setting_key: 'hospice', lesson_id: id(3), kind: 'reflection', body: 'Fictional', published: false,
+};
+const contextual = {...plan, care_settings: [setting], lesson_applications: [application]};
+
+test('staging digest covers unpublished contextual rows tied to the existing course and lessons', () => {
+  const source = 'b'.repeat(40);
+  const baseline = summarize(plan, source);
+  const extended = summarize(contextual, source);
+  assert.notEqual(baseline.sha256, extended.sha256);
+  assert.equal(extended.counts.lesson_applications, 1);
+  assert.match(renderStagedImport(contextual, source, extended.sha256, id(35)), /academy_lesson_applications/);
+  assert.throws(() => normalize({...contextual, care_settings: [{...setting, published: true}]}), /published/);
+  assert.throws(() => normalize({...contextual, lesson_applications: [{...application, lesson_id: id(99)}]}), /Unknown contextual lesson/);
+  assert.throws(() => normalize({...contextual, lesson_applications: [{...application, course_id: id(99)}]}), /another course/);
+  assert.throws(() => normalize({...contextual, lesson_applications: [application, application]}), /Duplicate lesson application/);
+});
+
 test('import rehearsal excludes private metadata and produces a deterministic receipt', () => {
   const sha = 'a'.repeat(40);
   const { course, ...rest } = plan;
@@ -53,7 +72,7 @@ test('PostgreSQL commits a matching target and rolls back a late row conflict', 
   assert.equal(process.env.PGHOST, 'localhost');
   const target = id(35);
   const source = 'b'.repeat(40);
-  const digest = summarize(plan, source).sha256;
+  const digest = summarize(contextual, source).sha256;
 
   function psql(input, errorPattern, ...args) {
     const result = spawnSync('psql', ['-XqAt', '-v', 'ON_ERROR_STOP=1', ...args], {
@@ -71,12 +90,14 @@ test('PostgreSQL commits a matching target and rolls back a late row conflict', 
 
   const setup = readFileSync(new URL('./staging-import-target.sql', import.meta.url), 'utf8');
   psql(setup, null, '-v', 'academy_target_uuid=' + target);
-  const staged = renderStagedImport(plan, source, digest, target);
-  psql(renderStagedImport(plan, source, digest, id(36)), /target mismatch/);
+  const staged = renderStagedImport(contextual, source, digest, target);
+  psql(renderStagedImport(contextual, source, digest, id(36)), /target mismatch/);
   assert.equal(psql('select count(*) from academy_internal.curriculum_import_receipts;'), '0');
   psql(staged);
   assert.equal(psql(`select content_sha256 from academy_internal.curriculum_import_receipts where course_id='${id(1)}';`), digest);
   assert.equal(psql(`select count(*) from public.academy_lessons where module_id='${id(2)}' and not published;`), '2');
+  assert.equal(psql(`select count(*) from public.academy_care_settings where course_id='${id(1)}' and not published;`), '1');
+  assert.equal(psql(`select count(*) from public.academy_lesson_applications where lesson_id='${id(3)}' and not published;`), '1');
   psql(staged, /duplicate key/);
 
   const conflicting = {
