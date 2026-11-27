@@ -13,7 +13,7 @@ $('logout').onclick=async()=>{clear();$('login').hidden=false;try{check(await db
 $('agency').onchange=()=>refresh().catch(fail);$('cancel').onclick=reset;
 $('initiativeForm').onsubmit=async e=>{e.preventDefault();const id=$('agency').value,edit=editing,run=epoch;const v=Object.fromEntries(fields.map(f=>[f,$(f).value.trim()]));v.due_date=v.due_date||null;if(!v.topic)return say('Enter an affirmative topic.');$('save').disabled=true;$('agency').disabled=true;try{const q=edit?db.from('agency_portal_initiatives').update(v).eq('id',edit).eq('org_id',id):db.from('agency_portal_initiatives').insert({...v,org_id:id});const rows=check(await q.select('id'));if(!rows.length)throw new Error('No authorized rows changed');if(run===epoch)await refresh()}catch(e){if(run===epoch)fail(e)}finally{$('save').disabled=false;$('agency').disabled=false}};
 $('login').hidden=false;say('Sign in to your agency account.');
-function clearEnrollment(){
+function clearEnrollment(){clearIssuer();
  $('locationControls').hidden=true;$('locationForm').hidden=true;$('enrollmentControls').hidden=true;
  $('locationList').replaceChildren();$('enrollmentList').replaceChildren();$('enrollmentLocation').replaceChildren();
  $('locationForm').reset();$('enrollmentForm').reset();$('requestEnrollment').disabled=true;
@@ -46,6 +46,7 @@ async function loadEnrollment(run,id,role){
   for(const req of requests)$('enrollmentList').append(entry((locNames.get(req.location_id)||'Location')+' · '+req.status+' · '+new Date(req.created_at).toLocaleDateString()));
   if(!requests.length)$('enrollmentList').append(entry('No requests yet.'));
   $('requestEnrollment').disabled=!locations.some(l=>l.active);
+  loadIssuer(requests,run,id);
   $('enrollmentNotice').textContent=admin?'Requests require Care & Stay review. No subscription is activated.':'Location access is read-only for quality leaders.';
  }catch{if(current(run,id)){clearEnrollment();$('enrollmentNotice').textContent='Location and enrollment tools are not available in this release.'}}
 }
@@ -65,4 +66,39 @@ $('enrollmentForm').onsubmit=async e=>{
   if(rows.length!==1)throw Error('No authorized request created');
   if(current(run,id))await refresh();
  }catch{if(current(run,id)){$('enrollmentNotice').textContent='Request could not be confirmed. Review existing requests before retrying.';$('requestEnrollment').disabled=false}}
+};
+
+const AGENCY_ISSUER_RELEASE=false;
+let issuerRequests=[],issuerAbort=null,issuerGeneration=0;
+function clearIssuer(){
+ issuerGeneration++;issuerAbort?.abort();issuerAbort=null;issuerRequests=[];$('issuerPanel').hidden=true;$('issuerForm').reset();$('issuerRequest').replaceChildren();$('issuerNotice').textContent='';$('issuerCode').value='';$('issuerResult').hidden=true;$('issuerSubmit').disabled=true;
+}
+function loadIssuer(requests,run,id){
+ if(!AGENCY_ISSUER_RELEASE||!current(run,id)||!canManage(id))return;
+ issuerRequests=requests.filter(r=>r.status==='pending'&&r.product===orgs.find(o=>o.id===id)?.industry);
+ $('issuerPanel').hidden=false;$('issuerRequest').replaceChildren(...issuerRequests.map(r=>new Option('Pending request · '+r.id,r.id)));
+ $('issuerSubmit').disabled=!issuerRequests.length;
+ if(!issuerRequests.length)$('issuerNotice').textContent='No pending requests available.';
+}
+$('issuerClear').onclick=()=>{$('issuerCode').value='';$('issuerResult').hidden=true};
+$('issuerForm').onsubmit=async e=>{
+ e.preventDefault();const run=epoch,org=$('agency').value,generation=++issuerGeneration;
+ const row=issuerRequests.find(x=>x.id===$('issuerRequest').value);
+ if(!AGENCY_ISSUER_RELEASE||!current(run,org)||!canManage(org)||!row||!$('issuerConfirm').checked||issuerAbort)return;
+ const expiry=new Date($('issuerExpires').value),coverage=new Date($('issuerCoverage').value);
+ if(!Number.isFinite(expiry.getTime())||!Number.isFinite(coverage.getTime())||expiry<=Date.now()||expiry-Date.now()>604800000||coverage<expiry){$('issuerNotice').textContent='Enter a valid invitation and coverage window.';return}
+ const email=$('issuerEmail').value.trim();if(!email||!$('issuerEmail').checkValidity())return;
+ $('issuerCode').value='';$('issuerResult').hidden=true;$('issuerEmail').value='';$('issuerConfirm').checked=false;$('issuerSubmit').disabled=true;
+ const controller=new AbortController();issuerAbort=controller;const timer=setTimeout(()=>controller.abort(),20000);
+ try{
+  const auth=check(await db.auth.getSession()).session;
+  if(!auth?.access_token||!current(run,org)||generation!==issuerGeneration)return;
+  const response=await fetch('https://vwxbqxmnggwaqwlwseco.supabase.co/functions/v1/sponsor-agency-issuer-staging',{method:'POST',redirect:'error',credentials:'omit',signal:controller.signal,headers:{Authorization:'Bearer '+auth.access_token,'Content-Type':'application/json'},body:JSON.stringify({request_id:row.id,product:row.product,recipient_email:email,expires_at:expiry.toISOString(),coverage_ends_at:coverage.toISOString()})});
+  const data=await response.json();
+  if(!current(run,org)||generation!==issuerGeneration)return;
+  if(response.status!==201||!/^[A-Za-z0-9_-]{43}$/.test(data?.token))throw Error('Invitation unavailable');
+  $('issuerCode').value=data.token;$('issuerResult').hidden=false;$('issuerNotice').textContent='Invitation issued. Copy the private code for the intended recipient, then clear it. No family access is active yet.';
+  issuerRequests=issuerRequests.filter(x=>x.id!==row.id);$('issuerRequest').replaceChildren(...issuerRequests.map(r=>new Option('Pending request · '+r.id,r.id)));
+ }catch{if(current(run,org)&&generation===issuerGeneration)$('issuerNotice').textContent='Invitation could not be confirmed. Review the request with Care & Stay before retrying.'}
+ finally{clearTimeout(timer);if(generation===issuerGeneration){issuerAbort=null;$('issuerSubmit').disabled=!issuerRequests.length}}
 };
