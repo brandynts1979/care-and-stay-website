@@ -27,4 +27,28 @@ window.ACADEMY_GOAL_MAPS = {
       {"label":"Experimentation and development","lessons":["a9f866c9-df56-83ca-a6dc-a5e8b9770be2","0439fece-516a-8bd4-b9b0-49162eb5a3f9","67379501-e89c-8406-a358-9e30e7467245"]},
     ],
   },
+  '4e9d56db-6ece-8b5f-ac7c-8bd24f809617': {
+    slug: 'stay-culture-leadership-academy-senior-care-v2',
+    goals: [
+      {"label":"Authenticity and self-awareness","lessons":["cf594337-c908-88e3-9006-cd33487eedc6","4d06ead7-f436-822d-9f1c-c649939b81e1","3a34c283-dc21-8000-b48f-b492096e2d86"]},
+      {"label":"Trust and psychological safety","lessons":["7f130b93-c241-8a6e-911d-17f53912e5c6","66c2ab32-ebf4-8113-aba6-1610ce1ca762","ea50db3e-d9ec-8db6-9ed4-ef57e82621f2"]},
+      {"label":"Listening and coaching","lessons":["d30af0ce-fdff-8b6c-b32a-74b277fb5867","61502481-7f43-8937-ae47-a36856ecf579","1ce9a3db-6643-8db0-9b66-82a074b4261e"]},
+      {"label":"Appreciation and strengths","lessons":["2eb7e224-9f62-838d-aca2-1c85a5d4f93d","20a55bef-b022-84f1-8b36-dcd10a3ac376","a2fe99b7-3b38-8287-aa6d-e6240222c558"]},
+      {"label":"Purpose and direction","lessons":["818b190f-dd78-8b43-935d-ff027567238c","e11724a1-42f0-8093-bb1a-3037d5256383","3b4a3f67-7a08-85f2-aa98-450d58ca0cfc"]},
+      {"label":"Accountability and constructive conflict","lessons":["a1b07eea-f42b-8897-812c-559ad8e32505","555c1a24-871d-87e2-97e5-a008fc67d968","c7f447a6-935f-895d-8f71-ad56a8f91c36"]},
+      {"label":"Growth and sustainable leadership","lessons":["590223d8-2c57-8dcc-95e9-3de888ecba0b","a144b34f-b944-8f55-b8f3-0fd0be28d214","faa47431-f84f-8a27-b6b9-c2c7b608c860"]},
+    ],
+  },
+  '01fa508f-2265-8915-9ed3-cd48611927ad': {
+    slug: 'stay-culture-leadership-academy-hospice-v2',
+    goals: [
+      {"label":"Authenticity and self-awareness","lessons":["55a12a9a-6553-8f0c-a5fc-2c5441639b82","21382b15-b23c-8f94-8f68-2872b245b137","9eab7708-d500-8ee6-a53a-0768e437c513"]},
+      {"label":"Trust and psychological safety","lessons":["6e78814c-7a1f-82e4-ab0d-224cddaa537b","c6d5bc57-4540-8b65-8cf8-c85cae7bf1f7","7b413b34-e32d-84fe-961e-52c8019e08da"]},
+      {"label":"Listening and coaching","lessons":["ea9877b3-224f-801a-baa5-276ca8873e52","eac4d317-448a-840c-bd96-c277cb4388a6","0b0c7634-9de5-8fcc-9688-94c97c0eb59c"]},
+      {"label":"Appreciation and strengths","lessons":["ad4d883b-e242-8265-80f3-15406b82b297","02387071-f1d5-86da-93d5-f703738993b5","6c2d6c02-63dd-8469-83e8-6fa8444daf42"]},
+      {"label":"Purpose and direction","lessons":["20c7ff98-669b-886a-8eaa-7615953f5f7e","9316f4ec-0717-8acd-8ee5-4637c73408f1","81ad9f84-79c8-86db-b441-9fc10c4fbb0f"]},
+      {"label":"Accountability and constructive conflict","lessons":["3a2bf5ed-72a6-8d62-9d0f-85bcf0642bbf","6b0f6624-9f56-85f5-9b0b-4329c46c9708","21ff4fcc-c8fe-89c3-9697-871c256b1865"]},
+      {"label":"Growth and sustainable leadership","lessons":["5c3c4478-29b2-8fa9-b5ab-8d0b7acd138a","9223955b-01eb-8672-ae08-99018b821c66","f0cb190c-1378-8ea4-b356-88e27da73c79"]},
+    ],
+  },
 };
