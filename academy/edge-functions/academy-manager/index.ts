@@ -1,4 +1,4 @@
-import { checkoutMode, validSandboxPrice } from "../_shared/qsr-sandbox-policy.mjs";
+import { checkoutMode, isQsrSandbox, validSandboxPrice } from "../_shared/qsr-sandbox-policy.mjs";
 import { validModuleMediaPath } from "./media-path.mjs";
 import { createClient } from "npm:@supabase/supabase-js@2.57.0";
 import Stripe from "npm:stripe@17.7.0";
@@ -225,7 +225,7 @@ Deno.serve(async(req:Request)=>{
     const id=String(body.location_id||"");if(!uuid(id))fail(400,"Invalid location");
     const loc=await location(id);
     if(loc.billing_owner_id!==user.id)fail(403,"Only the billing owner can manage billing");
-    if(!checkoutMode(env))fail(503,"Academy billing is not yet enabled");
+    if(isQsrSandbox(env)&&!checkoutMode(env))fail(503,"Sandbox billing is not yet enabled");
     if(!loc.stripe_customer_id)fail(404,"No billing customer linked");
     if(!stripe)fail(503,"Stripe billing is not yet configured");
     const session=await stripe!.billingPortal.sessions.create({customer:loc.stripe_customer_id,return_url:origin+"/academy/learn/"});
