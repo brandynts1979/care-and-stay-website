@@ -610,7 +610,7 @@ $('signin').onclick=()=>authenticate('signin');$('signup').onclick=()=>authentic
 $('forgotPassword').onclick=requestPasswordReset;
 $('saveResetPassword').onclick=updateRecoveredPassword;
 $('cancelPasswordReset').onclick=()=>{recoveryToken=null;$('resetPassword').value='';$('resetPasswordConfirm').value='';$('passwordReset').classList.add('hide');$('auth').classList.remove('hide');notify('Return to sign-in or request a new reset link.');};
-$('signout').onclick=async()=>{try{await request('/auth/v1/logout','POST',{},true)}catch{}clearSession('Signed out.')};
+$('signout').onclick=async()=>{clearArchive();try{await request('/auth/v1/logout','POST',{},true)}catch{}clearSession('Signed out.')};
 wire('savePerson',savePerson);wire('addStrength',addStrength);wire('addGoal',addGoal);wire('addStep',addStep);wire('addNote',addNote);
 $('people').onchange=()=>retry(selectPerson);$('activeGoal').onchange=()=>retry(loadProgress);
 (async()=>{
