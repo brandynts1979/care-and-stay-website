@@ -1,0 +1,22 @@
+name: Agency independent browser QA
+on:
+  pull_request:
+    branches: [agency-portal-hardening-20261125]
+    paths: ['.github/qa/agency-portal-browser.mjs', '.github/workflows/agency-independent-browser-qa.yml']
+permissions:
+  contents: read
+jobs:
+  synthetic-browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install isolated browser runner
+        run: npm install --no-save --no-package-lock --ignore-scripts playwright@1.56.0
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Exercise agency draft using synthetic data only
+        run: node .github/qa/agency-portal-browser.mjs
