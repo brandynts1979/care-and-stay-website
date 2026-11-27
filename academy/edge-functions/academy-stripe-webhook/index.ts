@@ -1,3 +1,4 @@
+import { acceptsWebhookMode, isQsrSandbox, validSandboxSubscription } from "../_shared/qsr-sandbox-policy.mjs";
 import { createClient } from "npm:@supabase/supabase-js@2.57.0";
 import Stripe from "npm:stripe@17.7.0";
 
@@ -30,7 +31,8 @@ async function updateLocation(subscription:Stripe.Subscription,event:Stripe.Even
    // A linked subscription that loses the approved product must not keep access.
    if(!linked)throw new Error("Stripe subscription does not contain the approved Academy price");
  }
- const hasPrice=(current.items?.data||[]).some((item:any)=>item.price?.id===approvedPrice);
+ const hasPrice=(current.items?.data||[]).some((item:any)=>item.price?.id===approvedPrice) && (!isQsrSandbox(env)||validSandboxSubscription(current));
+ if(!hasPrice&&!linked)throw new Error("Unverified subscription price or quantity");
  const status=!hasPrice||current.status==="incomplete_expired"?"canceled":current.status;
  const args={
    p_location:locationId,p_revision:loc.billing_revision,p_event_id:event.id,p_event_type:event.type,
@@ -89,6 +91,7 @@ Deno.serve(async(req:Request)=>{
   const raw=await req.text();
   event=await stripe!.webhooks.constructEventAsync(raw,sig,env("STRIPE_WEBHOOK_SECRET"),undefined,Stripe.createSubtleCryptoProvider());
  }catch(e){console.error("Invalid Academy Stripe signature");return respond(400,{error:"Invalid signature"});}
+ if(!acceptsWebhookMode(env,event))return respond(400,{error:"Stripe event mode not enabled"});
  // Only events from a subscription tagged with a location ID can affect an Academy location.
  try{
   const {data:existing,error:lookup}=await admin.from("academy_billing_events").select("processed_at").eq("stripe_event_id",event.id).maybeSingle();
@@ -104,7 +107,9 @@ Deno.serve(async(req:Request)=>{
    case "checkout.session.async_payment_succeeded":{
     const session=event.data.object as Stripe.Checkout.Session;
     if(session.mode==="subscription"&&session.subscription&&["paid","no_payment_required"].includes(session.payment_status)){
-     checkout=session;subscription=await stripe!.subscriptions.retrieve(typeof session.subscription==="string"?session.subscription:session.subscription.id);
+     const verified=await stripe!.checkout.sessions.retrieve(session.id);
+     if(verified.livemode!==event.livemode||verified.mode!=="subscription"||verified.status!=="complete"||!verified.subscription||!["paid","no_payment_required"].includes(verified.payment_status))throw new Error("Checkout payment not verified");
+     checkout=verified;subscription=await stripe!.subscriptions.retrieve(typeof verified.subscription==="string"?verified.subscription:verified.subscription.id);
     }
     break;
    }
