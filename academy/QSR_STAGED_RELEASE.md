@@ -136,3 +136,9 @@ Private QSR PR #10 at `c3deb56` passed six local operator-utility tests for read
 ### Reviewer-to-learner certificate flow
 
 Install `staged_academy_reviewer_certificates.sql` after the graduation and explicit-entitlement gates, before releasing the matching learner UI and Academy manager. Reviewers can award from assigned practice reviews. The manager derives the reviewer from verified authentication, and the database requires exact assignment and a current learner entitlement before invoking the existing completion gate. New award requests require approvals tied to current submission text. Existing awards remain valid under the existing learner access rules. An older review without a submission hash needs a fresh review before a new award. The disposable fixture verifies stale review denial, self-award denial, cross-location denial, successful award, retry and learner retrieval.
+
+### Learner-selected personalization
+
+The current QSR V2 and ABD V1 plans have optional learner-selected goals. QSR uses the Individual competency mapping from private PR #10, and ABD uses the Sales 360 competency crosswalk from private PR #14. The browser map contains labels and stable curriculum identifiers. All mapped identifiers were checked against the private import plans. The selector displays only lessons already returned for the exact open enrollment and uses the existing lesson action. It neither sends nor saves the selected goal and resets when changing courses or signing out. Legacy QSR has no goal map and follows its existing launch path.
+
+Consented assessment summaries and automated personalization remain a separate hosted gate. Verify exact user and tenant linkage, assessment and mapping version, suppression and consent revocation before processing real assessment data.

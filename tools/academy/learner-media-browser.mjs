@@ -24,6 +24,12 @@ HTMLAnchorElement.prototype.click=function(){};
 
 const e={id:'fixture-enrollment',course_id:'fixture-course',location_name:'Fictional restaurant',status:'active'};
 const e2={...e,id:'fixture-enrollment-2',location_name:'Second fictional restaurant',status:'completed'};
+window.ACADEMY_GOAL_MAPS={
+ 'fixture-course':{slug:'stay-culture-leadership-academy-senior-care-v2',goals:[
+   {label:'Practice listening',lessons:['fixture-lesson','hidden-lesson']},
+   {label:'Unavailable topics',lessons:['hidden-lesson']},
+ ]},
+};
 const data={
  academy_courses:[{id:e.course_id,slug:'stay-culture-leadership-academy-senior-care-v2',title:'Fictional QSR Academy',published:true}],
  academy_modules:[{id:'fixture-module',title:'Learn with care',position:1,overview:''}],
@@ -125,7 +131,11 @@ async function run(){
  const setting=document.querySelector('#lessons select');
  check(setting&&setting.value==='','Shared foundation is the default');
  setting.value='assisted_living';
- btn('Study lesson').click();await waitFor(()=>btn('Save private reflection'),'second location reflection');
+ const goalSelect=document.querySelectorAll('#lessons select')[1];
+ check(goalSelect&&goalSelect.value===''&&goalSelect.options.length===2,'Goal selector resets and excludes unavailable goals');
+ goalSelect.value='0';goalSelect.dispatchEvent(new Event('change'));
+ check(!!btn('Fictional lesson'),'Goal recommends the current entitled lesson');
+ btn('Fictional lesson').click();await waitFor(()=>btn('Save private reflection'),'recommended lesson at second location');
  const currentInput=document.querySelector('#lessonDetail textarea');
  check(currentInput.value==='Second location reflection','Correct location reflection loaded');
  check(document.getElementById('lessonDetail').textContent.includes('Fictional assisted living example'),

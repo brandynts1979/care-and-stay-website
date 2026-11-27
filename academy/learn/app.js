@@ -396,6 +396,49 @@
       // Shared lesson content remains available if the optional application request fails.
     }
   }
+  function renderLearningGoals(course, lessonActions, current) {
+    const map = window.ACADEMY_GOAL_MAPS?.[course.id];
+    if (map?.slug !== course.slug) return null;
+    const goals = map.goals.map(goal => ({
+      label: goal.label,
+      lessons: goal.lessons.map(id => lessonActions.get(id)).filter(Boolean),
+    })).filter(goal => goal.lessons.length);
+    if (!goals.length) return null;
+
+    const panel = elt('section', undefined, 'academy-question');
+    panel.append(elt('h3', 'Practice a learning goal'));
+    panel.append(elt('p', 'Choose a goal to find relevant lessons. Your selection stays in this course view.'));
+    const label = elt('label', 'Learning goal');
+    const select = elt('select', undefined, 'academy-input');
+    const placeholder = elt('option', 'Choose a goal');
+    placeholder.value = '';
+    select.append(placeholder);
+    goals.forEach((goal, index) => {
+      const option = elt('option', goal.label);
+      option.value = String(index);
+      select.append(option);
+    });
+    label.append(select);
+    const suggestions = elt('ul');
+    suggestions.setAttribute('aria-live', 'polite');
+    select.addEventListener('change', () => {
+      if (!current()) return;
+      suggestions.replaceChildren();
+      if (select.value === '') return;
+      const goal = goals[Number(select.value)];
+      for (const lesson of goal?.lessons || []) {
+        const item = elt('li');
+        item.append(button(lesson.title, () => {
+          if (!current()) return;
+          lesson.card.open = true;
+          lesson.action.click();
+        }, true));
+        suggestions.append(item);
+      }
+    });
+    panel.append(label, suggestions);
+    return panel;
+  }
   async function loadLessons(e,course){
     if(!user||recovering)return;
     clearModulePlayers();const epoch=mediaEpoch;
@@ -439,6 +482,7 @@
       }, true));
     }
     const cards=elt('div',undefined,'academy-modules');
+    const lessonActions = new Map();
     for(const m of modules){
       const items=lessons.filter(l=>l.module_id===m.id);
       const completed=items.filter(l=>done.has(l.id)).length;
@@ -476,17 +520,21 @@
         label.append(elt('span',done.has(lesson.id)?'✓':'',done.has(lesson.id)?'academy-lesson-status complete':'academy-lesson-status'));
         const copy=elt('div');copy.append(elt('strong',lesson.title),elt('small','Lesson '+lesson.position+' · Learn · Reflect · Apply'));
         label.append(copy);
-        row.append(label,button(done.has(lesson.id)?'Review lesson':'Study lesson',async()=>{
+        const action = button(done.has(lesson.id)?'Review lesson':'Study lesson',async()=>{
           if(epoch!==mediaEpoch||enrollment?.id!==e.id||!user||recovering)return;
           const request=++lessonEpoch;
           try{await openLesson(lesson,done.has(lesson.id),row,e.id,request,course.slug,
             settings?.value ? {key: settings.value, label: settings.selectedOptions[0].textContent} : null);}
           catch(err){if(request===lessonEpoch&&enrollment?.id===e.id&&user&&!recovering){safeError(err);detail.append(elt('p','Unable to load this lesson. '+(err?.message||'Please retry.'),'academy-error'));}}
-        },true));
+        },true);
+        lessonActions.set(lesson.id, {title: lesson.title, card, action});
+        row.append(label,action);
         list.append(row);
       }
       content.append(list);card.append(content);cards.append(card);
     }
+    const goals = renderLearningGoals(course, lessonActions, currentCourse);
+    if (goals) lessonsNode.append(goals);
     lessonsNode.append(cards);
   }
   async function loadWorksheets(lessonId, enrollmentId, current) {
