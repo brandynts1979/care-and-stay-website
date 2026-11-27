@@ -3,6 +3,7 @@
 import {readFileSync,writeFileSync,mkdirSync,existsSync} from "node:fs";
 import {dirname,join} from "node:path";
 import {createHash} from "node:crypto";
+import {Script} from "node:vm";
 function buildPreview(src,key,locked){
  if(locked&&key)throw Error("Locked preview must not receive a key");
  if(!locked&&!/^sb_publishable_[A-Za-z0-9_-]{20,}$/.test(key))throw Error("Staging publishable key required; secret/legacy keys rejected");
@@ -38,6 +39,9 @@ function buildPreview(src,key,locked){
   output[previewAppPath]=output[previewAppPath].replace(before,after);
  }
  if(output[previewAppPath].includes("Subscribe — $199/month"))throw Error("Standalone price leaked into QSR preview");
+ new Script(output[previewAppPath],{filename:"QSR preview app.js"});
+ if(!output[previewAppPath].includes("QSR founding partner — $99/location/month (sandbox only)")||!output[previewAppPath].includes("else if(cfg.billingEnabled===true&&['active','trialing'].includes(loc.subscription_status))"))throw Error("QSR preview billing guard absent");
+ console.log("Verified preview-specific commercial copy, disabled billing guard and JavaScript syntax.");
  const path="academy/learn/index.html";
  const h=output[path];
  if(!h.includes('id="register"')||!h.includes('id="reset"')||!h.includes("<head>"))throw Error("Expected learner markup changed");
