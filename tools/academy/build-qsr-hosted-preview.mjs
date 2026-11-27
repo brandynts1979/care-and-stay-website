@@ -42,6 +42,32 @@ async function verifyStagingActivation(key,request=fetch,timeout=()=>AbortSignal
  if(!allowed.ok||allowed.headers.get("access-control-allow-origin")!==origin)throw Error("Staging manager exact-origin preflight failed");
  if(foreign.headers.get("access-control-allow-origin")!==origin&&foreign.headers.get("access-control-allow-origin")!==null)throw Error("Staging manager allowed an unexpected origin");
  if(![401,403].includes(denied.status))throw Error("Staging manager did not reject anonymous request");
+ // Independent operator acceptance against the hosted preview that is already live.
+ // No synthetic passwords, secret keys or user writes are involved.
+ const page=await safe(origin+"/academy/learn/");
+ if(!page.ok)throw Error("Existing hosted preview unavailable");
+ const html=await page.text();
+ if(!/noindex,nofollow/i.test(html)||!/synthetic accounts only/i.test(html))throw Error("Existing hosted preview not isolated");
+ const hosted=await safe(origin+"/academy/learn/config.js");
+ if(!hosted.ok)throw Error("Existing hosted config unavailable");
+ const configMatch=(await hosted.text()).match(/Object\.freeze\((\{[^\r\n]+\})\)/);
+ if(!configMatch)throw Error("Unexpected hosted configuration");
+ const previous=JSON.parse(configMatch[1]);
+ if(previous.supabaseUrl!==base||previous.publishableKey!==key||previous.billingEnabled!==false)throw Error("Existing hosted configuration differs");
+ const payload={enrollment_id:"00000000-0000-4000-8000-000000000001",module_id:"00000000-0000-4000-8000-000000000001",location_id:"00000000-0000-4000-8000-000000000001"};
+ const actions=["create_checkout","list_module_media","play_module_media"];
+ const results=await Promise.all(actions.map(action=>safe(base+"/functions/v1/academy-manager",{method:"POST",headers:{Origin:origin,apikey:key,"content-type":"application/json"},body:JSON.stringify({...payload,action})})));
+ for(let i=0;i<actions.length;i++){
+  if(![401,403].includes(results[i].status))throw Error("Anonymous request not denied: "+actions[i]);
+  console.log("Hosted anonymous denial verified: "+actions[i]);
+ }
+ for(const [name,signature] of [["unsigned",null],["forged","t=1,v1=invalid"]]){
+  const headers={"content-type":"application/json"};if(signature)headers["stripe-signature"]=signature;
+  const response=await safe(base+"/functions/v1/academy-stripe-webhook",{method:"POST",headers,body:JSON.stringify({type:"checkout.session.completed",livemode:false})});
+  if(response.status!==400)throw Error("Unexpected webhook rejection status: "+name+" "+response.status);
+  console.log("Hosted webhook denial verified: "+name);
+ }
+ console.log("Existing hosted preview config and five independent public denial checks verified.");
  return true;
 }
 const out=buildPreview(sources,process.env.QSR_STAGING_PUBLISHABLE_KEY||"",locked);
