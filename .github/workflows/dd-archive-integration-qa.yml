@@ -2,7 +2,7 @@ name: DD archive integration QA
 on:
   pull_request:
     branches: [main]
-    paths: ['.github/qa/dd-archive-integration*', '.github/workflows/dd-archive-integration-qa.yml']
+    paths: ['.github/qa/dd-archive-integration*', '.github/workflows/dd-archive-integration-qa.yml', '.github/qa/sponsor-portal-ui.test.mjs']
 permissions:
   contents: read
 jobs:
@@ -18,4 +18,5 @@ jobs:
           node-version: '22'
       - run: npm install --no-save --no-package-lock --ignore-scripts @playwright/test@1.56.1
       - run: npx playwright install --with-deps chromium
+      - run: node --test .github/qa/sponsor-portal-ui.test.mjs
       - run: npx playwright test --config=.github/qa/dd-archive-integration.config.mjs
