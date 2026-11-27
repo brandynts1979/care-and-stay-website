@@ -1,0 +1,43 @@
+name: QSR hosted preview smoke
+on:
+  push:
+    branches: [qsr-hosted-preview-20261127]
+    paths: [.github/workflows/qsr-hosted-preview-smoke.yml]
+  workflow_dispatch:
+permissions: {}
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Verify actual public preview and staging origin without credentials
+        shell: bash
+        run: |
+          node --input-type=module <<'JS'
+          import assert from 'node:assert/strict';
+          const site='https://care-and-stay-qsr-staging.onrender.com';
+          const manager='https://dvdvjzqiiekakxzkhora.supabase.co/functions/v1/academy-manager';
+          const request=(url,opts={})=>fetch(url,{redirect:'error',signal:AbortSignal.timeout(15000),...opts});
+          for(const path of ['/','/academy/learn/']) {
+            const r=await request(site+path);
+            assert.equal(r.status,200,'Preview route '+path);
+            const body=await r.text();
+            assert.match(body,/noindex,nofollow/);
+            assert.match(body,/QA preview|QA PREVIEW/i);
+            assert.doesNotMatch(body,/seaxmxrnblivtjmlmtsn|sb_secret_[A-Za-z0-9_-]{20,}/);
+          }
+          const config=await request(site+'/academy/learn/config.js');
+          assert.equal(config.status,200);
+          const js=await config.text();
+          assert.match(js,/"supabaseUrl":""/);
+          assert.match(js,/"publishableKey":""/);
+          assert.match(js,/"billingEnabled":false/);
+          for(const origin of [site,'https://example.com']) {
+            const r=await request(manager,{method:'OPTIONS',headers:{Origin:origin,'Access-Control-Request-Method':'POST','Access-Control-Request-Headers':'authorization,apikey,content-type'}});
+            assert.ok(r.ok,'Staging preflight '+r.status);
+            assert.equal(r.headers.get('access-control-allow-origin'),site);
+          }
+          const denied=await request(manager,{method:'POST',headers:{Origin:site,'content-type':'application/json'},body:JSON.stringify({action:'list_locations'})});
+          assert.ok([401,403].includes(denied.status),'Unauthenticated manager must reject');
+          console.log('PASS: real hosted preview routes, fail-closed config, exact CORS origin, anonymous denial');
+          JS
