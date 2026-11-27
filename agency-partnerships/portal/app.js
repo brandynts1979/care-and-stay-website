@@ -82,14 +82,14 @@ function loadIssuer(requests,run,id){
 }
 $('issuerClear').onclick=()=>{$('issuerCode').value='';$('issuerResult').hidden=true};
 $('issuerForm').onsubmit=async e=>{
- e.preventDefault();const run=epoch,org=$('agency').value,generation=++issuerGeneration;
+ e.preventDefault();const run=epoch,org=$('agency').value;
  const row=issuerRequests.find(x=>x.id===$('issuerRequest').value);
  if(!AGENCY_ISSUER_RELEASE||!current(run,org)||!canManage(org)||!row||!$('issuerConfirm').checked||issuerAbort)return;
  const expiry=new Date($('issuerExpires').value),coverage=new Date($('issuerCoverage').value);
  if(!Number.isFinite(expiry.getTime())||!Number.isFinite(coverage.getTime())||expiry<=Date.now()||expiry-Date.now()>604800000||coverage<expiry){$('issuerNotice').textContent='Enter a valid invitation and coverage window.';return}
  const email=$('issuerEmail').value.trim();if(!email||!$('issuerEmail').checkValidity())return;
  $('issuerCode').value='';$('issuerResult').hidden=true;$('issuerEmail').value='';$('issuerConfirm').checked=false;$('issuerSubmit').disabled=true;
- const controller=new AbortController();issuerAbort=controller;const timer=setTimeout(()=>controller.abort(),20000);
+ const generation=++issuerGeneration;const controller=new AbortController();issuerAbort=controller;const timer=setTimeout(()=>controller.abort(),20000);
  try{
   const auth=check(await db.auth.getSession()).session;
   if(!auth?.access_token||!current(run,org)||generation!==issuerGeneration)return;
