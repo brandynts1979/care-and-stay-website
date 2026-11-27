@@ -1,3 +1,4 @@
+import { checkoutMode, validSandboxPrice } from "../_shared/qsr-sandbox-policy.mjs";
 import { validModuleMediaPath } from "./media-path.mjs";
 import { createClient } from "npm:@supabase/supabase-js@2.57.0";
 import Stripe from "npm:stripe@17.7.0";
@@ -182,10 +183,13 @@ Deno.serve(async(req:Request)=>{
     const loc=await location(id);
     if(loc.billing_owner_id!==user.id)fail(403,"Only the billing owner can subscribe");
     if(active(loc.subscription_status))fail(409,"Already subscribed");
-    if(env("ACADEMY_BILLING_ENABLED")!=="true")fail(503,"Academy billing is not yet enabled");
+    // ACADEMY_BILLING_ENABLED is the independent live release switch; the QSR sandbox has its own gate.
+    const mode=checkoutMode(env);
+    if(!mode)fail(503,"Academy billing is not yet enabled");
     if(!env("ACADEMY_STRIPE_PRICE_ID")||!env("STRIPE_SECRET_KEY"))fail(503,"Billing not configured");
     if(!stripe)fail(503,"Stripe billing is not yet configured");
     const price=env("ACADEMY_STRIPE_PRICE_ID");
+    if(mode==="sandbox"&&!validSandboxPrice(await stripe!.prices.retrieve(price)))fail(503,"Approved sandbox price unavailable");
     const reservation=unwrap(await admin.rpc("academy_reserve_checkout",{p_location:id,p_owner:user.id,p_email:user.email!,p_price:price})) as any;
     if(reservation?.result==="forbidden")fail(403,"Active billing owner required");
     if(reservation?.result!=="reserved")fail(409,"Existing or unresolved subscription; use billing portal or contact support");
@@ -214,13 +218,14 @@ Deno.serve(async(req:Request)=>{
       const recorded=unwrap(await admin.rpc("academy_record_checkout_session",{p_attempt:attempt.id,p_session:session.id}));
       if(recorded!==true)fail(409,"Checkout recording failed; contact support");
     }
-    if(session.status!=="open"||!session.url)fail(409,"Checkout unavailable");
+    if(session.livemode!==(mode==="live")||session.status!=="open"||!session.url)fail(409,"Checkout unavailable");
     return json(200,{checkout_url:session.url});
   }
   if(action==="billing_portal"){
     const id=String(body.location_id||"");if(!uuid(id))fail(400,"Invalid location");
     const loc=await location(id);
     if(loc.billing_owner_id!==user.id)fail(403,"Only the billing owner can manage billing");
+    if(!checkoutMode(env))fail(503,"Academy billing is not yet enabled");
     if(!loc.stripe_customer_id)fail(404,"No billing customer linked");
     if(!stripe)fail(503,"Stripe billing is not yet configured");
     const session=await stripe!.billingPortal.sessions.create({customer:loc.stripe_customer_id,return_url:origin+"/academy/learn/"});
