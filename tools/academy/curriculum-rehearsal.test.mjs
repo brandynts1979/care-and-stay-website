@@ -20,7 +20,13 @@ const setting = {course_id: id(1), setting_key: 'hospice', label: 'Hospice', pub
 const application = {
   course_id: id(1), setting_key: 'hospice', lesson_id: id(3), kind: 'reflection', body: 'Fictional', published: false,
 };
-const contextual = {...plan, care_settings: [setting], lesson_applications: [application]};
+const worksheet = {
+  id: id(8), lesson_id: id(3), template_key: 'practice', version: 1,
+  title: 'Practice worksheet', prompts: ['Describe a fictional example.'], published: false,
+};
+const contextual = {
+  ...plan, care_settings: [setting], lesson_applications: [application], worksheet_templates: [worksheet],
+};
 
 test('staging digest covers unpublished contextual rows tied to the existing course and lessons', () => {
   const source = 'b'.repeat(40);
@@ -28,6 +34,9 @@ test('staging digest covers unpublished contextual rows tied to the existing cou
   const extended = summarize(contextual, source);
   assert.notEqual(baseline.sha256, extended.sha256);
   assert.equal(extended.counts.lesson_applications, 1);
+  assert.equal(extended.counts.worksheet_templates, 1);
+  assert.throws(() => normalize({...contextual, worksheet_templates: [{...worksheet, prompts: [null]}]}), /prompts/);
+  assert.throws(() => normalize({...contextual, worksheet_templates: [{...worksheet, lesson_id: id(99)}]}), /Unknown worksheet lesson/);
   assert.match(renderStagedImport(contextual, source, extended.sha256, id(35)), /academy_lesson_applications/);
   assert.throws(() => normalize({...contextual, care_settings: [{...setting, published: true}]}), /published/);
   assert.throws(() => normalize({...contextual, lesson_applications: [{...application, lesson_id: id(99)}]}), /Unknown contextual lesson/);
@@ -98,6 +107,7 @@ test('PostgreSQL commits a matching target and rolls back a late row conflict', 
   assert.equal(psql(`select count(*) from public.academy_lessons where module_id='${id(2)}' and not published;`), '2');
   assert.equal(psql(`select count(*) from public.academy_care_settings where course_id='${id(1)}' and not published;`), '1');
   assert.equal(psql(`select count(*) from public.academy_lesson_applications where lesson_id='${id(3)}' and not published;`), '1');
+  assert.equal(psql(`select prompts[1] from public.academy_worksheet_templates where id='${id(8)}' and not published;`), worksheet.prompts[0]);
   psql(staged, /duplicate key/);
 
   const conflicting = {

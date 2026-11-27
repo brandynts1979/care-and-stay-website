@@ -1,6 +1,6 @@
 # Shared Academy engineering queue
 
-This is the authoritative platform queue. Track release evidence and the QSR Product Launch Review operator handoff in [QSR_STAGED_RELEASE.md](QSR_STAGED_RELEASE.md). The platform work belongs on draft website PR #6. Private PRs #10, #11 and #12 remain the curriculum and asset sources.
+This is the authoritative platform queue. Track release evidence and the QSR Product Launch Review operator handoff in [QSR_STAGED_RELEASE.md](QSR_STAGED_RELEASE.md). The platform work belongs on draft website PR #6. Private PRs #10, #11, #12 and #14 remain the curriculum and asset sources.
 
 | Order | Work | Exit evidence |
 | --- | --- | --- |

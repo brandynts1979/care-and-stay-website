@@ -17,6 +17,32 @@ const contextTables = [
   ['care_settings', { course_id: 'uuid', setting_key: 'text', label: 'text', published: 'boolean' }],
   ['lesson_applications', { course_id: 'uuid', setting_key: 'text', lesson_id: 'uuid', kind: 'text', body: 'text', published: 'boolean' }],
 ];
+const worksheetFields = {
+  id: 'uuid', lesson_id: 'uuid', template_key: 'text', version: 'integer',
+  title: 'text', prompts: 'text[]', published: 'boolean',
+};
+
+function normalizeWorksheets(plan, normalized, ids) {
+  if (!Object.hasOwn(plan, 'worksheet_templates')) return;
+  assert.ok(Array.isArray(plan.worksheet_templates) && plan.worksheet_templates.length, 'Missing worksheet templates');
+  const lessonIds = new Set(normalized.lessons.map(row => row.id));
+  const keys = new Set();
+  normalized.worksheet_templates = plan.worksheet_templates.map(row => {
+    assert.equal(Object.keys(row ?? {}).length, Object.keys(worksheetFields).length, 'Unexpected worksheet fields');
+    for (const [name, type] of Object.entries(worksheetFields)) {
+      assert.ok(validValue(type, row[name]), `Invalid worksheet_templates.${name}`);
+    }
+    assert.ok(lessonIds.has(row.lesson_id), 'Unknown worksheet lesson');
+    assert.match(row.template_key, /^[a-z0-9]+(?:-[a-z0-9]+)*$/);
+    assert.ok(row.title.trim().length <= 180, 'Worksheet title is too long');
+    const key = [row.lesson_id, row.template_key, row.version].join(':');
+    assert.ok(!ids.has(row.id) && !keys.has(key), 'Duplicate worksheet identity');
+    ids.add(row.id);
+    keys.add(key);
+    return Object.fromEntries(Object.keys(worksheetFields).map(name => [name, row[name]]));
+  }).sort((a, b) => a.id.localeCompare(b.id, 'en'));
+}
+
 const applicationKinds = new Set(['case_study', 'scenario', 'simulation', 'exercise', 'reflection', 'fieldwork', 'recommendation']);
 
 function normalizeContext(plan, normalized) {
@@ -59,6 +85,8 @@ function normalizeContext(plan, normalized) {
 
 function validValue(type, value) {
   switch (type) {
+    case 'text[]': return Array.isArray(value) && value.length >= 1 && value.length <= 30
+      && value.every(item => validValue('text', item)) && value.join('').length <= 18000;
     case 'uuid': return typeof value === 'string' && uuid.test(value);
     case 'boolean': return value === false;
     case 'integer': return Number.isInteger(value) && value > 0 && value <= 2147483647;
@@ -101,6 +129,7 @@ export function normalize(plan) {
   const withChoices = new Set(normalized.choices.map(row => row.scenario_id));
   assert.ok(normalized.scenarios.every(row => withChoices.has(row.id)), 'Scenario lacks choices');
   normalizeContext(plan, normalized);
+  normalizeWorksheets(plan, normalized, ids);
   return normalized;
 }
 
@@ -124,7 +153,7 @@ function renderImport(rows, gate, finish) {
     "SET LOCAL statement_timeout = '30s';",
     gate,
   ];
-  const importTables = tables.map(([table, , fields]) => [table, fields]).concat(contextTables);
+  const importTables = tables.map(([table, , fields]) => [table, fields]).concat(contextTables, [['worksheet_templates', worksheetFields]]);
   for (const [table, fields] of importTables) {
     if (!Object.hasOwn(rows, table)) continue;
     const columns = Object.keys(fields).join(', ');
