@@ -73,3 +73,12 @@ test('Release gate does not claim ready without full end-to-end tests', () => {
   assert.match(launch, /purchase-to-entitlement/i);
 });
 console.log('Academy public-page smoke checks passed. This is NOT LMS or Stripe E2E certification.');
+
+test('QSR and client portals link existing product sign-ins without opening checkout', () => {
+  const qsr = readFileSync(resolve(root, 'stay-culture-360/qsr/index.html'), 'utf8');
+  for (const path of ['/employer-login/', '/individual-login/', '/academy/learn/']) {
+    assert.ok(qsr.includes(`href="${path}"`), `QSR page should link ${path}`);
+    assert.ok(portal.includes(`href="${path}"`), `Client portal should link ${path}`);
+  }
+  assert.doesNotMatch(qsr + portal, /https:\/\/(checkout|buy)\.stripe\.com\//i);
+});
