@@ -12,6 +12,32 @@ function buildPreview(src,key,locked){
   if(/seaxmxrnblivtjmlmtsn|sb_secret_[A-Za-z0-9_-]{20,}|(?:sk|rk)_live_[A-Za-z0-9]{16,}/.test(src[path]))throw Error("Production or privileged config value in "+path);
   output[path]=src[path];
  }
+ // Preview-only commercial safeguards; leave shared application sources untouched.
+ // Do not expose a standalone price or a usable billing portal when QA billing is off.
+ const previewAppPath="academy/learn/app.js";
+ const previewReplacements=[
+  [
+    "Create a restaurant location to set up an owner subscription. No charge occurs until you complete Stripe Checkout.",
+    "Create a synthetic restaurant location for QA. Checkout is disabled in this preview."
+  ],
+  [
+    "Location created. Add a subscription to activate manager invitations.",
+    "Synthetic location created. An authorized operator must approve its test entitlement before invitations are enabled."
+  ],
+  [
+    "Subscribe — $199/month",
+    "QSR founding partner — $99/location/month (sandbox only)"
+  ],
+  [
+    "else if(['active','trialing'].includes(loc.subscription_status)) item.append(button('Manage billing'",
+    "else if(cfg.billingEnabled===true&&['active','trialing'].includes(loc.subscription_status)) item.append(button('Manage billing'"
+  ]
+];
+ for(const [before,after] of previewReplacements){
+  if(output[previewAppPath].split(before).length!==2)throw Error("QSR preview commercial UI changed; review the exact replacement");
+  output[previewAppPath]=output[previewAppPath].replace(before,after);
+ }
+ if(output[previewAppPath].includes("Subscribe — $199/month"))throw Error("Standalone price leaked into QSR preview");
  const path="academy/learn/index.html";
  const h=output[path];
  if(!h.includes('id="register"')||!h.includes('id="reset"')||!h.includes("<head>"))throw Error("Expected learner markup changed");
