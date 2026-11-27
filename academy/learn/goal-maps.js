@@ -51,4 +51,40 @@ window.ACADEMY_GOAL_MAPS = {
       {"label":"Growth and sustainable leadership","lessons":["5c3c4478-29b2-8fa9-b5ab-8d0b7acd138a","9223955b-01eb-8672-ae08-99018b821c66","f0cb190c-1378-8ea4-b356-88e27da73c79"]},
     ],
   },
+  '6bec604c-2d3c-88ad-a04f-3f80c4471c5c': {
+    slug: 'stay-culture-leadership-academy-home-care-v2',
+    goals: [
+      {"label":"Authenticity and self-awareness","lessons":["05dd96a0-e4a3-8fb7-a8d9-e1b270608ca8","5f2df8c0-80b8-8aa5-9fe6-e845adb21853","721457d0-fbdc-8322-8151-506f0e8f0c42"]},
+      {"label":"Trust and psychological safety","lessons":["dc09cec9-32c7-86c3-9b36-321db3206962","a412439a-1229-8aed-9fd1-9f6f1e58e464","3e5d67bc-9d72-8816-915d-7bdba2846b80"]},
+      {"label":"Listening and coaching","lessons":["23d2fce3-1a90-852c-a624-ef702ef41e3d","c4e58910-74f8-82aa-bbd3-705ec1d6ef16","6531c67b-b70c-8663-a060-a5c3f79ad4c9"]},
+      {"label":"Appreciation and strengths","lessons":["2fc239fc-f140-8d2c-887d-bfea4a2f3996","fd98153a-ee4d-80ca-a401-9f71384b1bab","22889725-a99d-8433-b3f8-2623435a3b9e"]},
+      {"label":"Purpose and direction","lessons":["cd06736b-73cd-88a8-bce9-05e90e20d738","f49ad276-c567-8977-8a7f-584192f9a812","27f4590a-31b6-80c4-b45d-53c63cc2fbeb"]},
+      {"label":"Accountability and constructive conflict","lessons":["3a4b67f2-ec85-8f5b-a496-7475a5a8c7ae","721b387b-de75-83fc-893f-31d087a6d135","7954a089-8a45-8363-8b5a-0fe7c9ce8675"]},
+      {"label":"Growth and sustainable leadership","lessons":["2e15989b-0aff-8d18-8ad2-ab449ea12baa","e4d8726e-6624-88ca-a568-9b29c8275132","a5d37e74-7b47-82cc-874e-901113f1720e"]},
+    ],
+  },
+  '2d90f628-dcc5-8d94-a5a3-6c343106187d': {
+    slug: 'stay-culture-leadership-academy-dd-services-v2',
+    goals: [
+      {"label":"Authenticity and self-awareness","lessons":["34871fa4-5fdd-8c2c-b6e3-67ef1d0f8b47","955a2b6e-0170-8650-a7da-2de2a8e68cad","39b001f1-677f-8b48-a419-03a78f060cfc"]},
+      {"label":"Trust and psychological safety","lessons":["28844305-c7be-84b4-b4eb-39474f6dfae0","d579e117-4383-8eab-9df3-a4e0687a6fe1","f8a74b1c-8292-8b9c-9149-2c4080dd9dad"]},
+      {"label":"Listening and coaching","lessons":["e43ede62-19cc-8c67-a846-3de3e9aac142","f71306d9-9146-8294-be92-ba02d99f0242","415eb353-0a56-83b5-8fd0-9598bac9355c"]},
+      {"label":"Appreciation and strengths","lessons":["2d437027-e77f-8727-b680-42cc8486bf77","95d47ba3-d13e-8e35-a6da-738af7750031","eda8499f-9abd-88b2-9bc8-d784a07edbe4"]},
+      {"label":"Purpose and direction","lessons":["d65deaf5-daf6-85f8-a4a3-1d025671517b","e94a4aae-ac1b-83f1-ae2e-a49f6053f16b","e2314bd7-87ed-86b7-b0b5-52475a068a81"]},
+      {"label":"Accountability and constructive conflict","lessons":["070c8558-506f-81ca-9a1f-6ef10199bfbd","dd1b431b-b6f7-810d-bd9b-fc6f10bc583b","a2b365f6-bcc8-8356-947f-062fd8737c9f"]},
+      {"label":"Growth and sustainable leadership","lessons":["ffb43942-fe19-8f7c-b28f-0600da371a81","d3666c51-8da9-8e71-8ddc-c0f078ab782a","04a42bc9-88c4-8af2-9025-f2d63d2f5cd6"]},
+    ],
+  },
+  '6f3d57ab-a581-880e-be45-8e6bc75ec481': {
+    slug: 'stay-culture-leadership-academy-hospitality-v2',
+    goals: [
+      {"label":"Authenticity and self-awareness","lessons":["08499e13-8601-8009-a01a-e065ffe59d0f","73b8e7a3-e8c5-8fe0-9cff-0587b1ea7152","2effa2a3-d165-8e0c-9abd-16e8d6bf6927"]},
+      {"label":"Trust and psychological safety","lessons":["966386f2-6d6e-8629-9c6b-f58d2841b40e","756aecd2-8c9f-803e-8a85-862e0d56959f","d05a154b-8333-832b-992e-5b344f4b6d23"]},
+      {"label":"Listening and coaching","lessons":["e4a788aa-f900-854c-aa41-28f35ad6f78b","5d64f253-2974-8963-b81a-3b03e069e6ad","7d9ff4f0-e3e9-8369-82b6-d790c14cecc9"]},
+      {"label":"Appreciation and strengths","lessons":["8ab11602-6540-823c-a521-19a186b44167","a28b6455-75ce-88cd-a09c-d5b504d3e4df","0e02fd47-69de-8ce1-8ad3-9714a2827490"]},
+      {"label":"Purpose and direction","lessons":["9e8fa7f4-d669-8b23-91b9-4d62d5e6c820","91ae672c-ab34-8a4f-8909-d8b3b36af55b","233562e5-239d-82ab-a8da-00c160fe0a6b"]},
+      {"label":"Accountability and constructive conflict","lessons":["c87c67c4-248a-8812-89eb-1a91b253d130","8561d774-e233-83b3-a62c-81f17e5decc1","6fea523f-ca78-86ce-8cc4-c1c1836f8df1"]},
+      {"label":"Growth and sustainable leadership","lessons":["d919eca8-1cb9-8e53-aa5e-075333e74df8","10613b17-8cd1-878d-a415-6760da84e595","0533c44a-4b7b-8f4f-b977-21b3372005cb"]},
+    ],
+  },
 };
