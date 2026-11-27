@@ -1,0 +1,21 @@
+name: DD archive integration QA
+on:
+  pull_request:
+    branches: [main]
+    paths: ['.github/qa/dd-archive-integration*', '.github/workflows/dd-archive-integration-qa.yml']
+permissions:
+  contents: read
+jobs:
+  synthetic-privacy-browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-save --no-package-lock --ignore-scripts @playwright/test@1.56.1
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test --config=.github/qa/dd-archive-integration.config.mjs
