@@ -25,7 +25,30 @@ function buildPreview(src,key,locked){
 const files=["styles.css","academy/learn/index.html","academy/learn/app.js","academy/learn/goal-maps.js"];
 const sources=Object.fromEntries(files.map(p=>[p,readFileSync(p,"utf8")]));
 const locked=process.env.QSR_PREVIEW_AUTH_READY!=="true";
+async function verifyStagingActivation(key,request=fetch,timeout=()=>AbortSignal.timeout(12000)){
+ const base="https://dvdvjzqiiekakxzkhora.supabase.co";
+ const origin="https://care-and-stay-qsr-staging.onrender.com";
+ if(!/^sb_publishable_[A-Za-z0-9_-]{20,}$/.test(key))throw Error("Staging publishable key required");
+ const safe=(url,options={})=>request(url,{...options,redirect:"error",signal:timeout()});
+ const [settings,allowed,foreign,denied]=await Promise.all([
+  safe(base+"/auth/v1/settings",{headers:{apikey:key}}),
+  safe(base+"/functions/v1/academy-manager",{method:"OPTIONS",headers:{Origin:origin,"Access-Control-Request-Method":"POST","Access-Control-Request-Headers":"authorization,apikey,content-type"}}),
+  safe(base+"/functions/v1/academy-manager",{method:"OPTIONS",headers:{Origin:"https://example.com","Access-Control-Request-Method":"POST","Access-Control-Request-Headers":"authorization,apikey,content-type"}}),
+  safe(base+"/functions/v1/academy-manager",{method:"POST",headers:{Origin:origin,apikey:key,"content-type":"application/json"},body:JSON.stringify({action:"list_locations"})})
+ ]);
+ if(!settings.ok)throw Error("Staging Auth settings endpoint unavailable");
+ const config=await settings.json();
+ if(config.disable_signup!==true)throw Error("Staging Auth has not verified disabled public signup");
+ if(!allowed.ok||allowed.headers.get("access-control-allow-origin")!==origin)throw Error("Staging manager exact-origin preflight failed");
+ if(foreign.headers.get("access-control-allow-origin")!==origin&&foreign.headers.get("access-control-allow-origin")!==null)throw Error("Staging manager allowed an unexpected origin");
+ if(![401,403].includes(denied.status))throw Error("Staging manager did not reject anonymous request");
+ return true;
+}
 const out=buildPreview(sources,process.env.QSR_STAGING_PUBLISHABLE_KEY||"",locked);
+if(!locked){
+ await verifyStagingActivation(process.env.QSR_STAGING_PUBLISHABLE_KEY||"");
+ console.log("Verified staging Auth signup disabled, exact preflight origin and anonymous denial before publishing backend configuration.");
+}
 const root=".qsr-preview-dist";
 if(existsSync(root))throw Error("Refusing to overwrite an existing output directory; use a clean checkout");
 for(const [p,content] of Object.entries(out)){const target=join(root,p);mkdirSync(dirname(target),{recursive:true});writeFileSync(target,content,{flag:"wx"});}
