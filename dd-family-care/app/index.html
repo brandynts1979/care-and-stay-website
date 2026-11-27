@@ -164,16 +164,18 @@ async function updateRecoveredPassword(){
 }
 async function loadDdBillingStatus(){
  const status=$('ddBillingStatus');
+ const accessToken=session?.access_token;
  if(!session?.access_token){status.textContent='Sign in to check subscription status.';return;}
  status.textContent='Checking subscription availability…';
  $('ddStartCheckout').classList.add('hide');$('ddStartCheckout').disabled=true;
  $('ddManageBilling').classList.add('hide');$('ddManageBilling').disabled=true;
  try{
   const r=await fetch(URL+'/functions/v1/dd-subscription-gateway',{
-   method:'POST',headers:{'Content-Type':'application/json',apikey:KEY,Authorization:'Bearer '+session.access_token},
+   method:'POST',headers:{'Content-Type':'application/json',apikey:KEY,Authorization:'Bearer '+accessToken},
    body:JSON.stringify({action:'status'})
   });
   const data=await r.json();
+  if(session?.access_token!==accessToken)return;
   if(!r.ok)throw Error(data.error||'Billing service unavailable');
   if(data.owner_access===true&&data.entitled===true){
    status.textContent='Care & Stay owner access active. All DD Family Care features, including the AI Coach, are available without payment.';
@@ -202,7 +204,7 @@ async function loadDdBillingStatus(){
   }else{
    status.textContent='Subscriptions are not available yet. Current subscription status: '+String(data.subscription_status||'none')+'.';
   }
- }catch(e){status.textContent='Subscription status could not be verified. Purchases remain unavailable.';}
+ }catch(e){if(session?.access_token!==accessToken)return;status.textContent='Subscription status could not be verified. Purchases remain unavailable.';}
 }
 $('ddBillingRefresh').addEventListener('click',loadDdBillingStatus);
 async function ddBillingAction(action){
