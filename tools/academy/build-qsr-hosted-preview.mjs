@@ -2,6 +2,7 @@
 // Before publishing: disable public Auth signup in staging, verify staging CORS, and authorize destination. UI hiding/noindex are not access controls.
 import {readFileSync,writeFileSync,mkdirSync,existsSync} from "node:fs";
 import {dirname,join} from "node:path";
+import {createHash} from "node:crypto";
 function buildPreview(src,key,locked){
  if(locked&&key)throw Error("Locked preview must not receive a key");
  if(!locked&&!/^sb_publishable_[A-Za-z0-9_-]{20,}$/.test(key))throw Error("Staging publishable key required; secret/legacy keys rejected");
@@ -68,6 +69,31 @@ async function verifyStagingActivation(key,request=fetch,timeout=()=>AbortSignal
   console.log("Hosted webhook denial verified: "+name);
  }
  console.log("Existing hosted preview config and five independent public denial checks verified.");
+ // Independent public release integrity: compare actual official-site bytes to
+ // the known live production deploy e62b6e5, not newer undeployed main.
+ // Observational only; no credentials, registration, form submit or billing.
+ const publicBase="https://mycareandstay.com";
+ const expected=[
+ ["/stay-culture-360/qsr/","90f7faa20390f2eeb35a6ee788b6d04d24398eb0"],
+ ["/employer-login/","90f9efbe3b85dd6f1aae5ce2fc82f9d1a0d2ff8a"],
+ ["/individual-login/","c6b7f1d131fe36cd4078d3fed1cb8970edb12d5a"],
+ ["/academy/learn/","42861a1d2bc15316c1f17194f658a4b6c834cf32"],
+ ["/client-portal/","7ae4ce03227660a14e0f02dd6165efce11fba089"]
+ ];
+ for(const [route,blob] of expected){
+  try{
+   const response=await safe(publicBase+route);
+   if(!response.ok){console.log("Production observation "+route+" HTTP "+response.status);continue;}
+   const bytes=Buffer.from(await response.arrayBuffer());
+   const actual=createHash("sha1").update("blob "+bytes.length+"\0").update(bytes).digest("hex");
+   console.log("Production observation "+route+" HTTP "+response.status+" git-blob "+(actual===blob?"matches recorded release":"differs; inspect new live revision"));
+   const html=bytes.toString("utf8");
+   if(route==="/stay-culture-360/qsr/"){
+    console.log("Public QSR invitation-only price and no-payment notice: "+(/\$99/.test(html)&&/No payment is collected on this page/.test(html)&&/Invitation-only/.test(html)?"verified":"not verified"));
+   }
+   if(route==="/individual-login/")console.log("Individual 360 public route points to test host: "+html.includes("care-and-stay-individual-360-test.onrender.com"));
+  }catch{console.log("Production observation "+route+" unavailable; no production assertion made.");}
+ }
  return true;
 }
 const out=buildPreview(sources,process.env.QSR_STAGING_PUBLISHABLE_KEY||"",locked);
