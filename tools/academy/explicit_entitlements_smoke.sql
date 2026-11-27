@@ -115,10 +115,43 @@ DO $$ BEGIN
  then raise exception 'Active course yielded a certificate'; end if;
 END $$;
 RESET ROLE;
-update public.academy_enrollments set status='completed' where id in
- ('98400000-0000-4000-8000-000000000001','98400000-0000-4000-8000-000000000002');
+insert into public.academy_reviewer_assignments(reviewer_user_id,enrollment_id)
+ values ('97000000-0000-4000-8000-000000000002','98400000-0000-4000-8000-000000000002');
+insert into public.academy_submissions(id,enrollment_id,lesson_id,body) values (
+ '98600000-0000-4000-8000-000000000001','98400000-0000-4000-8000-000000000001',
+ '98200000-0000-4000-8000-000000000002','Reviewed practice');
+insert into public.academy_reviews(submission_id,reviewer_user_id,decision,submission_sha256) values (
+ '98600000-0000-4000-8000-000000000001','97000000-0000-4000-8000-000000000002','approved',
+ encode(sha256(convert_to('Reviewed practice','UTF8')),'hex'));
+update public.academy_submissions set body='Edited practice' where id='98600000-0000-4000-8000-000000000001';
+DO $$ BEGIN
+ if has_function_privilege('authenticated','public.academy_award_assigned_certificate(uuid,uuid)','EXECUTE')
+ or has_function_privilege('anon','public.academy_award_assigned_certificate(uuid,uuid)','EXECUTE')
+ then raise exception 'Certificate award bypasses verified Edge identity'; end if;
+END $$;
+SET LOCAL ROLE service_role;
+DO $$
+DECLARE
+ own_enrollment uuid='98400000-0000-4000-8000-000000000001';
+ other_location uuid='98400000-0000-4000-8000-000000000002';
+ reviewer uuid='97000000-0000-4000-8000-000000000002';
+BEGIN
+ if public.academy_award_assigned_certificate(own_enrollment,'97000000-0000-4000-8000-000000000001')<>'forbidden'
+ then raise exception 'Learner can award own certificate'; end if;
+ if public.academy_award_assigned_certificate(other_location,reviewer)<>'forbidden'
+ then raise exception 'Assigned reviewer can grant across location entitlement'; end if;
+ if public.academy_award_assigned_certificate(own_enrollment,reviewer)<>'review_required'
+ then raise exception 'Stale approval accepted after practice edit'; end if;
+ update public.academy_reviews set submission_sha256=encode(sha256(convert_to('Edited practice','UTF8')),'hex')
+ where submission_id='98600000-0000-4000-8000-000000000001';
+ if public.academy_award_assigned_certificate(own_enrollment,reviewer)<>'awarded'
+ then raise exception 'Assigned review award failed'; end if;
+ if public.academy_award_assigned_certificate(own_enrollment,reviewer)<>'awarded'
+ then raise exception 'Certificate award retry failed'; end if;
+END $$;
+RESET ROLE;
+update public.academy_enrollments set status='completed' where id='98400000-0000-4000-8000-000000000002';
 insert into public.academy_graduations(enrollment_id,approved_by) values
- ('98400000-0000-4000-8000-000000000001','97000000-0000-4000-8000-000000000002'),
  ('98400000-0000-4000-8000-000000000002','97000000-0000-4000-8000-000000000002');
 SET LOCAL ROLE authenticated;
 DO $$ BEGIN

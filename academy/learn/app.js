@@ -659,17 +659,40 @@
     const submissions=await read('academy_submissions',q=>q.select('id,enrollment_id,body,submitted_at').in('enrollment_id',assignments.map(a=>a.enrollment_id)));
     if(!current())return;
     if(!submissions.length){reviewsNode.append(elt('p','No submissions yet.'));return;}
+    const awardControls = new Set();
     for(const s of submissions){
       const item=elt('div',undefined,'academy-lesson');item.append(elt('p',s.body));
       const comment=elt('textarea',undefined,'academy-input');comment.placeholder='Write constructive reviewer feedback';comment.rows=3;item.append(comment);
       for(const decision of ['approved','changes_requested'])item.append(button(decision==='approved'?'Approve':'Request changes',async()=>{
         if(!current()||!item.isConnected)return;
         try{
-          const {error}=await db.from('academy_reviews').upsert({submission_id:s.id,reviewer_user_id:reviewerId,decision,feedback:comment.value},{onConflict:'submission_id'});
+          const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s.body));
+          const submissionHash = Array.from(new Uint8Array(bytes), byte => byte.toString(16).padStart(2, '0')).join('');
+          if(!current()||!item.isConnected)return;
+          const {error}=await db.from('academy_reviews').upsert({
+            submission_id:s.id,reviewer_user_id:reviewerId,decision,feedback:comment.value,
+            submission_sha256:submissionHash,
+          },{onConflict:'submission_id'});
           if(!current())return;
           if(error)throw error;show('Your review was saved.');
         }catch(e){if(current())safeError(e);}
       },decision!=='approved'));
+      if (!awardControls.has(s.enrollment_id)) {
+        awardControls.add(s.enrollment_id);
+        const award = button('Award certificate for this enrollment', async () => {
+          if (!current() || !item.isConnected) return;
+          award.disabled = true;
+          try {
+            await managerRequest('award_certificate', {enrollment_id: s.enrollment_id});
+            if (current()) show('Completion certificate awarded.');
+          } catch (error) {
+            if (current()) safeError(error);
+          } finally {
+            award.disabled = false;
+          }
+        }, true);
+        item.append(award);
+      }
       reviewsNode.append(item);
     }
   }

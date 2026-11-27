@@ -107,6 +107,9 @@ jobs:
       - name: Install course care settings and contextual lesson applications
         run: psql -v ON_ERROR_STOP=1 -f academy/database/staged_academy_care_settings.sql
 
+      - name: Install assigned reviewer certificate award
+        run: psql -v ON_ERROR_STOP=1 -f academy/database/staged_academy_reviewer_certificates.sql
+
       - name: Verify versioned entitlements, private worksheets, certificates and care settings
         run: psql -v ON_ERROR_STOP=1 -f tools/academy/explicit_entitlements_smoke.sql
 

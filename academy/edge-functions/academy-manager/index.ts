@@ -86,6 +86,17 @@ Deno.serve(async(req:Request)=>{
   const user=await authenticate(req);
   const body=await req.json();
   const action=String(body.action||"");
+  if(action==="award_certificate"){
+    if(!uuid(body.enrollment_id))fail(400,"Invalid enrollment");
+    const result=unwrap(await admin.rpc("academy_award_assigned_certificate",{
+      p_enrollment:body.enrollment_id,p_reviewer:user.id,
+    }));
+    if(result==="forbidden")fail(403,"Certificate award requires an assigned reviewer and eligible learner");
+    if(result==="review_required")fail(409,"Review and approve the latest practice submissions first");
+    if(result==="incomplete")fail(409,"Course completion and practice approvals are still required");
+    if(result!=="awarded")fail(503,"Certificate award is unavailable");
+    return json(200,{awarded:true});
+  }
   // Only authorized learners receive temporary access to reviewed private files.
   // Never accept a bucket name, object path, user id or a signed URL from a client.
   if(action==="list_module_media" || action==="play_module_media"){
