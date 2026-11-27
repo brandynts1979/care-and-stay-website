@@ -39,5 +39,12 @@ jobs:
           }
           const denied=await request(manager,{method:'POST',headers:{Origin:site,'content-type':'application/json'},body:JSON.stringify({action:'list_locations'})});
           assert.ok([401,403].includes(denied.status),'Unauthenticated manager must reject');
-          console.log('PASS: real hosted preview routes, fail-closed config, exact CORS origin, anonymous denial');
+          const checkout=await request(manager,{method:'POST',headers:{Origin:site,'content-type':'application/json'},body:JSON.stringify({action:'create_checkout',location_id:'00000000-0000-4000-8000-000000000001'})});
+          assert.ok([401,403].includes(checkout.status),'Anonymous checkout must reject');
+          const webhook='https://dvdvjzqiiekakxzkhora.supabase.co/functions/v1/academy-stripe-webhook';
+          const unsigned=await request(webhook,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({type:'checkout.session.completed',livemode:false})});
+          assert.equal(unsigned.status,400,'Unsigned webhook must reject');
+          const forged=await request(webhook,{method:'POST',headers:{'content-type':'application/json','stripe-signature':'t=1,v1=invalid'},body:JSON.stringify({type:'checkout.session.completed',livemode:false})});
+          assert.equal(forged.status,400,'Invalid signature must reject');
+          console.log('PASS: real hosted preview routes, fail-closed config, exact CORS origin, anonymous manager and checkout denial, unsigned and forged webhook denial');
           JS
