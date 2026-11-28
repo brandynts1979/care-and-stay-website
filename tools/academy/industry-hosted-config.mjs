@@ -18,7 +18,7 @@ const descriptors=[
 ];
 export const PATHWAYS=Object.freeze(Object.fromEntries(descriptors.map(([key,worksheets,contexts,settings,practiceLesson])=>{
  const slug='stay-culture-leadership-academy-'+key+'-v2';
- return [key,Object.freeze({key,slug,courseId:canonicalId(slug),modules:8,lessons:32,activities:64,choices:192,worksheets,contexts,settings:Object.freeze(settings),practiceLessonId:canonicalId(slug+'/'+practiceLesson),firstGoal:'Authenticity and self-awareness',firstGoalLessonIds:Object.freeze(['V2-01-02','V2-02-01','V2-02-02'].map(id=>canonicalId(slug+'/'+id)))})];
+ return [key,Object.freeze({key,slug,courseId:canonicalId(slug),firstModuleId:canonicalId(slug+'/module/1'),modules:8,lessons:32,activities:64,choices:192,worksheets,contexts,settings:Object.freeze(settings),practiceLessonId:canonicalId(slug+'/'+practiceLesson),firstGoal:'Authenticity and self-awareness',firstGoalLessonIds:Object.freeze(['V2-01-02','V2-02-01','V2-02-02'].map(id=>canonicalId(slug+'/'+id)))})];
 })));
 const uuid=/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
 const requireTrue=(condition,message)=>{if(!condition)throw Error(message)};
