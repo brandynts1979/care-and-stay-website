@@ -50,6 +50,8 @@ jobs:
           node --test tools/academy/*.test.mjs
           node --check academy/learn/app.js
           node --check academy/learn/config.js
+          node --check tools/academy/industry-hosted-acceptance.mjs
+          node --check tools/academy/industry-hosted-config.mjs
       - name: Rehearse learner video and auth transitions in headless Chrome
         run: node tools/academy/learner-media-browser.mjs
       - name: Set up Deno for Edge Function validation
