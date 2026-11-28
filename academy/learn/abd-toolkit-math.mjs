@@ -1,0 +1,11 @@
+// Browser-safe equivalent of private ABD toolkit math, pinned source 2bfb8cf.
+const assert={ok:(v,label='Invalid input')=>{if(!v)throw new TypeError(label)},equal:(a,b)=>{if(a!==b)throw new TypeError('Invalid input count')}};
+const finite=(v,label)=>{assert.ok(typeof v==='number'&&Number.isFinite(v)&&v>=0,label);return v};
+const count=(v,label)=>{finite(v,label);assert.ok(Number.isSafeInteger(v),label);return v};
+export function rate(n,d){count(n,'numerator');count(d,'denominator');assert.ok(n<=d);return d===0?null:n/d}
+export function forecast(rows){assert.ok(Array.isArray(rows));return rows.reduce((sum,r)=>{const v=finite(r.value,'value'),p=finite(r.probability,'probability');assert.ok(p<=1);return finite(sum+v*p,'forecast overflow')},0)}
+export function territoryBudget(available,rows){count(available,'available minutes');let used=0;for(const r of rows){used+=count(r.travel,'travel')+count(r.activity,'activity')+count(r.followup,'followup');count(used,'total minutes')}return {used,remaining:available-used,overallocated:used>available}}
+export function partnershipFit(gates,factors){assert.equal(gates.length,4);assert.ok(gates.every(g=>[true,false,null].includes(g)));assert.equal(factors.length,4);assert.ok(factors.every(f=>[0,1,2,null].includes(f)));if(gates.includes(false))return {status:'stop',score:null};if(gates.includes(null)||factors.includes(null))return {status:'unverified',score:null};return {status:'eligible-for-review',score:factors.reduce((a,b)=>a+b,0)}}
+export function compareRates(before,after){const b=rate(before.n,before.d),a=rate(after.n,after.d);return {before:b,after:a,percentagePoints:b===null||a===null?null:(a-b)*100,relativeChange:b===null||a===null||b===0?null:(a-b)/b}}
+export function nicheEvidence({claim,evidence,owner,boundary}){const valid=s=>typeof s==='string'&&s.trim().length>0;assert.ok(Array.isArray(evidence));return {readyForReview:[claim,owner,boundary].every(valid)&&new Set(evidence.filter(valid).map(s=>s.trim().toLowerCase())).size>=2}}
+export function microNiche({personalEvidence,organizationalFit,partnerRelevance,scope}){const v=[personalEvidence,organizationalFit,partnerRelevance,scope];assert.ok(v.every(x=>[true,false,null].includes(x)));return {status:v.includes(false)?'revise':v.includes(null)?'investigate':'ready-for-review'}}
