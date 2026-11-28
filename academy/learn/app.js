@@ -358,6 +358,7 @@
   const careSettingCourses = new Set([
     'stay-culture-leadership-academy-senior-care-v2',
     'stay-culture-leadership-academy-hospice-v2',
+    'stay-culture-appreciative-business-development-v1',
   ]);
   const applicationLabels = {
     case_study: 'Case study', scenario: 'Scenario', simulation: 'Simulation',
