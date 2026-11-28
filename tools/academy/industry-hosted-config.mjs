@@ -10,8 +10,8 @@ export const canonicalId = key => {
  return [h.slice(0,8),h.slice(8,12),h.slice(12,16),h.slice(16,20),h.slice(20)].join('-');
 };
 const descriptors=[
- ['senior-care',16,420,['assisted_living','senior_living','skilled_nursing','memory_care'],'V2-01-04'],
- ['hospice',16,456,['hospice','palliative_care','home_health'],'V2-01-04'],
+ ['senior-care',16,420,['assisted_living','senior_living','skilled_nursing','memory_care'],'V2-01-01'],
+ ['hospice',16,456,['hospice','palliative_care','home_health'],'V2-01-01'],
  ['home-care',33,0,[],'V2-01-04'],
  ['dd-services',33,0,[],'V2-01-04'],
  ['hospitality',14,0,[],'V2-01-04']
