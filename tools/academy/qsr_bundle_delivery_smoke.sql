@@ -66,6 +66,22 @@ begin
  select * into claim_b from public.academy_claim_qsr_assessment_deliveries(1);
  if claim_a.lease_token is null or claim_b.lease_token is null or claim_a.issuance_id=claim_b.issuance_id
  or exists(select 1 from public.academy_claim_qsr_assessment_deliveries(4)) then raise exception 'Assessment claim overlap'; end if;
+ -- Wall-clock expiry must be honored even inside a long transaction.
+ update public.academy_qsr_assessment_issuances set lease_until=now()+interval '50 milliseconds' where id=claim_a.issuance_id;
+ perform pg_sleep(0.10);
+ if public.academy_finish_qsr_assessment_delivery(claim_a.issuance_id,claim_a.revision,claim_a.lease_token,claim_a.issuance_id,true)
+ then raise exception 'Expired wall-clock assessment lease accepted'; end if;
+ update public.academy_qsr_assessment_issuances set lease_until=clock_timestamp()+interval '120 seconds' where id=claim_a.issuance_id;
+ -- A GM removed after claim must not receive a successful acknowledgment.
+ update public.academy_location_members set active=false where location_id=loc and user_id=gm;
+ if claim_a.product='individual_360' then
+  if public.academy_finish_qsr_assessment_delivery(claim_a.issuance_id,claim_a.revision,claim_a.lease_token,claim_a.issuance_id,true)
+  then raise exception 'Removed GM receipt accepted'; end if;
+ else
+  if public.academy_finish_qsr_assessment_delivery(claim_b.issuance_id,claim_b.revision,claim_b.lease_token,claim_b.issuance_id,true)
+  then raise exception 'Removed GM receipt accepted'; end if;
+ end if;
+ update public.academy_location_members set active=true where location_id=loc and user_id=gm;
  if public.academy_finish_qsr_assessment_delivery(claim_a.issuance_id,claim_a.revision,claim_a.lease_token,claim_b.issuance_id,true)
  then raise exception 'Wrong native assessment acknowledged'; end if;
  if not public.academy_finish_qsr_assessment_delivery(claim_a.issuance_id,claim_a.revision,claim_a.lease_token,claim_a.issuance_id,true)
