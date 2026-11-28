@@ -94,7 +94,7 @@ begin
 end $$;
 -- Existing cancellation has two pending revocations. Exercise the new
 -- durable queue using those same rollback-only fixture rows.
-do $
+do $$
 declare a record; b record; c record;
 begin
  select * into a from public.academy_claim_qsr_bundle_deliveries(1);
@@ -114,9 +114,9 @@ begin
  select * into c from public.academy_claim_qsr_bundle_deliveries(1);
  if c.lease_token is null then raise exception 'expired lease not reclaimed'; end if;
  if not public.academy_finish_qsr_bundle_delivery(c.location_id,c.product,c.target_id,c.revision,c.lease_token,true) then raise exception 'reclaim completion failed'; end if;
-end $;
+end $$;
 reset role;
-do $ begin
+do $$ begin
  if has_function_privilege('authenticated','public.academy_claim_qsr_bundle_deliveries(integer)','EXECUTE')
  or has_function_privilege('anon','public.academy_finish_qsr_bundle_delivery(uuid,text,uuid,bigint,uuid,boolean)','EXECUTE')
  or has_table_privilege('authenticated','public.academy_qsr_assessment_issuances','SELECT')
