@@ -67,6 +67,28 @@ begin
 end $$;
 create trigger academy_industry_entitlement_guard before insert or update on public.academy_location_course_entitlements
  for each row execute function public.academy_industry_entitlement_guard();
+-- The legacy implicit grant is preserved for non-industry locations only.
+-- Without this additive exact-route filter, a paid industry location would also
+-- be granted the published legacy course in production (absent in current staging).
+create or replace function public.academy_entitled_course_ids(p_location uuid)
+returns table(course_id uuid) language sql stable security invoker set search_path=pg_catalog,public as $
+ select c.id from public.academy_courses c
+ join public.academy_locations loc on loc.id=p_location
+ where c.published and loc.subscription_status in ('active','trialing')
+   and (loc.current_period_end is null or loc.current_period_end>now())
+   and (not exists(select 1 from public.academy_industry_location_offers r where r.location_id=loc.id)
+        or exists(select 1 from public.academy_industry_location_offers r join public.academy_industry_offers o on o.id=r.offer_id
+          where r.location_id=loc.id and o.course_id=c.id))
+   and (c.slug='stay-culture-leadership-academy' or exists (
+     select 1 from public.academy_location_course_entitlements g
+     where g.location_id=loc.id and g.course_id=c.id and g.active
+       and (g.expires_at is null or g.expires_at>now())
+   ))
+ order by c.id;
+$;
+revoke all on function public.academy_entitled_course_ids(uuid) from public,anon,authenticated;
+grant execute on function public.academy_entitled_course_ids(uuid) to service_role;
+
 create function public.academy_industry_reserve_checkout(p_location uuid,p_owner uuid,p_email text,p_livemode boolean)
 returns jsonb language plpgsql security invoker set search_path=pg_catalog,public as $$
 declare offer public.academy_industry_offers%rowtype;
