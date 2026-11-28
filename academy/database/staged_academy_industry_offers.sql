@@ -71,7 +71,7 @@ create trigger academy_industry_entitlement_guard before insert or update on pub
 -- Without this additive exact-route filter, a paid industry location would also
 -- be granted the published legacy course in production (absent in current staging).
 create or replace function public.academy_entitled_course_ids(p_location uuid)
-returns table(course_id uuid) language sql stable security invoker set search_path=pg_catalog,public as $
+returns table(course_id uuid) language sql stable security invoker set search_path=pg_catalog,public as $$
  select c.id from public.academy_courses c
  join public.academy_locations loc on loc.id=p_location
  where c.published and loc.subscription_status in ('active','trialing')
@@ -85,7 +85,7 @@ returns table(course_id uuid) language sql stable security invoker set search_pa
        and (g.expires_at is null or g.expires_at>now())
    ))
  order by c.id;
-$;
+$$;
 revoke all on function public.academy_entitled_course_ids(uuid) from public,anon,authenticated;
 grant execute on function public.academy_entitled_course_ids(uuid) to service_role;
 
