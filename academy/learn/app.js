@@ -548,9 +548,12 @@
     if (goals) lessonsNode.append(goals);
     lessonsNode.append(cards);
   }
-  async function loadWorksheets(lessonId, enrollmentId, current) {
+  async function loadWorksheets(lessonId, enrollmentId, current, courseSlug) {
+    const abd = courseSlug === 'stay-culture-appreciative-business-development-v1';
+    const abdTools = abd ? await import('./abd-toolkit-ui.mjs') : null;
+    if (!current()) return;
     const templates = await read('academy_worksheet_templates', q =>
-      q.select('id,title,prompts,version').eq('lesson_id', lessonId).order('title'));
+      q.select(abd ? 'id,title,prompts,version,template_key' : 'id,title,prompts,version').eq('lesson_id', lessonId).order('title'));
     if (!current() || !templates.length) return;
     const responses = await read('academy_worksheet_responses', q =>
       q.select('template_id,answers').eq('enrollment_id', enrollmentId).in('template_id', templates.map(t => t.id)));
@@ -592,6 +595,12 @@
         }
       });
       section.append(save, status);
+      if (abdTools) {
+        abdTools.attachCalculator(section, template.template_key, current);
+        section.append(button('Export private worksheet', () => {
+          if (current()) abdTools.exportWorksheet(template, inputs.map(input => input.value));
+        }, true));
+      }
       detail.append(section);
     }
   }
@@ -692,7 +701,7 @@
     detail.append(practiceSection);
     if (courseSlug !== 'stay-culture-leadership-academy') {
       try {
-        await loadWorksheets(l.id, enrollmentId, current);
+        await loadWorksheets(l.id, enrollmentId, current, courseSlug);
       } catch {
         if (current()) detail.append(elt('p', 'Private worksheets are temporarily unavailable.'));
       }
