@@ -15,6 +15,13 @@ This is the authoritative platform queue. Track release evidence and the QSR Pro
 
 Use verified private originals for the eight QSR and eight universal videos. Keep instructional source and generated row payloads in the private curriculum workspace or the authorized operator runtime.
 
+## Current QSR release priority
+
+1. Keep the existing November 30 demonstration path available. The public invitation-only QSR offer, Academy sign-in, Individual Leadership 360, Organizational Stay Culture 360 and client portal returned HTTP 200 on November 27 Mountain Time. The hosted staging preview passed signed-in Academy checks for owner, GM and learner, including team visibility, learner completion and certificate download. Treat staging as synthetic QA.
+2. Configure the two existing isolated 360 receivers through the protected operator runtime. Use the existing Academy checkout fixture and reserved recipient targets. Create only the necessary recipient-local synthetic identities, verify their native associations, then install the scoped receiver keys and Stripe sandbox signing configuration. Retain the temporary branch cleanup deadline.
+3. Run real signed checkout, grant and assessment delivery, followed by native signed-in consent, access, renewal and revocation checks across all three products. The disposable PostgreSQL and private worker contract tests passed. Hosted recipient persistence and signed Stripe delivery remain release gates.
+4. Record the remaining rendered-media and asset-rights approvals before registration. Use Work’s existing original-file verification and test signed playback and access denial without duplicating the videos. Production cutover requires those gates and verified recovery. [Website PR #6](https://github.com/brandynts1979/care-and-stay-website/pull/6) and [private QSR PR #10](https://github.com/brandynts1979/care-and-stay/pull/10) hold the run evidence and operator handoffs.
+
 
 ## Approved course scope
 

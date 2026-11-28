@@ -44,3 +44,19 @@ export function acceptsWebhookMode(env, event) {
   // Keep existing live subscriptions reconciling even if new checkout is disabled.
   return liveKey(env("STRIPE_SECRET_KEY")) && event?.livemode === true;
 }
+
+// Until live receiver integration and a dedicated QSR live price/reconciliation
+// contract are accepted, QSR live checkout is deliberately unavailable.
+// Existing standalone Academy checkout remains possible ONLY for its exact
+// $199/month price and locations without QSR delivery routes.
+export function validLiveStandaloneCheckout(env, price, routes) {
+  const configured=env("ACADEMY_STRIPE_PRICE_ID");
+  const qsr=env("ACADEMY_QSR_LIVE_PRICE_ID");
+  return checkoutMode(env)==="live" &&
+    Array.isArray(routes) && routes.length===0 &&
+    !!configured && configured!==QSR_SANDBOX.priceId && (!qsr||configured!==qsr) &&
+    price?.id===configured && price.livemode===true && price.active===true &&
+    price.currency==="usd" && price.type==="recurring" && price.unit_amount===19900 &&
+    price.billing_scheme==="per_unit" && price.recurring?.interval==="month" &&
+    price.recurring?.interval_count===1 && price.recurring?.usage_type==="licensed";
+}
