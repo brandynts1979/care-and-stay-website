@@ -1,0 +1,42 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import {INDUSTRY_COURSE_IDS,industryCheckoutMode,acceptsIndustryWebhookMode,validIndustryOffer,validIndustryPrice,validIndustrySubscription,industryOfferForLocation} from '../../academy/edge-functions/_shared/industry-offer-policy.mjs';
+import {QSR_SANDBOX,checkoutMode} from '../../academy/edge-functions/_shared/qsr-sandbox-policy.mjs';
+const config={SUPABASE_URL:QSR_SANDBOX.projectOrigin,ACADEMY_SITE_ORIGIN:QSR_SANDBOX.siteOrigin,STRIPE_SECRET_KEY:'sk_test_synthetic',ACADEMY_STRIPE_PRICE_ID:QSR_SANDBOX.priceId,ACADEMY_QSR_SANDBOX_CHECKOUT_ENABLED:'true'};
+const env=values=>key=>values[key]||'';
+const offer={id:'synthetic-offer',course_id:INDUSTRY_COURSE_IDS['home-care'],price_id:'price_synthetic',product_id:'prod_synthetic',livemode:false,unit_amount:100,currency:'usd',tax_behavior:'exclusive',terms_version:'fixture-only',checkout_enabled:true};
+const price={id:offer.price_id,product:offer.product_id,livemode:false,active:true,currency:'usd',unit_amount:100,tax_behavior:'exclusive',type:'recurring',billing_scheme:'per_unit',recurring:{interval:'month',interval_count:1,usage_type:'licensed'}};
+test('separate gates protect QSR and industry test/live checkout',()=>{
+ assert.equal(checkoutMode(env(config)),'sandbox');
+ assert.equal(industryCheckoutMode(env(config)),null);
+ const testEnv={...config,ACADEMY_INDUSTRY_SANDBOX_CHECKOUT_ENABLED:'true'};
+ assert.equal(industryCheckoutMode(env(testEnv)),'sandbox');
+ assert.equal(checkoutMode(env(testEnv)),'sandbox');
+ for(const patch of [{ACADEMY_SITE_ORIGIN:'https://wrong.example'},{ACADEMY_BILLING_ENABLED:'true'},{ACADEMY_INDUSTRY_BILLING_ENABLED:'true'},{STRIPE_SECRET_KEY:'sk_live_synthetic'},{SUPABASE_URL:'https://wrong.supabase.co'}])assert.equal(industryCheckoutMode(env({...testEnv,...patch})),null);
+ assert.equal(acceptsIndustryWebhookMode(env(testEnv),{livemode:false}),true);
+ assert.equal(acceptsIndustryWebhookMode(env(testEnv),{livemode:true}),false);
+ const live={SUPABASE_URL:'https://production.example',STRIPE_SECRET_KEY:'rk_live_synthetic',ACADEMY_BILLING_ENABLED:'true',ACADEMY_INDUSTRY_BILLING_ENABLED:'true'};
+ assert.equal(industryCheckoutMode(env(live)),'live');
+ assert.equal(industryCheckoutMode(env({...live,ACADEMY_INDUSTRY_BILLING_ENABLED:'false'})),null);
+ assert.equal(acceptsIndustryWebhookMode(env({...live,ACADEMY_BILLING_ENABLED:'false'}),{livemode:true}),true);
+ assert.equal(acceptsIndustryWebhookMode(env(live),{livemode:false}),false);
+});
+test('exact registered course, price, product, amount, tax, quantity and mode',()=>{
+ assert.equal(Object.keys(INDUSTRY_COURSE_IDS).length,5);
+ for(const course_id of Object.values(INDUSTRY_COURSE_IDS))assert.equal(validIndustryOffer({...offer,course_id}),true);
+ for(const change of [{course_id:'qsr'},{price_id:QSR_SANDBOX.priceId},{terms_version:''},{unit_amount:0},{currency:'eur'},{tax_behavior:'unspecified'}])assert.equal(validIndustryOffer({...offer,...change}),false);
+ assert.equal(validIndustryPrice(price,offer,{newCheckout:true}),true);
+ for(const change of [{id:'price_wrong'},{product:'prod_wrong'},{livemode:true},{unit_amount:200},{currency:'eur'},{tax_behavior:'inclusive'},{type:'one_time'},{billing_scheme:'tiered'},{active:false},{recurring:{...price.recurring,interval:'year'}},{recurring:{...price.recurring,usage_type:'metered'}}])assert.equal(validIndustryPrice({...price,...change},offer,{newCheckout:true}),false);
+ assert.equal(validIndustryPrice({...price,active:false},{...offer,checkout_enabled:false}),true);
+ assert.equal(validIndustryPrice(price,{...offer,checkout_enabled:false},{newCheckout:true}),false);
+ const sub={livemode:false,items:{has_more:false,data:[{quantity:1,price}]}};
+ assert.equal(validIndustrySubscription(sub,offer),true);
+ for(const bad of [{...sub,livemode:true},{...sub,items:{...sub.items,has_more:true}},{...sub,items:{...sub.items,data:[{quantity:2,price}]}},{...sub,items:{...sub.items,data:[...sub.items.data,...sub.items.data]}},{...sub,items:{...sub.items,data:[{quantity:1,price:{...price,id:'price_wrong'}}]}}])assert.equal(validIndustrySubscription(bad,offer),false);
+});
+test('no route is distinguishable from an inaccessible or invalid route',async()=>{
+ const fake=(route,loaded)=>({from(table){return {select(){return this},eq(){return this},maybeSingle:async()=>route,single:async()=>loaded}}});
+ assert.equal(await industryOfferForLocation(fake({data:null,error:null}),"loc"),null);
+ await assert.rejects(industryOfferForLocation(fake({error:new Error('missing table')}),"loc"));
+ await assert.rejects(industryOfferForLocation(fake({data:{offer_id:'x'}},{data:{...offer,course_id:'qsr'}}),"loc"));
+ assert.deepEqual(await industryOfferForLocation(fake({data:{offer_id:offer.id}},{data:offer}),"loc"),offer);
+});
