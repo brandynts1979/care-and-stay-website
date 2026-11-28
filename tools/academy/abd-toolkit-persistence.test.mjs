@@ -81,3 +81,51 @@ test('malformed stored select values and outputs cannot imply approval; ordinary
   assert.deepEqual(ordinary.calls[0].args.p_answers,{'1':'original','2':'second'});
  }finally{globalThis.document=old}
 });
+
+test('all seven actual worksheet calculators round-trip through exact enrollment RPC and private export',async()=>{
+ const old=globalThis.document;globalThis.document={createElement:element};
+ const fixtures=[
+  ['organizational-niche',['claim','first\nsecond','owner','boundary'],/not approved/],
+  ['micro-niche',['yes','yes','unknown','yes'],/investigate/],
+  ['ideal-partnership',['yes','yes','yes','yes','2','1','2','1'],/6\/8/],
+  ['pipeline-planner',['2000,0.4\n3000,0.2'],/1,400/],
+  ['territory-plan',['120','30,60,40'],/Overallocated/],
+  ['growth-scorecard',['8','40'],/20.00%/],
+  ['experiment-journal',['4','40','8','40'],/10.00 percentage points/],
+ ];
+ try{
+  for(const [key,values,expected] of fixtures){
+   const t=template(key,['Prior narrative','Prior evidence']);
+   const saved=Object.fromEntries(['keep narrative','<script>fictional</script>',...values,'FORGED'].map((value,i)=>[String(i+1),value]));
+   const h=harness(t,saved);await h.load();
+   const buttons=h.detail.all('button');
+   assert.ok(h.detail.all('p').some(x=>expected.test(x.textContent)),key+' restored result');
+   assert.ok(!h.detail.all('p').some(x=>x.textContent==='FORGED'));
+   await buttons.find(x=>x.textContent==='Save private worksheet').fire('click');
+   const payload=h.calls[0].args;
+   assert.equal(payload.p_enrollment,'enrollment');assert.equal(payload.p_template,t.id);
+   const expectedResult=ui.calculate(key,values);
+   assert.deepEqual(payload.p_answers,{...saved,[String(values.length+3)]:expectedResult});
+   await buttons.find(x=>x.textContent==='Export private worksheet').fire('click');
+   assert.deepEqual(h.exports[0].map(x=>x[1]),['keep narrative','<script>fictional</script>',...values,expectedResult]);
+   const resumed=harness(t,payload.p_answers);await resumed.load();
+   await resumed.detail.all('button').find(x=>x.textContent==='Save private worksheet').fire('click');
+   assert.deepEqual(resumed.calls[0].args,payload);
+  }
+ }finally{globalThis.document=old}
+});
+test('malformed inputs in each calculator are rejected rather than exporting a forged result',()=>{
+ const bad={
+  'organizational-niche':[null,'a','b','c'],
+  'micro-niche':['yes','yes','bad','yes'],
+  'ideal-partnership':['yes','yes','yes','yes','3','1','2','1'],
+  'pipeline-planner':['100,2'],
+  'territory-plan':['120','30,60'],
+  'growth-scorecard':['1.5','40'],
+  'experiment-journal':['41','40','8','40']
+ };
+ for(const [key,values] of Object.entries(bad)){
+  assert.throws(()=>ui.calculate(key,values));
+  assert.match(ui.worksheetExportEntries(template(key),['ordinary',...values,'FORGED']).at(-1)[1],/Check the input/);
+ }
+});
