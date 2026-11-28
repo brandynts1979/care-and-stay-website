@@ -1,4 +1,4 @@
-import { checkoutMode, isQsrSandbox, validSandboxPrice } from "../_shared/qsr-sandbox-policy.mjs";
+import { checkoutMode, isQsrSandbox, validSandboxPrice, validLiveStandaloneCheckout } from "../_shared/qsr-sandbox-policy.mjs";
 import { validModuleMediaPath } from "./media-path.mjs";
 import { createClient } from "npm:@supabase/supabase-js@2.57.0";
 import Stripe from "npm:stripe@17.7.0";
@@ -189,10 +189,17 @@ Deno.serve(async(req:Request)=>{
     if(!env("ACADEMY_STRIPE_PRICE_ID")||!env("STRIPE_SECRET_KEY"))fail(503,"Billing not configured");
     if(!stripe)fail(503,"Stripe billing is not yet configured");
     const price=env("ACADEMY_STRIPE_PRICE_ID");
+    const {data:routes,error:routeError}=await admin.from("academy_qsr_bundle_routes").select("product").eq("location_id",id);
+    if(routeError||!Array.isArray(routes))fail(503,"Subscription fulfillment configuration unavailable");
+    const selectedPrice=await stripe!.prices.retrieve(price);
     if(mode==="sandbox"){
-      const {data:routes,error}=await admin.from("academy_qsr_bundle_routes").select("product").eq("location_id",id);
-      if(error||routes?.length!==2)fail(503,"QSR sandbox fulfillment routes are not configured for this location");
-      if(!validSandboxPrice(await stripe!.prices.retrieve(price)))fail(503,"Approved sandbox price unavailable");
+      if(routes.length!==2)fail(503,"QSR sandbox fulfillment routes are not configured for this location");
+      if(!validSandboxPrice(selectedPrice))fail(503,"Approved sandbox price unavailable");
+    }else{
+      // No live QSR checkout while real three-product fulfillment is unaccepted.
+      // Do not allow the sandbox SKU, an accidental $99 live price, or any
+      // location already mapped for QSR to purchase standalone Academy access.
+      if(!validLiveStandaloneCheckout(env,selectedPrice,routes))fail(503,"Live founding partner checkout is not yet available");
     }
     const reservation=unwrap(await admin.rpc("academy_reserve_checkout",{p_location:id,p_owner:user.id,p_email:user.email!,p_price:price})) as any;
     if(reservation?.result==="forbidden")fail(403,"Active billing owner required");

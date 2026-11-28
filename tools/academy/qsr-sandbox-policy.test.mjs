@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {QSR_SANDBOX, checkoutMode, acceptsWebhookMode, validSandboxPrice, validSandboxSubscription} from "../../academy/edge-functions/_shared/qsr-sandbox-policy.mjs";
+import {QSR_SANDBOX, checkoutMode, acceptsWebhookMode, validSandboxPrice, validSandboxSubscription, validLiveStandaloneCheckout} from "../../academy/edge-functions/_shared/qsr-sandbox-policy.mjs";
 const settings={
  SUPABASE_URL:QSR_SANDBOX.projectOrigin,ACADEMY_SITE_ORIGIN:QSR_SANDBOX.siteOrigin,
  ACADEMY_STRIPE_PRICE_ID:QSR_SANDBOX.priceId,STRIPE_SECRET_KEY:"sk_test_fixture",
@@ -50,4 +50,15 @@ test("signed events must also belong to the configured Stripe account mode",()=>
  const live=env({SUPABASE_URL:"https://production.supabase.co",STRIPE_SECRET_KEY:"sk_live_fixture",ACADEMY_BILLING_ENABLED:"false"});
  assert.equal(acceptsWebhookMode(live,{livemode:true}),true);
  assert.equal(acceptsWebhookMode(live,{livemode:false}),false);
+});
+
+test("live QSR remains closed while standalone price is exact and location has no bundle routes",()=>{
+ const live=env({SUPABASE_URL:"https://production.supabase.co",ACADEMY_STRIPE_PRICE_ID:"price_standalone",ACADEMY_BILLING_ENABLED:"true",STRIPE_SECRET_KEY:"sk_live_fixture"});
+ const standalone={...price,id:"price_standalone",livemode:true,unit_amount:19900};
+ assert.equal(validLiveStandaloneCheckout(live,standalone,[]),true);
+ for(const routes of [null,[{product:"organizational_360"}],[{product:"organizational_360"},{product:"individual_360"}]])assert.equal(validLiveStandaloneCheckout(live,standalone,routes),false);
+ for(const overrides of [{unit_amount:9900},{livemode:false},{active:false},{id:"price_other"},{recurring:{...standalone.recurring,interval:"year"}},{recurring:{...standalone.recurring,usage_type:"metered"}}])assert.equal(validLiveStandaloneCheckout(live,{...standalone,...overrides},[]),false);
+ const designatedQsr=env({SUPABASE_URL:"https://production.supabase.co",ACADEMY_STRIPE_PRICE_ID:"price_standalone",ACADEMY_QSR_LIVE_PRICE_ID:"price_standalone",ACADEMY_BILLING_ENABLED:"true",STRIPE_SECRET_KEY:"sk_live_fixture"});
+ assert.equal(validLiveStandaloneCheckout(designatedQsr,standalone,[]),false);
+ assert.equal(validLiveStandaloneCheckout(env(),standalone,[]),false);
 });
