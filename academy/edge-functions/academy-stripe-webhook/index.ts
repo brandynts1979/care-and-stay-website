@@ -27,6 +27,7 @@ async function updateLocation(subscription:Stripe.Subscription,event:Stripe.Even
  const offer=await industryOfferForLocation(admin,locationId);
  if(offer?!acceptsIndustryWebhookMode(env,event)||offer.livemode!==event.livemode:!acceptsWebhookMode(env,event))throw new Error("Stripe event not enabled for this route");
  const approvedPrice=offer?offer.price_id:env("ACADEMY_STRIPE_PRICE_ID");
+ if(!approvedPrice)throw new Error("Approved Academy price not configured");
  // Read the revision before fetching current Stripe state; a competing update forces a retry.
  const current=await stripe!.subscriptions.retrieve(subscription.id);
  if(current.metadata?.academy_location_id&&current.metadata.academy_location_id!==locationId)throw new Error("Subscription location mismatch");
