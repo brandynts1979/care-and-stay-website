@@ -99,17 +99,6 @@ async function verifyStagingActivation(key,request=fetch,timeout=()=>AbortSignal
   console.log("Hosted webhook denial verified: "+name);
  }
  console.log("Existing hosted preview config and five independent public denial checks verified.");
- // One-time acceptance observation for the approved temporary QSR recipients.
- // No keys, identities, customer data or signed requests. Never enable a receiver.
- for(const [label,ref] of [["Organizational 360","qozjqacjxboqcswybbqq"],["Individual 360","vjwdwdjxbwqjkdbemuwo"]]){
-  const url="https://"+ref+".supabase.co/functions/v1/qsr-bundle-receiver";
-  const response=await safe(url,{method:"POST",headers:{"content-type":"application/json"},body:"{}"});
-  const noStore=response.headers.get("cache-control")?.includes("no-store");
-  const body=await response.text();
-  console.log("New QSR recipient "+label+" unsigned request HTTP "+response.status+"; expected disabled handler: "+(response.status===503&&noStore&&body==="{}"));
-  if(response.ok)throw Error("Unexpected unsigned receiver success: "+label);
- }
-
  // Independent public release integrity: compare actual official-site bytes to
  // the verified live production deploy 3f201a7, not an unverified branch.
  // Observational only; no credentials, registration, form submit or billing.
