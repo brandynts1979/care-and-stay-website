@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {INDUSTRY_COURSE_IDS,industryCheckoutMode,acceptsIndustryWebhookMode,validIndustryOffer,validIndustryPrice,validIndustrySubscription,industryOfferForLocation} from '../../academy/edge-functions/_shared/industry-offer-policy.mjs';
+import {INDUSTRY_COURSE_IDS,industryCheckoutMode,acceptsIndustryWebhookMode,validIndustryOffer,validIndustryPrice,validIndustrySubscription,industryOfferForLocation,industryOfferSummary,validIndustryCheckoutConsent} from '../../academy/edge-functions/_shared/industry-offer-policy.mjs';
 import {QSR_SANDBOX,checkoutMode} from '../../academy/edge-functions/_shared/qsr-sandbox-policy.mjs';
 const config={SUPABASE_URL:QSR_SANDBOX.projectOrigin,ACADEMY_SITE_ORIGIN:QSR_SANDBOX.siteOrigin,STRIPE_SECRET_KEY:'sk_test_synthetic',ACADEMY_STRIPE_PRICE_ID:QSR_SANDBOX.priceId,ACADEMY_QSR_SANDBOX_CHECKOUT_ENABLED:'true'};
 const env=values=>key=>values[key]||'';
@@ -39,4 +39,22 @@ test('no route is distinguishable from an inaccessible or invalid route',async()
  await assert.rejects(industryOfferForLocation(fake({error:new Error('missing table')}),"loc"));
  await assert.rejects(industryOfferForLocation(fake({data:{offer_id:'x'}},{data:{...offer,course_id:'qsr'}}),"loc"));
  assert.deepEqual(await industryOfferForLocation(fake({data:{offer_id:offer.id}},{data:offer}),"loc"),offer);
+});
+
+test('owner offer summary is exact, private configuration excluded, terms consent mandatory',()=>{
+ const course={id:offer.course_id,title:'Home Care Academy',published:true};
+ const activeEnv=env({...config,ACADEMY_INDUSTRY_SANDBOX_CHECKOUT_ENABLED:'true'});
+ const summary=industryOfferSummary(offer,course,activeEnv,true);
+ assert.deepEqual(summary,{course_title:course.title,unit_amount:100,currency:'usd',tax_behavior:'exclusive',checkout_available:true});
+ assert.equal(industryOfferSummary(offer,course,activeEnv,false).checkout_available,false);
+ assert.equal(industryOfferSummary(offer,{...course,published:false},activeEnv,true).checkout_available,false);
+ assert.equal(industryOfferSummary(offer,course,env(config),true).checkout_available,false);
+ assert.throws(()=>industryOfferSummary(offer,{...course,id:'other'},activeEnv,true));
+ const metadata={academy_industry_offer_id:offer.id,academy_industry_terms_version:offer.terms_version};
+ const session={metadata,consent:{terms_of_service:'accepted'}},sub={metadata};
+ assert.equal(validIndustryCheckoutConsent(session,sub,offer),true);
+ assert.equal(validIndustryCheckoutConsent({...session,consent:null},sub,offer),false);
+ assert.equal(validIndustryCheckoutConsent({...session,consent:{terms_of_service:'declined'}},sub,offer),false);
+ assert.equal(validIndustryCheckoutConsent(session,{metadata:{...metadata,academy_industry_terms_version:'other'}},offer),false);
+ assert.equal(validIndustryCheckoutConsent({...session,metadata:{...metadata,academy_industry_offer_id:'other'}},sub,offer),false);
 });
