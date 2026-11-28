@@ -35,6 +35,8 @@ declare
  gm uuid='fa100000-0000-4000-8000-000000000002';
  issued_org uuid;
  issued_gm uuid;
+ claim_a record;
+ claim_b record;
 begin
  attempt:=(public.academy_reserve_checkout(loc,owner_id,'fixture@example.invalid',price)->'attempt'->>'id')::uuid;
  if not public.academy_record_checkout_session(attempt,'cs_bundle_fixture') then raise exception 'Session reservation failed'; end if;
@@ -60,6 +62,14 @@ begin
  if issued_org is null or issued_gm is null
  or public.academy_issue_qsr_assessment(loc,cycle,'individual_360',owner_id,gm) is distinct from issued_gm
  then raise exception 'Assessment issuance or retry failed'; end if;
+ select * into claim_a from public.academy_claim_qsr_assessment_deliveries(1);
+ select * into claim_b from public.academy_claim_qsr_assessment_deliveries(1);
+ if claim_a.lease_token is null or claim_b.lease_token is null or claim_a.issuance_id=claim_b.issuance_id
+ or exists(select 1 from public.academy_claim_qsr_assessment_deliveries(4)) then raise exception 'Assessment claim overlap'; end if;
+ if public.academy_finish_qsr_assessment_delivery(claim_a.issuance_id,claim_a.revision,claim_a.lease_token,claim_b.issuance_id,true)
+ then raise exception 'Wrong native assessment acknowledged'; end if;
+ if not public.academy_finish_qsr_assessment_delivery(claim_a.issuance_id,claim_a.revision,claim_a.lease_token,claim_a.issuance_id,true)
+ then raise exception 'Assessment completion failed'; end if;
 
  if public.academy_reconcile_subscription_atomic(outside,0,'evt_other','invoice.paid','sub_other','cus_other','active',period_end)<>'applied'
  then raise exception 'Unrelated subscription failed'; end if;
@@ -67,6 +77,10 @@ begin
  then raise exception 'Unrelated subscription entered bundle'; end if;
  if public.academy_reconcile_subscription_atomic(loc,1,'evt_bundle_fail','invoice.payment_failed','sub_bundle','cus_bundle','past_due',period_end)<>'applied'
  then raise exception 'Failure snapshot did not apply'; end if;
+ if public.academy_finish_qsr_assessment_delivery(claim_b.issuance_id,claim_b.revision,claim_b.lease_token,claim_b.issuance_id,true)
+ then raise exception 'Stale assessment receipt accepted after payment failure'; end if;
+ if not public.academy_finish_qsr_assessment_delivery(claim_b.issuance_id,claim_b.revision,claim_b.lease_token,null,false)
+ then raise exception 'Failed assessment lease not released'; end if;
  if public.academy_ack_qsr_bundle_delivery(loc,'organizational_360',target,1)
  then raise exception 'Stale delivery acknowledged current revision'; end if;
  if (select count(*) from public.academy_qsr_bundle_delivery where location_id=loc and revision=2 and not desired_active and acknowledged_at is null)<>2
@@ -90,6 +104,9 @@ begin
  if public.academy_issue_qsr_assessment(loc,cycle,'organizational_360',owner_id) is not null
  or (select count(*) from public.academy_qsr_assessment_issuances where cycle_id=cycle)<>2
  then raise exception 'Cancellation allowed new issuance or erased history'; end if;
+ if exists(select 1 from public.academy_claim_qsr_assessment_deliveries(4))
+ or (select count(*) from public.academy_qsr_assessment_issuances where cycle_id=cycle and delivered_at is not null)<>1
+ then raise exception 'Cancellation allowed issuance delivery or erased receipt history'; end if;
 
 end $$;
 -- Existing cancellation has two pending revocations. Exercise the new
@@ -117,7 +134,9 @@ begin
 end $$;
 reset role;
 do $$ begin
- if has_function_privilege('authenticated','public.academy_claim_qsr_bundle_deliveries(integer)','EXECUTE')
+ if has_function_privilege('authenticated','public.academy_claim_qsr_assessment_deliveries(integer)','EXECUTE')
+ or has_function_privilege('anon','public.academy_finish_qsr_assessment_delivery(uuid,bigint,uuid,uuid,boolean)','EXECUTE')
+ or has_function_privilege('authenticated','public.academy_claim_qsr_bundle_deliveries(integer)','EXECUTE')
  or has_function_privilege('anon','public.academy_finish_qsr_bundle_delivery(uuid,text,uuid,bigint,uuid,boolean)','EXECUTE')
  or has_table_privilege('authenticated','public.academy_qsr_assessment_issuances','SELECT')
  or has_function_privilege('authenticated','public.academy_issue_qsr_assessment(uuid,uuid,text,uuid,uuid)','EXECUTE')
