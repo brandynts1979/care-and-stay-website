@@ -149,6 +149,11 @@ jobs:
           psql -v ON_ERROR_STOP=1 -f academy/database/staged_qsr_bundle_delivery.sql
           psql -v ON_ERROR_STOP=1 -f tools/academy/qsr_bundle_delivery_smoke.sql
 
+      - name: Verify independent industry offer routing and paid fulfillment
+        run: |
+          psql -v ON_ERROR_STOP=1 -f academy/database/staged_academy_industry_offers.sql
+          psql -v ON_ERROR_STOP=1 -f tools/academy/industry_offers_smoke.sql
+
       - name: Install payment risk review inbox
         run: psql -v ON_ERROR_STOP=1 -f academy/database/staged_academy_billing_risk.sql
       - name: Verify risk event idempotency, verified association and privacy
