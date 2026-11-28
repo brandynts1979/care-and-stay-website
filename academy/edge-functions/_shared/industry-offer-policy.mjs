@@ -9,6 +9,7 @@ export const INDUSTRY_COURSE_IDS=Object.freeze({
   "hospitality":"6f3d57ab-a581-880e-be45-8e6bc75ec481"
 });
 const ids=new Set(Object.values(INDUSTRY_COURSE_IDS));
+const productionEnvironment=env=>env("SUPABASE_URL")==="https://seaxmxrnblivtjmlmtsn.supabase.co"&&env("ACADEMY_SITE_ORIGIN")==="https://mycareandstay.com";
 const testKey=k=>/^(sk|rk)_test_[A-Za-z0-9]+$/.test(k||"");
 const liveKey=k=>/^(sk|rk)_live_[A-Za-z0-9]+$/.test(k||"");
 const testEnvironment=env=>env("SUPABASE_URL")===QSR_SANDBOX.projectOrigin &&
@@ -16,14 +17,14 @@ const testEnvironment=env=>env("SUPABASE_URL")===QSR_SANDBOX.projectOrigin &&
  env("ACADEMY_BILLING_ENABLED")!=="true" && env("ACADEMY_INDUSTRY_BILLING_ENABLED")!=="true";
 export function industryCheckoutMode(env){
  if(testEnvironment(env))return env("ACADEMY_INDUSTRY_SANDBOX_CHECKOUT_ENABLED")==="true"?"sandbox":null;
- return env("SUPABASE_URL")!==QSR_SANDBOX.projectOrigin &&
+ return productionEnvironment(env) &&
  env("ACADEMY_BILLING_ENABLED")==="true" && env("ACADEMY_INDUSTRY_BILLING_ENABLED")==="true" &&
  liveKey(env("STRIPE_SECRET_KEY"))?"live":null;
 }
 export function acceptsIndustryWebhookMode(env,event){
  // Existing paid subscriptions must continue to reconcile when new sales close.
  return testEnvironment(env)?env("ACADEMY_INDUSTRY_SANDBOX_CHECKOUT_ENABLED")==="true"&&event?.livemode===false:
- env("SUPABASE_URL")!==QSR_SANDBOX.projectOrigin&&liveKey(env("STRIPE_SECRET_KEY"))&&event?.livemode===true;
+ productionEnvironment(env)&&liveKey(env("STRIPE_SECRET_KEY"))&&event?.livemode===true;
 }
 export function validIndustryOffer(offer){
  return !!offer&&ids.has(offer.course_id)&&/^price_[A-Za-z0-9_]+$/.test(offer.price_id||"")&&
