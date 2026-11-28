@@ -100,11 +100,11 @@ async function verifyStagingActivation(key,request=fetch,timeout=()=>AbortSignal
  }
  console.log("Existing hosted preview config and five independent public denial checks verified.");
  // Independent public release integrity: compare actual official-site bytes to
- // the known live production deploy e62b6e5, not newer undeployed main.
+ // the verified live production deploy 3f201a7, not an unverified branch.
  // Observational only; no credentials, registration, form submit or billing.
  const publicBase="https://mycareandstay.com";
  const expected=[
- ["/stay-culture-360/qsr/","90f7faa20390f2eeb35a6ee788b6d04d24398eb0"],
+ ["/stay-culture-360/qsr/","5eadc1dac08b964f0316736f8ba211ee4d5f70ad"],
  ["/employer-login/","90f9efbe3b85dd6f1aae5ce2fc82f9d1a0d2ff8a"],
  ["/individual-login/","c6b7f1d131fe36cd4078d3fed1cb8970edb12d5a"],
  ["/academy/learn/","42861a1d2bc15316c1f17194f658a4b6c834cf32"],
@@ -120,6 +120,7 @@ async function verifyStagingActivation(key,request=fetch,timeout=()=>AbortSignal
    const html=bytes.toString("utf8");
    if(route==="/stay-culture-360/qsr/"){
     console.log("Public QSR invitation-only price and no-payment notice: "+(/\$99/.test(html)&&/No payment is collected on this page/.test(html)&&/Invitation-only/.test(html)?"verified":"not verified"));
+    console.log("Public QSR six-month assessment inclusions: "+(html.includes("one organizational assessment per subscribed location every six months")&&html.includes("one Individual Leadership 360 assessment per GM every six months")?"verified":"not verified"));
    }
    if(route==="/individual-login/")console.log("Individual 360 public route points to test host: "+html.includes("care-and-stay-individual-360-test.onrender.com"));
   }catch{console.log("Production observation "+route+" unavailable; no production assertion made.");}
