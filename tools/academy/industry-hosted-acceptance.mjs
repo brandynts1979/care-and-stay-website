@@ -74,6 +74,7 @@ async function setup(browser,fixture,pathway,role){
   await page.getByRole('button',{name:'Sign in',exact:true}).click();
   safe((await(await auth).json()).user?.id===a.user_id,'Authenticated identity mismatch');
   await page.locator('#courses h2').waitFor();
+  await page.waitForFunction(()=>document.getElementById('courses')?.textContent.includes('No active course access')||document.querySelector('#courses .academy-lesson button'));
   const available=await api(page,'enrollments');safe(available.status===200,'Enrollment read failed');
   exactEnrollment(available.data,fixture,role);
   const locs=await api(page,'manager',{action:'list_locations'});
@@ -96,7 +97,7 @@ async function openCourse(page,pathway,fixture){
  safe(await card.count()===1,'Exact course card required');
  await card.getByRole('button',{name:'Open course',exact:true}).click();
  const progress=page.getByRole('progressbar',{name:'Course progress'});
- await progress.waitFor();safe(await progress.getAttribute('aria-valuemax')==='32','Wrong lesson count');
+ await progress.waitFor();await page.locator('.academy-module-card').first().waitFor();safe(await progress.getAttribute('aria-valuemax')==='32','Wrong lesson count');
  safe(await page.locator('.academy-module-card').count()===8&&await page.locator('.academy-lesson-row').count()===32,'Wrong module/lesson structure');
  safe(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Horizontal overflow');
  return visible[0].title;
@@ -126,7 +127,7 @@ async function goalAndLesson(page,pathway){
  await row.getByRole('button',{name:/^(Study|Review) lesson$/}).click();
  await page.getByRole('button',{name:'Save private reflection',exact:true}).waitFor();
  if(pathway.settings.length)await page.locator('#lessonDetail h3').filter({hasText:/^Practice for /}).waitFor();
- const activity=page.locator('#lessonDetail .academy-question').filter({has:page.locator('p[aria-live="polite"]')});
+ const activity=page.locator('#lessonDetail section.academy-question:has(> strong)');
  // Formative choices are not graded employment tests. Exercise each of the two
  // activity panels and confirm developmental feedback appears without copying it to logs.
  safe(await activity.count()===2,'Expected two formative activities');
@@ -166,7 +167,7 @@ async function run(fixture,pathway,withMedia){
      safe((await rows(page,'academy_worksheet_responses',['enrollment_id'],{enrollment_id:fixture.learner.enrollment_id})).length===0,'Outsider worksheet exposed');
      const denied=await api(page,'worksheet-denial',{p_enrollment:fixture.learner.enrollment_id,p_template:templateId,p_answers:{'1':'denied'}});
      safe(denied.status===401||denied.status===403,'Unauthorized worksheet write not denied');
-     if(withMedia){const m=await api(page,'manager',{action:'list_module_media',enrollment_id:fixture.learner.enrollment_id});safe(m.status===403||m.status===404,'Unauthorized media not denied');}
+     if(withMedia){const m=await api(page,'manager',{action:'list_module_media',enrollment_id:fixture.learner.enrollment_id});safe(m.status===403||m.status===404,'Unauthorized media list not denied');const deniedPlay=await api(page,'manager',{action:'play_module_media',enrollment_id:fixture.learner.enrollment_id,module_id:pathway.firstModuleId});safe(deniedPlay.status===403||deniedPlay.status===404,'Unauthorized signed playback not denied');}
     }else{
      checkpoint=pathway.key+' '+role+' exact course';
      await openCourse(page,pathway,fixture);
@@ -196,7 +197,7 @@ async function run(fixture,pathway,withMedia){
       const completion=page.getByRole('button',{name:/^(Mark lesson complete|Completed ✓)$/});
       if(await completion.innerText()==='Mark lesson complete'){await completion.click();await page.getByText('Lesson progress saved.',{exact:true}).waitFor();}
       safe((await rows(page,'academy_lesson_progress',['lesson_id'],filters)).length===1,'Progress not persisted');
-      await page.reload({waitUntil:'domcontentloaded'});await page.locator('#courses h2').waitFor();
+      await page.reload({waitUntil:'domcontentloaded'});await page.locator('#courses .academy-lesson button').first().waitFor();
       await openCourse(page,pathway,fixture);await goalAndLesson(page,pathway);
       safe(await page.getByLabel('My private reflection',{exact:true}).inputValue()===privateText,'Reflection not restored');
       safe(await page.getByLabel('My real-world practice and what I learned',{exact:true}).inputValue()===sharedText,'Submission not restored');
