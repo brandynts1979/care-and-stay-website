@@ -1,4 +1,5 @@
 import { acceptsWebhookMode, isQsrSandbox, validSandboxSubscription } from "../_shared/qsr-sandbox-policy.mjs";
+import { industryOfferForLocation, acceptsIndustryWebhookMode, validIndustrySubscription } from "../_shared/industry-offer-policy.mjs";
 import { createClient } from "npm:@supabase/supabase-js@2.57.0";
 import Stripe from "npm:stripe@17.7.0";
 
@@ -13,7 +14,6 @@ const subEnd=(s:any,approvedPrice:string)=>{
  return new Date(Math.min(...values)*1000).toISOString();
 };
 async function updateLocation(subscription:Stripe.Subscription,event:Stripe.Event,session:Stripe.Checkout.Session|null){
- const approvedPrice=env("ACADEMY_STRIPE_PRICE_ID");
  // Resolve linked subscriptions first. Initial binding requires recorded paid Checkout, never metadata alone.
  const {data:linked,error:linkError}=await admin.from("academy_locations").select("id,billing_revision,stripe_subscription_id").eq("stripe_subscription_id",subscription.id).maybeSingle();
  if(linkError)throw linkError;
@@ -24,6 +24,9 @@ async function updateLocation(subscription:Stripe.Subscription,event:Stripe.Even
  const {data:loc,error:locError}=await admin.from("academy_locations").select("id,billing_revision,stripe_subscription_id").eq("id",locationId).single();
  if(locError||!loc)throw new Error("Academy location not found");
  if(loc.stripe_subscription_id&&loc.stripe_subscription_id!==subscription.id)throw new Error("Subscription does not match existing location");
+ const offer=await industryOfferForLocation(admin,locationId);
+ if(offer?!acceptsIndustryWebhookMode(env,event)||offer.livemode!==event.livemode:!acceptsWebhookMode(env,event))throw new Error("Stripe event not enabled for this route");
+ const approvedPrice=offer?offer.price_id:env("ACADEMY_STRIPE_PRICE_ID");
  // Read the revision before fetching current Stripe state; a competing update forces a retry.
  const current=await stripe!.subscriptions.retrieve(subscription.id);
  if(current.metadata?.academy_location_id&&current.metadata.academy_location_id!==locationId)throw new Error("Subscription location mismatch");
@@ -31,7 +34,7 @@ async function updateLocation(subscription:Stripe.Subscription,event:Stripe.Even
    // A linked subscription that loses the approved product must not keep access.
    if(!linked)throw new Error("Stripe subscription does not contain the approved Academy price");
  }
- const hasPrice=(current.items?.data||[]).some((item:any)=>item.price?.id===approvedPrice) && (!isQsrSandbox(env)||validSandboxSubscription(current));
+ const hasPrice=offer?validIndustrySubscription(current,offer):(current.items?.data||[]).some((item:any)=>item.price?.id===approvedPrice) && (!isQsrSandbox(env)||validSandboxSubscription(current));
  if(!hasPrice&&!linked)throw new Error("Unverified subscription price or quantity");
  const status=!hasPrice||current.status==="incomplete_expired"?"canceled":current.status;
  const args={
@@ -44,8 +47,10 @@ async function updateLocation(subscription:Stripe.Subscription,event:Stripe.Even
    const meta=session!.metadata||{};
    const sessionCustomer=typeof session!.customer==="string"?session!.customer:session!.customer?.id;
    if(!sessionCustomer||sessionCustomer!==args.p_customer||session!.client_reference_id!==locationId||!meta.academy_checkout_attempt_id||!meta.academy_owner_id||current.metadata?.academy_checkout_attempt_id!==meta.academy_checkout_attempt_id||current.metadata?.academy_owner_id!==meta.academy_owner_id)throw new Error("Unverified Academy Checkout binding");
-   reconciliation=await admin.rpc("academy_bind_checkout_atomic",{...args,p_attempt:meta.academy_checkout_attempt_id,p_session:session!.id,p_owner:meta.academy_owner_id,p_price:approvedPrice});
- }else reconciliation=await admin.rpc("academy_reconcile_subscription_atomic",args);
+   if(offer&&(meta.academy_industry_offer_id!==offer.id||current.metadata?.academy_industry_offer_id!==offer.id))throw new Error("Unverified industry offer binding");
+   const binding={...args,p_attempt:meta.academy_checkout_attempt_id,p_session:session!.id,p_owner:meta.academy_owner_id,p_price:approvedPrice};
+   reconciliation=offer?await admin.rpc("academy_industry_bind_checkout_atomic",{...binding,p_livemode:event.livemode}):await admin.rpc("academy_bind_checkout_atomic",binding);
+ }else reconciliation=offer?await admin.rpc("academy_industry_reconcile_subscription_atomic",{...args,p_price:approvedPrice,p_livemode:event.livemode}):await admin.rpc("academy_reconcile_subscription_atomic",args);
  const {data:result,error}=reconciliation;
  if(error)throw error;
  if(result!=="applied"&&result!=="duplicate")throw new Error("Academy reconciliation: "+String(result));
@@ -84,14 +89,14 @@ async function recordRisk(event:Stripe.Event){
 Deno.serve(async(req:Request)=>{
  if(req.method!=="POST")return respond(405,{error:"Method not allowed"});
  const sig=req.headers.get("stripe-signature");
- if(!sig||!env("STRIPE_WEBHOOK_SECRET")||!stripe||!env("ACADEMY_STRIPE_PRICE_ID"))
+ if(!sig||!env("STRIPE_WEBHOOK_SECRET")||!stripe)
    return respond(400,{error:"Webhook signature unavailable"});
  let event:Stripe.Event;
  try{
   const raw=await req.text();
   event=await stripe!.webhooks.constructEventAsync(raw,sig,env("STRIPE_WEBHOOK_SECRET"),undefined,Stripe.createSubtleCryptoProvider());
  }catch(e){console.error("Invalid Academy Stripe signature");return respond(400,{error:"Invalid signature"});}
- if(!acceptsWebhookMode(env,event))return respond(400,{error:"Stripe event mode not enabled"});
+ if(!acceptsWebhookMode(env,event)&&!acceptsIndustryWebhookMode(env,event))return respond(400,{error:"Stripe event mode not enabled"});
  // Only events from a subscription tagged with a location ID can affect an Academy location.
  try{
   const {data:existing,error:lookup}=await admin.from("academy_billing_events").select("processed_at").eq("stripe_event_id",event.id).maybeSingle();
