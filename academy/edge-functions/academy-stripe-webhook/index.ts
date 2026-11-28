@@ -1,5 +1,5 @@
 import { acceptsWebhookMode, isQsrSandbox, validSandboxSubscription } from "../_shared/qsr-sandbox-policy.mjs";
-import { industryOfferForLocation, acceptsIndustryWebhookMode, validIndustrySubscription } from "../_shared/industry-offer-policy.mjs";
+import { industryOfferForLocation, acceptsIndustryWebhookMode, validIndustrySubscription, validIndustryCheckoutConsent } from "../_shared/industry-offer-policy.mjs";
 import { createClient } from "npm:@supabase/supabase-js@2.57.0";
 import Stripe from "npm:stripe@17.7.0";
 
@@ -48,7 +48,7 @@ async function updateLocation(subscription:Stripe.Subscription,event:Stripe.Even
    const meta=session!.metadata||{};
    const sessionCustomer=typeof session!.customer==="string"?session!.customer:session!.customer?.id;
    if(!sessionCustomer||sessionCustomer!==args.p_customer||session!.client_reference_id!==locationId||!meta.academy_checkout_attempt_id||!meta.academy_owner_id||current.metadata?.academy_checkout_attempt_id!==meta.academy_checkout_attempt_id||current.metadata?.academy_owner_id!==meta.academy_owner_id)throw new Error("Unverified Academy Checkout binding");
-   if(offer&&(meta.academy_industry_offer_id!==offer.id||current.metadata?.academy_industry_offer_id!==offer.id))throw new Error("Unverified industry offer binding");
+   if(offer&&!validIndustryCheckoutConsent(session,current,offer))throw new Error("Unverified industry offer or terms acceptance");
    const binding={...args,p_attempt:meta.academy_checkout_attempt_id,p_session:session!.id,p_owner:meta.academy_owner_id,p_price:approvedPrice};
    reconciliation=offer?await admin.rpc("academy_industry_bind_checkout_atomic",{...binding,p_livemode:event.livemode}):await admin.rpc("academy_bind_checkout_atomic",binding);
  }else reconciliation=offer?await admin.rpc("academy_industry_reconcile_subscription_atomic",{...args,p_price:approvedPrice,p_livemode:event.livemode}):await admin.rpc("academy_reconcile_subscription_atomic",args);
