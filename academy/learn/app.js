@@ -63,9 +63,9 @@
     if(!current())return;
     const {locations}=await managerRequest('list_locations');
     if(!current())return;
-    locationsNode.replaceChildren(elt('h2','Restaurant locations'));
+    locationsNode.replaceChildren(elt('h2','Organizations and locations'));
     if(!locations?.length){
-      locationsNode.append(elt('p','Create a restaurant location to set up an owner subscription. No charge occurs until you complete Stripe Checkout.'));
+      locationsNode.append(elt('p','Restaurant owners can create a location. For another industry Academy, request an approved organization and offer from Care & Stay. No charge occurs until you complete Stripe Checkout.'));
     }
     const nameInput=entry('text','Restaurant location name');
     const nameLabel=elt('label','Add a restaurant location');nameLabel.append(nameInput);
@@ -81,8 +81,18 @@
       const item=elt('section',undefined,'academy-lesson');
       item.append(elt('h3',loc.name));
       item.append(elt('p','Subscription: '+loc.subscription_status+' · Your role: '+loc.role));
-      if(loc.role==='owner'){
-        if(!['active','trialing'].includes(loc.subscription_status) && cfg.billingEnabled===true) item.append(button('Subscribe — $199/month',async()=>{
+      const offer=loc.industry_offer;
+      const canBill=loc.role==='owner'&&loc.billing_owner!==false;
+      if(offer){
+        item.append(elt('p',offer.course_title));
+        if(canBill&&Number.isSafeInteger(offer.unit_amount)&&offer.unit_amount>0&&offer.currency==='usd'){
+          const amount=new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(offer.unit_amount/100);
+          const tax=offer.tax_behavior==='exclusive'?' plus applicable tax':offer.tax_behavior==='inclusive'?' including applicable tax':'';
+          item.append(elt('p','Approved offer: '+amount+'/month'+tax+'. Review the terms in Stripe Checkout before paying.'));
+        }
+      }
+      if(canBill){
+        if(!['active','trialing'].includes(loc.subscription_status) && (offer?offer.checkout_available===true:cfg.billingEnabled===true)) item.append(button('Review subscription & price',async()=>{
           try{const {checkout_url}=await managerRequest('create_checkout',{location_id:loc.id});
             if(!checkout_url || !/^https:\/\/checkout\.stripe\.com\//.test(checkout_url))throw new Error('Unable to open Stripe Checkout');
             window.location.assign(checkout_url);
