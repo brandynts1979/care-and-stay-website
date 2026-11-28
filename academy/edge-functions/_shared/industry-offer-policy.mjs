@@ -57,3 +57,17 @@ export async function industryOfferForLocation(admin,locationId){
  if(offerError||!validIndustryOffer(offer))throw new Error("Industry Academy offer is not configured");
  return offer;
 }
+
+export function industryOfferSummary(offer,course,env,isBillingOwner){
+ if(!validIndustryOffer(offer)||course?.id!==offer.course_id||typeof course.title!=="string")throw new Error("Industry Academy course is not configured");
+ const mode=industryCheckoutMode(env);
+ return {course_title:course.title,unit_amount:offer.unit_amount,currency:offer.currency,tax_behavior:offer.tax_behavior,
+   checkout_available:!!isBillingOwner&&course.published===true&&offer.checkout_enabled===true&&!!mode&&offer.livemode===(mode==="live")};
+}
+export function validIndustryCheckoutConsent(session,subscription,offer){
+ return validIndustryOffer(offer)&&session?.metadata?.academy_industry_offer_id===offer.id&&
+ session?.metadata?.academy_industry_terms_version===offer.terms_version&&
+ subscription?.metadata?.academy_industry_offer_id===offer.id&&
+ subscription?.metadata?.academy_industry_terms_version===offer.terms_version&&
+ session?.consent?.terms_of_service==="accepted";
+}
