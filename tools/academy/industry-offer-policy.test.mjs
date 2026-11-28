@@ -15,8 +15,11 @@ test('separate gates protect QSR and industry test/live checkout',()=>{
  for(const patch of [{ACADEMY_SITE_ORIGIN:'https://wrong.example'},{ACADEMY_BILLING_ENABLED:'true'},{ACADEMY_INDUSTRY_BILLING_ENABLED:'true'},{STRIPE_SECRET_KEY:'sk_live_synthetic'},{SUPABASE_URL:'https://wrong.supabase.co'}])assert.equal(industryCheckoutMode(env({...testEnv,...patch})),null);
  assert.equal(acceptsIndustryWebhookMode(env(testEnv),{livemode:false}),true);
  assert.equal(acceptsIndustryWebhookMode(env(testEnv),{livemode:true}),false);
- const live={SUPABASE_URL:'https://production.example',STRIPE_SECRET_KEY:'rk_live_synthetic',ACADEMY_BILLING_ENABLED:'true',ACADEMY_INDUSTRY_BILLING_ENABLED:'true'};
+ const live={SUPABASE_URL:'https://seaxmxrnblivtjmlmtsn.supabase.co',ACADEMY_SITE_ORIGIN:'https://mycareandstay.com',STRIPE_SECRET_KEY:'rk_live_synthetic',ACADEMY_BILLING_ENABLED:'true',ACADEMY_INDUSTRY_BILLING_ENABLED:'true'};
  assert.equal(industryCheckoutMode(env(live)),'live');
+ assert.equal(industryCheckoutMode(env({...live,SUPABASE_URL:'https://different.supabase.co'})),null);
+ assert.equal(industryCheckoutMode(env({...live,ACADEMY_SITE_ORIGIN:'https://different.example'})),null);
+ assert.equal(acceptsIndustryWebhookMode(env({...live,SUPABASE_URL:'https://different.supabase.co'}),{livemode:true}),false);
  assert.equal(industryCheckoutMode(env({...live,ACADEMY_INDUSTRY_BILLING_ENABLED:'false'})),null);
  assert.equal(acceptsIndustryWebhookMode(env({...live,ACADEMY_BILLING_ENABLED:'false'}),{livemode:true}),true);
  assert.equal(acceptsIndustryWebhookMode(env(live),{livemode:false}),false);
@@ -57,4 +60,19 @@ test('owner offer summary is exact, private configuration excluded, terms consen
  assert.equal(validIndustryCheckoutConsent({...session,consent:{terms_of_service:'declined'}},sub,offer),false);
  assert.equal(validIndustryCheckoutConsent(session,{metadata:{...metadata,academy_industry_terms_version:'other'}},offer),false);
  assert.equal(validIndustryCheckoutConsent({...session,metadata:{...metadata,academy_industry_offer_id:'other'}},sub,offer),false);
+});
+
+import {readFileSync} from 'node:fs';
+test('shared learner portal uses authorized offer summary instead of a hardcoded price',()=>{
+ const app=readFileSync(new URL('../../academy/learn/app.js',import.meta.url),'utf8');
+ assert.doesNotMatch(app,/Subscribe — \$199/);
+ assert.match(app,/loc\.industry_offer/);
+ assert.match(app,/offer\.checkout_available===true/);
+ assert.match(app,/loc\.billing_owner!==false/);
+ const manager=readFileSync(new URL('../../academy/edge-functions/academy-manager/index.ts',import.meta.url),'utf8');
+ const webhook=readFileSync(new URL('../../academy/edge-functions/academy-stripe-webhook/index.ts',import.meta.url),'utf8');
+ assert.match(manager,/academy_industry_reserve_checkout/);
+ assert.match(manager,/terms_of_service:"required"/);
+ assert.match(webhook,/validIndustryCheckoutConsent\(session,current,offer\)/);
+ assert.match(webhook,/academy_industry_bind_checkout_atomic/);
 });
