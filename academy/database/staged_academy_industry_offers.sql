@@ -73,7 +73,7 @@ declare offer public.academy_industry_offers%rowtype;
 begin
  perform 1 from public.academy_locations where id=p_location for update;
  select o.* into offer from public.academy_industry_location_offers r join public.academy_industry_offers o on o.id=r.offer_id
- where r.location_id=p_location for share of o;
+ where r.location_id=p_location;
  if not found or offer.livemode is distinct from p_livemode or not offer.checkout_enabled
  or not exists(select 1 from public.academy_courses where id=offer.course_id and published)
  or exists(select 1 from public.academy_qsr_bundle_routes where location_id=p_location)
@@ -87,7 +87,7 @@ declare offer public.academy_industry_offers%rowtype; attempt public.academy_che
 begin
  perform 1 from public.academy_locations where id=p_location for update;
  select o.* into offer from public.academy_industry_location_offers r join public.academy_industry_offers o on o.id=r.offer_id
- where r.location_id=p_location for share of o;
+ where r.location_id=p_location;
  if not found or offer.livemode is distinct from p_livemode or offer.price_id is distinct from p_price
  or exists(select 1 from public.academy_qsr_bundle_routes where location_id=p_location)
  then return 'mismatch'; end if;
@@ -118,7 +118,7 @@ declare offer public.academy_industry_offers%rowtype;
 begin
  perform 1 from public.academy_locations where id=p_location for update;
  select o.* into offer from public.academy_industry_location_offers r join public.academy_industry_offers o on o.id=r.offer_id
- where r.location_id=p_location for share of o;
+ where r.location_id=p_location;
  if not found or offer.price_id is distinct from p_price or offer.livemode is distinct from p_livemode
  or not exists(select 1 from public.academy_checkout_attempts where location_id=p_location and state='bound' and bound_subscription_id=p_subscription and price_id=offer.price_id)
  or exists(select 1 from public.academy_qsr_bundle_routes where location_id=p_location)
