@@ -43,18 +43,42 @@ grant execute on function public.academy_claim_qsr_assessment_deliveries(integer
 
 create function public.academy_finish_qsr_assessment_delivery(p_issuance uuid,p_revision bigint,p_lease uuid,p_native_id uuid,p_success boolean)
 returns boolean language plpgsql security invoker set search_path=pg_catalog,public as $$
+declare
+ v_location uuid;
+ v_gm uuid;
+ v_checked_at timestamptz;
 begin
  if p_lease is null or p_revision is null or p_success is null or (p_success and p_native_id is distinct from p_issuance) then return false; end if;
+ -- Match the lock order of subscription reconciliation and original issuance.
+ -- A successful receipt must not race a billing change or GM removal.
+ if p_success then
+   select l.id,i.gm_user_id into v_location,v_gm
+   from public.academy_qsr_assessment_issuances i
+   join public.academy_qsr_assessment_cycles c on c.id=i.cycle_id
+   join public.academy_locations l on l.id=c.location_id
+   where i.id=p_issuance
+   for update of l;
+   if not found then return false; end if;
+   if v_gm is not null then
+     perform 1 from public.academy_location_members m
+     where m.location_id=v_location and m.user_id=v_gm and m.role='gm' and m.active
+     for share of m;
+     if not found then return false; end if;
+   end if;
+ end if;
+ -- Use wall clock after waiting for locks; a transaction-start timestamp
+ -- must not allow an expired lease, cycle, or subscription to complete.
+ v_checked_at:=clock_timestamp();
  update public.academy_qsr_assessment_issuances i
- set delivered_at=case when p_success then now() else null end,
- next_attempt_at=case when p_success then now() else now()+make_interval(secs=>least(3600,15*power(2,least(i.attempt_count,8)))::double precision) end,
+ set delivered_at=case when p_success then v_checked_at else null end,
+ next_attempt_at=case when p_success then v_checked_at else v_checked_at+make_interval(secs=>least(3600,15*power(2,least(i.attempt_count,8)))::double precision) end,
  lease_token=null,lease_until=null,lease_revision=null
  from public.academy_qsr_assessment_cycles c,public.academy_locations l,public.academy_qsr_bundle_delivery d,public.academy_qsr_bundle_routes r
- where i.id=p_issuance and i.delivered_at is null and i.lease_token=p_lease and i.lease_until>now() and i.lease_revision=p_revision
+ where i.id=p_issuance and i.delivered_at is null and i.lease_token=p_lease and i.lease_until>v_checked_at and i.lease_revision=p_revision
  and c.id=i.cycle_id and l.id=c.location_id and d.location_id=l.id and d.product=i.product
  and r.location_id=l.id and r.product=i.product and r.target_id=i.target_id
- and (not p_success or (l.billing_revision=p_revision and l.subscription_status in ('active','trialing') and l.current_period_end>now()
- and c.starts_at<=now() and c.ends_at>now() and d.revision=p_revision and d.desired_active and d.period_end>now() and d.acknowledged_at is not null
+ and (not p_success or (l.billing_revision=p_revision and l.subscription_status in ('active','trialing') and l.current_period_end>v_checked_at
+ and c.starts_at<=v_checked_at and c.ends_at>v_checked_at and d.revision=p_revision and d.desired_active and d.period_end>v_checked_at and d.acknowledged_at is not null
  and (i.gm_user_id is null or exists(select 1 from public.academy_location_members m where m.location_id=l.id and m.user_id=i.gm_user_id and m.role='gm' and m.active))));
  return found;
 end $$;
