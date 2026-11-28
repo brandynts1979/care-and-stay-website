@@ -15,21 +15,59 @@ export const tools={
  'growth-scorecard':{fields:[{label:'Eligible outcomes'},{label:'Eligible starting cohort'}],run:v=>'Rate: '+fmt(rate(num(v[0]),num(v[1])))},
  'experiment-journal':{fields:['Baseline numerator','Baseline denominator','Current numerator','Current denominator'].map(label=>({label})),run:v=>{const r=compareRates({n:num(v[0]),d:num(v[1])},{n:num(v[2]),d:num(v[3])});return 'Baseline '+fmt(r.before)+' · Current '+fmt(r.after)+' · Difference '+(r.percentagePoints===null?'Unavailable':r.percentagePoints.toFixed(2)+' percentage points')+' · Relative change '+fmt(r.relativeChange)+' (not causal proof)'}}
 };
-export function calculate(key,values){const t=tools[key];if(!t||!Array.isArray(values)||values.length!==t.fields.length)throw new TypeError('Invalid calculator inputs');return t.run(values)}
-// Calculator inputs are deliberately transient; worksheet answers use existing private RPC.
-export function attachCalculator(section,key,current){
- const t=tools[key];if(!t)return;
+const getTool=key=>Object.hasOwn(tools,key)?tools[key]:null;
+export function calculate(key,values){
+ const t=getTool(key);
+ if(!t||!Array.isArray(values)||values.length!==t.fields.length||t.fields.some((f,i)=>typeof values[i]!=='string'||values[i].length>2000||(f.options&&!f.options.includes(values[i]))))throw new TypeError('Invalid calculator inputs');
+ return t.run(values);
+}
+const invalidResult='Check the input format, required values and permitted ranges.';
+export function calculatorResult(key,values){try{return calculate(key,values)}catch{return invalidResult}}
+// The private importer appends these exact slots; never shift legacy worksheet answers.
+export function calculatorLayout(template){
+ const t=getTool(template.template_key),prompts=template.prompts;
+ if(!t||!Array.isArray(prompts))return null;
+ const count=t.fields.length,start=prompts.length-count-1;
+ if(start<0||prompts[start+count]!=='Calculator result'||t.fields.some((_,i)=>prompts[start+i]!=='Calculator input '+(i+1)))return null;
+ return {start,count};
+}
+export function attachCalculator(section,key,current,savedValues=[]){
+ const t=getTool(key);if(!t)return null;
  const wrapper=document.createElement('section');wrapper.className='academy-question';
  const heading=document.createElement('h4');heading.textContent='Practice calculator';wrapper.append(heading);
- const hint=document.createElement('p');hint.textContent='Use fictional or de-identified inputs. Calculations stay in this browser; copy relevant results into your private worksheet to save them.';wrapper.append(hint);
- const controls=t.fields.map(f=>{const label=document.createElement('label');label.textContent=f.label;const input=document.createElement(f.type==='select'?'select':'textarea');input.className='academy-input';if(f.options)for(const v of f.options){const o=document.createElement('option');o.value=v;o.textContent=v;input.append(o)}else{input.rows=2;input.maxLength=2000}label.append(input);wrapper.append(label);return input});
+ const hint=document.createElement('p');hint.textContent='Use fictional or de-identified inputs. Save private worksheet to retain your calculator inputs and recalculated result.';wrapper.append(hint);
+ const controls=t.fields.map((f,i)=>{
+  const label=document.createElement('label');label.textContent=f.label;
+  const input=document.createElement(f.type==='select'?'select':'textarea');input.className='academy-input';
+  const stored=savedValues[i];
+  if(f.options){
+   const placeholder=document.createElement('option');placeholder.value='';placeholder.textContent='Select a valid option';placeholder.disabled=true;input.append(placeholder);
+   for(const v of f.options){const o=document.createElement('option');o.value=v;o.textContent=v;input.append(o)}
+   input.value=stored===undefined?f.options[0]:f.options.includes(stored)?stored:'';
+  }else{input.rows=2;input.maxLength=2000;input.value=typeof stored==='string'&&stored.length<=2000?stored:''}
+  label.append(input);wrapper.append(label);return input;
+ });
  const result=document.createElement('p');result.setAttribute('role','status');result.setAttribute('aria-live','polite');
- const b=document.createElement('button');b.type='button';b.className='academy-btn alt';b.textContent='Calculate';b.addEventListener('click',()=>{if(!current())return;try{result.textContent=calculate(key,controls.map(x=>x.value))}catch{result.textContent='Check the input format, required values and permitted ranges.'}});
- wrapper.append(b,result);section.append(wrapper);
+ const values=()=>{const inputs=controls.map(x=>x.value);return [...inputs,calculatorResult(key,inputs)]};
+ const refresh=()=>{if(current())result.textContent=values().at(-1)};
+ const b=document.createElement('button');b.type='button';b.className='academy-btn alt';b.textContent='Calculate';b.addEventListener('click',refresh);
+ for(const control of controls){control.addEventListener('input',refresh);control.addEventListener('change',refresh)}
+ wrapper.append(b,result);section.append(wrapper);refresh();
+ return {values,setDisabled(disabled){b.disabled=disabled;for(const control of controls)control.disabled=disabled}};
+}
+export function worksheetExportEntries(template,answers){
+ const layout=calculatorLayout(template),t=getTool(template.template_key);
+ const entries=template.prompts.map((p,i)=>[p,answers[i]||'']);
+ if(layout){
+  const inputs=answers.slice(layout.start,layout.start+layout.count);
+  t.fields.forEach((f,i)=>{entries[layout.start+i]=['Calculator input: '+f.label,inputs[i]||'']});
+  entries[layout.start+layout.count]=['Calculator result',calculatorResult(template.template_key,inputs)];
+ }
+ return entries;
 }
 export function exportWorksheet(template,answers){
  const page=document.implementation.createHTMLDocument('Private worksheet');const h=page.createElement('h1');h.textContent=template.title;page.body.append(h);
  const note=page.createElement('p');note.textContent='Private learner copy. Includes current worksheet entries; store securely.';page.body.append(note);
- template.prompts.forEach((p,i)=>{const label=page.createElement('h2');label.textContent=p;const a=page.createElement('p');a.style.whiteSpace='pre-wrap';a.textContent=answers[i]||'';page.body.append(label,a)});
+ worksheetExportEntries(template,answers).forEach(([p,value])=>{const label=page.createElement('h2');label.textContent=p;const a=page.createElement('p');a.style.whiteSpace='pre-wrap';a.textContent=value;page.body.append(label,a)});
  const url=URL.createObjectURL(new Blob(['<!doctype html>',page.documentElement.outerHTML],{type:'text/html'}));const a=document.createElement('a');a.href=url;a.download='private-abd-worksheet.html';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }

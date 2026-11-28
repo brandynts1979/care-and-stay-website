@@ -565,7 +565,9 @@
       section.append(elt('p', 'Your answers are private. Use fictional or de-identified examples.'));
       const status = elt('p', '', 'academy-save-status');
       status.setAttribute('role', 'status');
+      const layout = abdTools?.calculatorLayout(template);
       const inputs = template.prompts.map((prompt, index) => {
+        if (layout && index >= layout.start) return null;
         const label = elt('label', prompt);
         const input = elt('textarea', undefined, 'academy-input');
         input.maxLength = 2000;
@@ -575,13 +577,24 @@
         section.append(label);
         return input;
       });
+      const calculator = layout ? abdTools.attachCalculator(section, template.template_key, current,
+        Array.from({length: layout.count}, (_, i) => saved[String(layout.start + i + 1)])) : null;
+      const getAnswers = () => {
+        const values = inputs.map(input => input?.value ?? '');
+        if (calculator) values.splice(layout.start, layout.count + 1, ...calculator.values());
+        return values;
+      };
+      const setInputsDisabled = disabled => {
+        inputs.forEach(input => { if (input) input.disabled = disabled; });
+        calculator?.setDisabled(disabled);
+      };
       const save = button('Save private worksheet', async () => {
         if (!current()) return;
         save.disabled = true;
-        inputs.forEach(input => { input.disabled = true; });
+        setInputsDisabled(true);
         status.textContent = 'Saving…';
         try {
-          const answers = Object.fromEntries(inputs.map((input, index) => [String(index + 1), input.value]));
+          const answers = Object.fromEntries(getAnswers().map((value, index) => [String(index + 1), value]));
           const {error} = await db.rpc('academy_save_worksheet', {
             p_enrollment: enrollmentId, p_template: template.id, p_answers: answers,
           });
@@ -591,14 +604,13 @@
           if (current()) status.textContent = 'Could not save your worksheet. Please retry.';
         } finally {
           save.disabled = false;
-          inputs.forEach(input => { input.disabled = false; });
+          setInputsDisabled(false);
         }
       });
       section.append(save, status);
       if (abdTools) {
-        abdTools.attachCalculator(section, template.template_key, current);
         section.append(button('Export private worksheet', () => {
-          if (current()) abdTools.exportWorksheet(template, inputs.map(input => input.value));
+          if (current()) abdTools.exportWorksheet(template, getAnswers());
         }, true));
       }
       detail.append(section);
