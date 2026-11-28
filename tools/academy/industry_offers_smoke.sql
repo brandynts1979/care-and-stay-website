@@ -2,13 +2,15 @@
 BEGIN;
 DO $$
 DECLARE c record; o uuid; v_owner uuid; v_learner uuid; v_other uuid; loc uuid; other_loc uuid; a uuid; v_course uuid;
- price text; product text; prefix text; session text; sub text; customer text; event text; res jsonb; v_enrollment uuid; n int:=0;
+ price text; product text; prefix text; session text; sub text; customer text; event text; res jsonb; v_enrollment uuid; v_legacy uuid; n int:=0;
 BEGIN
  if has_table_privilege('authenticated','public.academy_industry_offers','SELECT')
  or has_table_privilege('anon','public.academy_industry_location_offers','SELECT')
  or has_table_privilege('service_role','public.academy_industry_offers','UPDATE')
  or has_function_privilege('authenticated','public.academy_industry_reserve_checkout(uuid,uuid,text,boolean)','EXECUTE')
  then raise exception 'Industry offer authority leaked'; end if;
+ select id into v_legacy from public.academy_courses where slug='stay-culture-leadership-academy';
+ if v_legacy is null then v_legacy:=gen_random_uuid(); insert into public.academy_courses(id,slug,title,published) values(v_legacy,'stay-culture-leadership-academy','Legacy CI fixture',true); else update public.academy_courses set published=true where id=v_legacy; end if;
  FOR c IN SELECT * FROM (VALUES
  ('4e9d56db-6ece-8b5f-ac7c-8bd24f809617'::uuid,'senior-care'),
  ('01fa508f-2265-8915-9ed3-cd48611927ad'::uuid,'hospice'),
@@ -36,6 +38,8 @@ BEGIN
   -- Legacy/QSR location without an industry route retains its original entitlement behavior.
   insert into public.academy_location_course_entitlements(location_id,course_id,active,source) values(other_loc,v_course,true,'internal_demo');
   begin insert into public.academy_industry_location_offers(location_id,offer_id) values(other_loc,o); raise exception using errcode='PZ009',message='Existing unrelated location re-routed'; exception when sqlstate 'P0001' then null; end;
+  update public.academy_locations set subscription_status='active',current_period_end=now()+interval '1 day' where id=other_loc;
+  if not exists(select 1 from public.academy_entitled_course_ids(other_loc) where course_id=v_legacy) then raise exception 'Unrelated legacy entitlement lost'; end if;
   update public.academy_industry_offers set checkout_enabled=true where id=o;
   if (public.academy_industry_reserve_checkout(loc,v_owner,'qa@example.invalid',true)->>'result')<>'unavailable'
     or (public.academy_industry_reserve_checkout(loc,v_other,'qa@example.invalid',false)->>'result')<>'forbidden'
