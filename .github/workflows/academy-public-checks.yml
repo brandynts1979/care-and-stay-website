@@ -134,10 +134,20 @@ jobs:
       - name: Verify media entitlement and nonpublic manifests
         run: psql -v ON_ERROR_STOP=1 -f tools/academy/module_media_smoke.sql
 
+      - name: Install and verify in-place original QSR media authorization
+        run: |
+          psql -v ON_ERROR_STOP=1 -f academy/database/staged_qsr_original_media.sql
+          psql -v ON_ERROR_STOP=1 -f tools/academy/qsr_original_media_smoke.sql
+
       - name: Install owner-authorized checkout reservations
         run: psql -v ON_ERROR_STOP=1 -f academy/database/staged_academy_checkout_binding.sql
       - name: Verify duplicate checkout and first-subscription binding
         run: psql -v ON_ERROR_STOP=1 -f tools/academy/checkout_binding_smoke.sql
+
+      - name: Verify QSR bundle delivery lifecycle and isolation
+        run: |
+          psql -v ON_ERROR_STOP=1 -f academy/database/staged_qsr_bundle_delivery.sql
+          psql -v ON_ERROR_STOP=1 -f tools/academy/qsr_bundle_delivery_smoke.sql
 
       - name: Install payment risk review inbox
         run: psql -v ON_ERROR_STOP=1 -f academy/database/staged_academy_billing_risk.sql

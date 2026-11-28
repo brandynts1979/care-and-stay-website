@@ -69,7 +69,7 @@
 <label style="font-weight:400"><input type="checkbox" id="teamAuthority" style="width:auto;margin-right:8px">I confirm I have the person's consent or appropriate legal authority to share this profile.</label>
 <button id="sendTeamInvite">Create invitation</button>
 <p class="muted"><small>This does not send an email automatically. Ask the invited tester to create or sign in to their own account using the exact email you entered, then open My Care Team to accept. Do not invite real people or use real health information.</small></p>
-<h3>Invitations you manage</h3><div id="teamSent"></div>
+<p class="muted" role="note">You may review and revoke your existing supporter invitations even after your subscription ends. Revoking access does not require a payment. New invitations require an eligible profile and active access.</p><h3>Invitations you manage</h3><div id="teamSent"></div>
 <h3>Invitations for your account</h3><div id="teamReceived"></div>
 <button id="reloadTeam" class="secondary">Refresh invitations</button></section></div>
 <div id="strengthsModule" class="hide"><button type="button" id="backHome" class="secondary">← Back to Dashboard</button><section class="card"><h2>1. Person's voice and preferences</h2><label for="personName">Preferred name (fictional during testing)</label><input id="personName" maxlength="120" placeholder="Example: Alex">
@@ -97,7 +97,7 @@ const notify=s=>{$('notice').textContent=s};
 function navigate(section){$('dashboard').classList.toggle('hide',section!=='home');$('strengthsModule').classList.toggle('hide',section!=='strengths');$('teamModule').classList.toggle('hide',section!=='team');$('tasksModule').classList.toggle('hide',section!=='tasks');$('documentsModule').classList.toggle('hide',section!=='documents');$('supportRecordsModule').classList.toggle('hide',section!=='supportRecords');if(section==='home')notify('');window.scrollTo(0,0);}
 function make(tag,content,className){let el=document.createElement(tag);el.textContent=content;if(className)el.className=className;return el}
 function item(target,heading,sub){const d=make('div','', 'entry');d.append(make('strong',heading));if(sub)d.append(make('p',sub,'muted'));$(target).append(d);return d}
-async function request(path,method='GET',data=null,access=true){let h={'apikey':KEY,'Content-Type':'application/json'};if(method==='POST'&&path.startsWith('/rest/v1/'))h.Prefer='return=representation';if(access&&session)h.Authorization='Bearer '+session.access_token;let r=await fetch(URL+path,{method,headers:h,body:data?JSON.stringify(data):undefined});let raw=await r.text(),value;try{value=raw?JSON.parse(raw):null}catch{value=raw}if(!r.ok)throw Error(value?.msg||value?.message||value?.error_description||value?.error||('HTTP '+r.status));return value}
+async function request(path,method='GET',data=null,access=true){let h={'apikey':KEY,'Content-Type':'application/json'};if((method==='POST'||method==='DELETE'&&path.startsWith('/rest/v1/dd_team_invitations?'))&&path.startsWith('/rest/v1/'))h.Prefer='return=representation';if(access&&session)h.Authorization='Bearer '+session.access_token;let r=await fetch(URL+path,{method,headers:h,body:data?JSON.stringify(data):undefined});let raw=await r.text(),value;try{value=raw?JSON.parse(raw):null}catch{value=raw}if(!r.ok)throw Error(value?.msg||value?.message||value?.error_description||value?.error||('HTTP '+r.status));return value}
 async function authenticate(type){notify('');try{let email=$('email').value.trim(),password=$('password').value;if(!email||!password)throw Error('Enter email and password.');if(type==='signup'&&password.length<12)throw Error('Choose a password of at least 12 characters for new accounts.');let path=type==='signin'?'/auth/v1/token?grant_type=password':'/auth/v1/signup?redirect_to='+encodeURIComponent(window.location.origin+'/');let value=await request(path,'POST',{email,password},false);if(type==='signup'&&!value.access_token){notify('Account created. Check your verification email before signing in.');return}session=value;await loggedIn()}catch(e){notify(e.message)}}
 async function requestPasswordReset(){
  const email=$('email').value.trim();
@@ -174,7 +174,7 @@ async function ddBillingAction(action){
 $('ddStartCheckout').addEventListener('click',()=>ddBillingAction('checkout'));
 $('ddManageBilling').addEventListener('click',()=>ddBillingAction('portal'));
 
-async function loggedIn(){if(!session?.access_token)return;sessionStorage.setItem('dd_dev_session',JSON.stringify(session));$('auth').classList.add('hide');$('app').classList.remove('hide');$('signedin').textContent=session.user?.email||'Signed in';notify('Signed in to DD development. Use fictional records only.');navigate('home');await loadPeople();await loadTeam();await loadDdBillingStatus()}
+async function loggedIn(){if(!session?.access_token)return;sessionStorage.setItem('dd_dev_session',JSON.stringify(session));$('auth').classList.add('hide');$('app').classList.remove('hide');$('signedin').textContent=session.user?.email||'Signed in';notify('Signed in to DD development. Use fictional records only.');navigate('home');await Promise.allSettled([loadPeople(),loadTeam(),loadDdBillingStatus()])}
 function clearSession(message='Session expired. Please sign in again.'){
  session=null;person=null;strengths=[];goals=[];peopleCache=[];
  sessionStorage.removeItem('dd_dev_session');
@@ -437,12 +437,14 @@ $('openTasks').addEventListener('click',()=>retry(async()=>{navigate('tasks');aw
 $('tasksBackHome').addEventListener('click',()=>navigate('home'));
 
 async function loadTeam(){
- const [invites,profiles]=await Promise.all([
-  request('/rest/v1/dd_team_invitations?select=id,person_id,owner_id,invitee_email,role,status,created_at&order=created_at.desc'),
-  request('/rest/v1/dd_people?select=id,display_name,owner_id&order=created_at.desc')
- ]);
+ const account=session?.user?.id;
+ if(!account)return;
+ const invites=await request('/rest/v1/dd_team_invitations?select=id,person_id,owner_id,invitee_email,role,status,created_at&order=created_at.desc');
+ let profiles=[];
+ try{profiles=await request('/rest/v1/dd_people?select=id,display_name,owner_id&order=created_at.desc')}catch{/* Privacy controls do not depend on access to paid profile records. */}
+ if(session?.user?.id!==account)return;
  const mine=profiles.filter(p=>p.owner_id===session?.user?.id), names=Object.fromEntries(profiles.map(p=>[p.id,p.display_name]));
- $('teamPerson').replaceChildren(new Option('Choose a profile',''));mine.forEach(p=>$('teamPerson').add(new Option(p.display_name,p.id)));
+ $('teamPerson').replaceChildren(new Option('Choose a profile',''));mine.forEach(p=>$('teamPerson').add(new Option(p.display_name,p.id)));$('sendTeamInvite').disabled=mine.length===0;
  $('teamSent').replaceChildren();$('teamReceived').replaceChildren();
  for(const invite of invites){
   const owned=invite.owner_id===session?.user?.id;
@@ -460,8 +462,13 @@ async function loadTeam(){
      return;
     }
     retry(async()=>{
-     await request('/rest/v1/dd_team_invitations?id=eq.'+enc(invite.id),'DELETE');
-     await loadTeam();notify('Invitation or access revoked.');
+     if(session?.user?.id!==account)throw Error('Your account changed. Refresh invitations before retrying.');
+     btn.disabled=true;
+     try{
+      const removed=await request('/rest/v1/dd_team_invitations?id=eq.'+enc(invite.id)+'&select=id','DELETE');
+      if(!Array.isArray(removed)||!removed.some(row=>row.id===invite.id))throw Error('Revocation could not be confirmed. Refresh invitations and try again.');
+      if(session?.user?.id===account){await loadTeam();notify('Invitation or access revoked.');}
+     }finally{btn.disabled=false;}
     });
    });
    d.append(btn);
