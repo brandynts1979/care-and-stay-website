@@ -92,9 +92,34 @@ begin
  then raise exception 'Cancellation allowed new issuance or erased history'; end if;
 
 end $$;
+-- Existing cancellation has two pending revocations. Exercise the new
+-- durable queue using those same rollback-only fixture rows.
+do $
+declare a record; b record; c record;
+begin
+ select * into a from public.academy_claim_qsr_bundle_deliveries(1);
+ select * into b from public.academy_claim_qsr_bundle_deliveries(1);
+ if a.lease_token is null or b.lease_token is null or a.product=b.product then raise exception 'lease overlap or missing claim'; end if;
+ if exists(select 1 from public.academy_claim_qsr_bundle_deliveries(4)) then raise exception 'double claim'; end if;
+ if public.academy_finish_qsr_bundle_delivery(a.location_id,a.product,a.target_id,a.revision,gen_random_uuid(),true) then raise exception 'wrong lease ack'; end if;
+ if not public.academy_finish_qsr_bundle_delivery(a.location_id,a.product,a.target_id,a.revision,a.lease_token,false) then raise exception 'failure not recorded'; end if;
+ if exists(select 1 from public.academy_claim_qsr_bundle_deliveries(4)) then raise exception 'backoff ignored'; end if;
+ if not public.academy_finish_qsr_bundle_delivery(b.location_id,b.product,b.target_id,b.revision,b.lease_token,true) then raise exception 'verified finish failed'; end if;
+ update public.academy_qsr_bundle_delivery set revision=a.revision+1,desired_active=false,period_end=null,acknowledged_at=null where location_id=a.location_id and product=a.product;
+ select * into c from public.academy_claim_qsr_bundle_deliveries(1);
+ if c.lease_token is null or c.revision<>a.revision+1 or c.desired_active then raise exception 'new revision did not reset retry'; end if;
+ if public.academy_finish_qsr_bundle_delivery(a.location_id,a.product,a.target_id,a.revision,a.lease_token,true) then raise exception 'stale revision acknowledged'; end if;
+ update public.academy_qsr_bundle_delivery set lease_until=now()-interval '1 second' where location_id=c.location_id and product=c.product;
+ if public.academy_finish_qsr_bundle_delivery(c.location_id,c.product,c.target_id,c.revision,c.lease_token,true) then raise exception 'expired lease acknowledged'; end if;
+ select * into c from public.academy_claim_qsr_bundle_deliveries(1);
+ if c.lease_token is null then raise exception 'expired lease not reclaimed'; end if;
+ if not public.academy_finish_qsr_bundle_delivery(c.location_id,c.product,c.target_id,c.revision,c.lease_token,true) then raise exception 'reclaim completion failed'; end if;
+end $;
 reset role;
-do $$ begin
- if has_table_privilege('authenticated','public.academy_qsr_assessment_issuances','SELECT')
+do $ begin
+ if has_function_privilege('authenticated','public.academy_claim_qsr_bundle_deliveries(integer)','EXECUTE')
+ or has_function_privilege('anon','public.academy_finish_qsr_bundle_delivery(uuid,text,uuid,bigint,uuid,boolean)','EXECUTE')
+ or has_table_privilege('authenticated','public.academy_qsr_assessment_issuances','SELECT')
  or has_function_privilege('authenticated','public.academy_issue_qsr_assessment(uuid,uuid,text,uuid,uuid)','EXECUTE')
  or has_table_privilege('anon','public.academy_qsr_bundle_routes','SELECT')
  or has_table_privilege('authenticated','public.academy_qsr_bundle_delivery','SELECT')
