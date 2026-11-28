@@ -1,5 +1,6 @@
 import { checkoutMode, isQsrSandbox, validSandboxPrice } from "../_shared/qsr-sandbox-policy.mjs";
 import { validModuleMediaPath } from "./media-path.mjs";
+import { industryOfferForLocation, industryCheckoutMode, validIndustryPrice, industryOfferSummary, validIndustryOffer } from "../_shared/industry-offer-policy.mjs";
 import { createClient } from "npm:@supabase/supabase-js@2.57.0";
 import Stripe from "npm:stripe@17.7.0";
 import { summarizeTeamProgress } from "./member-policy.mjs";
@@ -173,9 +174,21 @@ Deno.serve(async(req:Request)=>{
     const {data:members,error}=await admin.from("academy_location_members").select("location_id,role").eq("user_id",user.id).eq("active",true);
     if(error)throw error;
     const ids=(members||[]).map(x=>x.location_id);
-    const {data:locs,error:locErr}=ids.length?await admin.from("academy_locations").select("id,name,subscription_status,current_period_end").in("id",ids):{data:[],error:null};
+    const {data:locs,error:locErr}=ids.length?await admin.from("academy_locations").select("id,name,subscription_status,current_period_end,billing_owner_id").in("id",ids):{data:[],error:null};
     if(locErr)throw locErr;
-    return json(200,{locations:(locs||[]).map(l=>({...l,role:members?.find(m=>m.location_id===l.id)?.role}))});
+    const routes=await byIds(ids,(batch,from,to)=>admin.from("academy_industry_location_offers").select("location_id,offer_id").in("location_id",batch).order("location_id").range(from,to));
+    const offers=await byIds(routes.map(r=>r.offer_id),(batch,from,to)=>admin.from("academy_industry_offers").select("id,course_id,price_id,product_id,livemode,unit_amount,currency,tax_behavior,terms_version,checkout_enabled").in("id",batch).order("id").range(from,to));
+    if(offers.some(o=>!validIndustryOffer(o)))fail(503,"Industry Academy offer configuration unavailable");
+    const courseRows=await byIds(offers.map(o=>o.course_id),(batch,from,to)=>admin.from("academy_courses").select("id,title,published").in("id",batch).order("id").range(from,to));
+    return json(200,{locations:(locs||[]).map(({billing_owner_id,...l})=>{
+      const role=members?.find(m=>m.location_id===l.id)?.role;
+      const route=routes.find(r=>r.location_id===l.id);
+      const owner=billing_owner_id===user.id&&role==="owner";
+      const offer=offers.find(o=>o.id===route?.offer_id);
+      if(route&&!offer)fail(503,"Industry Academy offer configuration unavailable");
+      const industry_offer=offer?industryOfferSummary(offer,courseRows.find(c=>c.id===offer.course_id),env,owner):null;
+      return {...l,role,billing_owner:owner,industry_offer:owner?industry_offer:industry_offer?{course_title:industry_offer.course_title,checkout_available:false}:null};
+    })});
   }
   if(action==="create_checkout"){
     const id=String(body.location_id||"");
@@ -184,17 +197,21 @@ Deno.serve(async(req:Request)=>{
     if(loc.billing_owner_id!==user.id)fail(403,"Only the billing owner can subscribe");
     if(active(loc.subscription_status))fail(409,"Already subscribed");
     // ACADEMY_BILLING_ENABLED is the independent live release switch; the QSR sandbox has its own gate.
-    const mode=checkoutMode(env);
+    const offer=await industryOfferForLocation(admin,id);
+    const mode=offer?industryCheckoutMode(env):checkoutMode(env);
     if(!mode)fail(503,"Academy billing is not yet enabled");
-    if(!env("ACADEMY_STRIPE_PRICE_ID")||!env("STRIPE_SECRET_KEY"))fail(503,"Billing not configured");
     if(!stripe)fail(503,"Stripe billing is not yet configured");
-    const price=env("ACADEMY_STRIPE_PRICE_ID");
-    if(mode==="sandbox"){
+    const price=offer?offer.price_id:env("ACADEMY_STRIPE_PRICE_ID");
+    if(!price)fail(503,"Billing not configured");
+    if(offer){
+      if(offer.livemode!==(mode==="live")||!validIndustryPrice(await stripe!.prices.retrieve(price),offer,{newCheckout:true}))fail(503,"Approved industry offer unavailable");
+    }else if(mode==="sandbox"){
       const {data:routes,error}=await admin.from("academy_qsr_bundle_routes").select("product").eq("location_id",id);
       if(error||routes?.length!==2)fail(503,"QSR sandbox fulfillment routes are not configured for this location");
       if(!validSandboxPrice(await stripe!.prices.retrieve(price)))fail(503,"Approved sandbox price unavailable");
     }
-    const reservation=unwrap(await admin.rpc("academy_reserve_checkout",{p_location:id,p_owner:user.id,p_email:user.email!,p_price:price})) as any;
+    const reservation=unwrap(offer?await admin.rpc("academy_industry_reserve_checkout",{p_location:id,p_owner:user.id,p_email:user.email!,p_livemode:mode==="live"}):await admin.rpc("academy_reserve_checkout",{p_location:id,p_owner:user.id,p_email:user.email!,p_price:price})) as any;
+    if(reservation?.result==="unavailable")fail(503,"Approved industry offer unavailable");
     if(reservation?.result==="forbidden")fail(403,"Active billing owner required");
     if(reservation?.result!=="reserved")fail(409,"Existing or unresolved subscription; use billing portal or contact support");
     const attempt=reservation.attempt;
@@ -211,11 +228,12 @@ Deno.serve(async(req:Request)=>{
       // A durable attempt survives request retries. Never reuse an unknown
       // Stripe idempotency key outside a conservative retry window.
       if(Date.now()-Date.parse(attempt.created_at)>15*60*1000)fail(409,"Checkout recovery requires support review");
-      const metadata={academy_location_id:id,academy_owner_id:user.id,academy_checkout_attempt_id:attempt.id};
+      const metadata={academy_location_id:id,academy_owner_id:user.id,academy_checkout_attempt_id:attempt.id,...(offer?{academy_industry_offer_id:offer.id,academy_industry_terms_version:offer.terms_version}:{})};
       session=await stripe!.checkout.sessions.create({
         mode:"subscription",line_items:[{price:attempt.price_id,quantity:1}],
         client_reference_id:id,...(attempt.customer_id?{customer:attempt.customer_id}:{customer_email:attempt.owner_email}),
         automatic_tax:{enabled:true},billing_address_collection:"required",tax_id_collection:{enabled:true},
+        ...(offer?{consent_collection:{terms_of_service:"required" as const}}:{}),
         subscription_data:{metadata},metadata,
         success_url:origin+"/academy/learn/?checkout=success",cancel_url:origin+"/academy/learn/?checkout=cancel"
       },{idempotencyKey:"academy-checkout-"+attempt.id});
@@ -223,13 +241,19 @@ Deno.serve(async(req:Request)=>{
       if(recorded!==true)fail(409,"Checkout recording failed; contact support");
     }
     if(session.livemode!==(mode==="live")||session.status!=="open"||!session.url)fail(409,"Checkout unavailable");
+    if(offer&&(session.metadata?.academy_industry_offer_id!==offer.id||session.metadata?.academy_industry_terms_version!==offer.terms_version))fail(409,"Checkout offer identity changed; contact support");
     return json(200,{checkout_url:session.url});
   }
   if(action==="billing_portal"){
     const id=String(body.location_id||"");if(!uuid(id))fail(400,"Invalid location");
     const loc=await location(id);
     if(loc.billing_owner_id!==user.id)fail(403,"Only the billing owner can manage billing");
-    if(isQsrSandbox(env)&&!checkoutMode(env))fail(503,"Sandbox billing is not yet enabled");
+    const offer=await industryOfferForLocation(admin,id);
+    if(offer){
+      // Existing linked subscriptions may use the portal when new live sales are closed.
+      if(offer.livemode===isQsrSandbox(env)||(!offer.livemode&&!industryCheckoutMode(env)))fail(503,"Industry billing portal unavailable");
+      if(offer.livemode&&!/^(sk|rk)_live_[A-Za-z0-9]+$/.test(env("STRIPE_SECRET_KEY")))fail(503,"Industry billing portal unavailable");
+    }else if(isQsrSandbox(env)&&!checkoutMode(env))fail(503,"Sandbox billing is not yet enabled");
     if(!loc.stripe_customer_id)fail(404,"No billing customer linked");
     if(!stripe)fail(503,"Stripe billing is not yet configured");
     const session=await stripe!.billingPortal.sessions.create({customer:loc.stripe_customer_id,return_url:origin+"/academy/learn/"});
