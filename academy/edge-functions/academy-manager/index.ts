@@ -1,5 +1,6 @@
 import { checkoutMode, isQsrSandbox, validSandboxPrice } from "../_shared/qsr-sandbox-policy.mjs";
 import { validModuleMediaPath } from "./media-path.mjs";
+import { industryOfferForLocation, industryCheckoutMode, validIndustryPrice } from "../_shared/industry-offer-policy.mjs";
 import { createClient } from "npm:@supabase/supabase-js@2.57.0";
 import Stripe from "npm:stripe@17.7.0";
 import { summarizeTeamProgress } from "./member-policy.mjs";
@@ -184,17 +185,21 @@ Deno.serve(async(req:Request)=>{
     if(loc.billing_owner_id!==user.id)fail(403,"Only the billing owner can subscribe");
     if(active(loc.subscription_status))fail(409,"Already subscribed");
     // ACADEMY_BILLING_ENABLED is the independent live release switch; the QSR sandbox has its own gate.
-    const mode=checkoutMode(env);
+    const offer=await industryOfferForLocation(admin,id);
+    const mode=offer?industryCheckoutMode(env):checkoutMode(env);
     if(!mode)fail(503,"Academy billing is not yet enabled");
-    if(!env("ACADEMY_STRIPE_PRICE_ID")||!env("STRIPE_SECRET_KEY"))fail(503,"Billing not configured");
     if(!stripe)fail(503,"Stripe billing is not yet configured");
-    const price=env("ACADEMY_STRIPE_PRICE_ID");
-    if(mode==="sandbox"){
+    const price=offer?offer.price_id:env("ACADEMY_STRIPE_PRICE_ID");
+    if(!price)fail(503,"Billing not configured");
+    if(offer){
+      if(offer.livemode!==(mode==="live")||!validIndustryPrice(await stripe!.prices.retrieve(price),offer,{newCheckout:true}))fail(503,"Approved industry offer unavailable");
+    }else if(mode==="sandbox"){
       const {data:routes,error}=await admin.from("academy_qsr_bundle_routes").select("product").eq("location_id",id);
       if(error||routes?.length!==2)fail(503,"QSR sandbox fulfillment routes are not configured for this location");
       if(!validSandboxPrice(await stripe!.prices.retrieve(price)))fail(503,"Approved sandbox price unavailable");
     }
-    const reservation=unwrap(await admin.rpc("academy_reserve_checkout",{p_location:id,p_owner:user.id,p_email:user.email!,p_price:price})) as any;
+    const reservation=unwrap(offer?await admin.rpc("academy_industry_reserve_checkout",{p_location:id,p_owner:user.id,p_email:user.email!,p_livemode:mode==="live"}):await admin.rpc("academy_reserve_checkout",{p_location:id,p_owner:user.id,p_email:user.email!,p_price:price})) as any;
+    if(reservation?.result==="unavailable")fail(503,"Approved industry offer unavailable");
     if(reservation?.result==="forbidden")fail(403,"Active billing owner required");
     if(reservation?.result!=="reserved")fail(409,"Existing or unresolved subscription; use billing portal or contact support");
     const attempt=reservation.attempt;
@@ -211,7 +216,7 @@ Deno.serve(async(req:Request)=>{
       // A durable attempt survives request retries. Never reuse an unknown
       // Stripe idempotency key outside a conservative retry window.
       if(Date.now()-Date.parse(attempt.created_at)>15*60*1000)fail(409,"Checkout recovery requires support review");
-      const metadata={academy_location_id:id,academy_owner_id:user.id,academy_checkout_attempt_id:attempt.id};
+      const metadata={academy_location_id:id,academy_owner_id:user.id,academy_checkout_attempt_id:attempt.id,...(offer?{academy_industry_offer_id:offer.id}:{})};
       session=await stripe!.checkout.sessions.create({
         mode:"subscription",line_items:[{price:attempt.price_id,quantity:1}],
         client_reference_id:id,...(attempt.customer_id?{customer:attempt.customer_id}:{customer_email:attempt.owner_email}),
@@ -229,7 +234,12 @@ Deno.serve(async(req:Request)=>{
     const id=String(body.location_id||"");if(!uuid(id))fail(400,"Invalid location");
     const loc=await location(id);
     if(loc.billing_owner_id!==user.id)fail(403,"Only the billing owner can manage billing");
-    if(isQsrSandbox(env)&&!checkoutMode(env))fail(503,"Sandbox billing is not yet enabled");
+    const offer=await industryOfferForLocation(admin,id);
+    if(offer){
+      // Existing linked subscriptions may use the portal when new live sales are closed.
+      if(offer.livemode===isQsrSandbox(env)||(!offer.livemode&&!industryCheckoutMode(env)))fail(503,"Industry billing portal unavailable");
+      if(offer.livemode&&!/^(sk|rk)_live_[A-Za-z0-9]+$/.test(env("STRIPE_SECRET_KEY")))fail(503,"Industry billing portal unavailable");
+    }else if(isQsrSandbox(env)&&!checkoutMode(env))fail(503,"Sandbox billing is not yet enabled");
     if(!loc.stripe_customer_id)fail(404,"No billing customer linked");
     if(!stripe)fail(503,"Stripe billing is not yet configured");
     const session=await stripe!.billingPortal.sessions.create({customer:loc.stripe_customer_id,return_url:origin+"/academy/learn/"});
