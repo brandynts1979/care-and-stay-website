@@ -1,6 +1,6 @@
 import { checkoutMode, isQsrSandbox, validSandboxPrice } from "../_shared/qsr-sandbox-policy.mjs";
 import { validModuleMediaPath } from "./media-path.mjs";
-import { industryOfferForLocation, industryCheckoutMode, validIndustryPrice } from "../_shared/industry-offer-policy.mjs";
+import { industryOfferForLocation, industryCheckoutMode, validIndustryPrice, industryOfferSummary, validIndustryOffer } from "../_shared/industry-offer-policy.mjs";
 import { createClient } from "npm:@supabase/supabase-js@2.57.0";
 import Stripe from "npm:stripe@17.7.0";
 import { summarizeTeamProgress } from "./member-policy.mjs";
@@ -174,9 +174,21 @@ Deno.serve(async(req:Request)=>{
     const {data:members,error}=await admin.from("academy_location_members").select("location_id,role").eq("user_id",user.id).eq("active",true);
     if(error)throw error;
     const ids=(members||[]).map(x=>x.location_id);
-    const {data:locs,error:locErr}=ids.length?await admin.from("academy_locations").select("id,name,subscription_status,current_period_end").in("id",ids):{data:[],error:null};
+    const {data:locs,error:locErr}=ids.length?await admin.from("academy_locations").select("id,name,subscription_status,current_period_end,billing_owner_id").in("id",ids):{data:[],error:null};
     if(locErr)throw locErr;
-    return json(200,{locations:(locs||[]).map(l=>({...l,role:members?.find(m=>m.location_id===l.id)?.role}))});
+    const routes=await byIds(ids,(batch,from,to)=>admin.from("academy_industry_location_offers").select("location_id,offer_id").in("location_id",batch).order("location_id").range(from,to));
+    const offers=await byIds(routes.map(r=>r.offer_id),(batch,from,to)=>admin.from("academy_industry_offers").select("id,course_id,price_id,product_id,livemode,unit_amount,currency,tax_behavior,terms_version,checkout_enabled").in("id",batch).order("id").range(from,to));
+    if(offers.some(o=>!validIndustryOffer(o)))fail(503,"Industry Academy offer configuration unavailable");
+    const courseRows=await byIds(offers.map(o=>o.course_id),(batch,from,to)=>admin.from("academy_courses").select("id,title,published").in("id",batch).order("id").range(from,to));
+    return json(200,{locations:(locs||[]).map(({billing_owner_id,...l})=>{
+      const role=members?.find(m=>m.location_id===l.id)?.role;
+      const route=routes.find(r=>r.location_id===l.id);
+      const owner=billing_owner_id===user.id&&role==="owner";
+      const offer=offers.find(o=>o.id===route?.offer_id);
+      if(route&&!offer)fail(503,"Industry Academy offer configuration unavailable");
+      const industry_offer=offer?industryOfferSummary(offer,courseRows.find(c=>c.id===offer.course_id),env,owner):null;
+      return {...l,role,billing_owner:owner,industry_offer:owner?industry_offer:industry_offer?{course_title:industry_offer.course_title,checkout_available:false}:null};
+    })});
   }
   if(action==="create_checkout"){
     const id=String(body.location_id||"");
@@ -216,11 +228,12 @@ Deno.serve(async(req:Request)=>{
       // A durable attempt survives request retries. Never reuse an unknown
       // Stripe idempotency key outside a conservative retry window.
       if(Date.now()-Date.parse(attempt.created_at)>15*60*1000)fail(409,"Checkout recovery requires support review");
-      const metadata={academy_location_id:id,academy_owner_id:user.id,academy_checkout_attempt_id:attempt.id,...(offer?{academy_industry_offer_id:offer.id}:{})};
+      const metadata={academy_location_id:id,academy_owner_id:user.id,academy_checkout_attempt_id:attempt.id,...(offer?{academy_industry_offer_id:offer.id,academy_industry_terms_version:offer.terms_version}:{})};
       session=await stripe!.checkout.sessions.create({
         mode:"subscription",line_items:[{price:attempt.price_id,quantity:1}],
         client_reference_id:id,...(attempt.customer_id?{customer:attempt.customer_id}:{customer_email:attempt.owner_email}),
         automatic_tax:{enabled:true},billing_address_collection:"required",tax_id_collection:{enabled:true},
+        ...(offer?{consent_collection:{terms_of_service:"required" as const}}:{}),
         subscription_data:{metadata},metadata,
         success_url:origin+"/academy/learn/?checkout=success",cancel_url:origin+"/academy/learn/?checkout=cancel"
       },{idempotencyKey:"academy-checkout-"+attempt.id});
@@ -228,6 +241,7 @@ Deno.serve(async(req:Request)=>{
       if(recorded!==true)fail(409,"Checkout recording failed; contact support");
     }
     if(session.livemode!==(mode==="live")||session.status!=="open"||!session.url)fail(409,"Checkout unavailable");
+    if(offer&&(session.metadata?.academy_industry_offer_id!==offer.id||session.metadata?.academy_industry_terms_version!==offer.terms_version))fail(409,"Checkout offer identity changed; contact support");
     return json(200,{checkout_url:session.url});
   }
   if(action==="billing_portal"){
