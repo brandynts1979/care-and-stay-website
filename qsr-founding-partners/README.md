@@ -7,8 +7,8 @@ Status: **Recruiting interest; paid launch gated** (November 24, 2026).
 - **$99 USD per restaurant location per month**, plus any applicable sales tax.
 - **Includes all three offerings**: Stay Culture 360, Individual Leadership 360 and Stay Culture Leadership Academy.
 - **Leadership Academy seats:** unlimited eligible managers, assistant managers and shift leaders at that participating location.
-- **Founding rate protection:** 12 months from each location's subscription start. This is a price guarantee, not automatically a 12-month minimum; the subscription term and cancellation/refund rules need a written agreement before checkout.
-- **Scope:** included assessments and support will be specified clearly during onboarding; do not advertise unlimited Individual 360 assessments or coaching where not operationally established.
+- **Founding rate protection:** 12 months from each location's subscription start. The proposed 12-month minimum commitment and no-refund policy (subject to applicable law) are the commercial direction, not a finalized customer agreement. Confirm renewal, cancellation, exceptions, privacy and applicable tax before checkout.
+- **Assessment scope (owner approved November 27, 2026):** one Organizational Stay Culture 360 assessment per subscribed location every six months and one Individual Leadership 360 assessment per GM every six months. Unlimited eligible Academy seats remain included. Additional executive coaching is separately purchased; the standard assessment delivery and support boundaries must be confirmed before checkout. Do not advertise unlimited assessments or coaching.
 - **Delivery:** invitation-only and phased. Do not take payments until all three offerings can be properly provisioned and their essential workflows verified.
 - **Partner role:** give candid input on manager needs, training workflows, retention barriers, and reporting; prioritize changes that are useful on the restaurant floor.
 
@@ -29,8 +29,10 @@ Status: **Recruiting interest; paid launch gated** (November 24, 2026).
 - [ ] Validate Academy owner / GM invitations, cross-location isolation, learner progress, and non-admin private reflection protections.
 - [ ] Test Stay Culture 360 assessment invitation, five-participant minimum report threshold, reports and tenant isolation per location.
 - [ ] Verify Individual 360 coach workflow, consent, independent access and tenant isolation.
+- [ ] Verify included assessment cadence: one Organizational 360 per location and one Individual 360 per GM every six months, without duplicate issuance on monthly billing or retries. Preserve completed assessments and confidentiality. Exact cycle anchor, replacement-GM handling and unused assessment treatment must be settled before enforcement.
 - [ ] Implement a **bundled entitlement** mapping one paid restaurant location to all three products, with no reliance on browser claims.
-- [ ] Create a dedicated Stripe QSR bundle product and $99/month price (after confirming tax code and subscription terms). Do not duplicate existing products.
+- [x] Existing dedicated sandbox QSR product and approved $99/month price established (`price_1UgSjtHJxPBidfhbyvsfGsM6`).
+- [ ] Verify signed application checkout and three-product fulfillment; confirm tax code and subscription terms before creating or enabling any live price. Do not duplicate existing products.
 - [ ] Verify applicable tax treatment; Utah tax registration previously submitted but Stripe currently has no active tax registrations. No assumption of tax readiness.
 - [ ] Validate sandbox checkout → signature-verified webhook → three-way access, renewal, failed payment, cancellation, refunds, and idempotent event replay.
 - [ ] Publish final terms, privacy notices, and clear assessment scope before any live checkout.
@@ -41,7 +43,7 @@ Status: **Recruiting interest; paid launch gated** (November 24, 2026).
 
 **Headline:** Better leaders. Stronger teams. Restaurants where people choose to stay.
 
-**Invitation:** Join a limited group of quick-service restaurant owners helping shape Care & Stay. For **$99 per location per month**, your founding partner package combines **Stay Culture 360**, **Individual Leadership 360** and the **Stay Culture Leadership Academy**—including unlimited eligible Academy learners at each location. Help us improve the platform around your real business needs and keep your founding rate for your first 12 months. Early-access enrollment is by invitation; payment and access details are confirmed once launch readiness checks are complete.
+**Invitation:** Join a limited group of quick-service restaurant owners helping shape Care & Stay. For **$99 per location per month**, your founding partner package combines **Stay Culture 360**, **Individual Leadership 360** and the **Stay Culture Leadership Academy**—including a culture assessment for each location and a leadership assessment for each GM every six months, plus unlimited eligible Academy learners at each location. Help us improve the platform around your real business needs and keep your founding rate for your first 12 months. Early-access enrollment is by invitation; payment and access details are confirmed once launch readiness checks are complete.
 
 ## Contact intake
 

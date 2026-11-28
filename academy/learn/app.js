@@ -39,9 +39,9 @@
     if(type==='text')n.setAttribute('aria-label','Restaurant location name');
     return n;
   };
-  async function loadInternalDemo(){
+  async function loadInternalDemo(current){
     const status=await managerRequest('demo_status');
-    if(!status?.eligible)return;
+    if(!current()||!status?.eligible)return;
     const holder=elt('div',undefined,'academy-lesson');
     holder.append(elt('h3','Care & Stay internal test access'));
     if(status.active){
@@ -59,7 +59,10 @@
     locationsNode.append(holder);
   }
   async function loadLocations(){
+    const current=sessionGuard();
+    if(!current())return;
     const {locations}=await managerRequest('list_locations');
+    if(!current())return;
     locationsNode.replaceChildren(elt('h2','Restaurant locations'));
     if(!locations?.length){
       locationsNode.append(elt('p','Create a restaurant location to set up an owner subscription. No charge occurs until you complete Stripe Checkout.'));
@@ -116,29 +119,60 @@
           }
           }catch(e){safeError(e);}
         }));
-        item.append(button('View team',async()=>{
-          try{const {members}=await managerRequest('list_members',{location_id:loc.id});
-          let old=item.querySelector('[data-team]');if(old)old.remove();
-          const block=elt('div');block.dataset.team='true';
-          block.append(elt('p',String(members.length)+' associated team members'));
-          for(const member of members){
-            const line=elt('p',member.role+' · '+(member.active?'Active':'Inactive')+' · '+member.user_id.slice(0,8)+'…');
-            if(member.active && member.role!=='owner')line.append(button('Remove access',async()=>{
-              try{await managerRequest('deactivate_member',{location_id:loc.id,user_id:member.user_id});
-              show('Manager access removed from this location.');await loadLocations();}catch(e){safeError(e);}
-            },true));
-            block.append(line);
-          }
-          item.append(block);
+        const viewTeam=async(page=0)=>{
+          try{
+            if(!current()||!item.isConnected)return;
+            const {members,has_more}=await managerRequest('list_members',{location_id:loc.id,page});
+            if(!current()||!item.isConnected)return;
+            let old=item.querySelector('[data-team]');if(old)old.remove();
+            const block=elt('div');block.dataset.team='true';
+            block.append(elt('h3','Team learning progress'));
+            block.append(elt('p','Page '+String(page+1)+' · '+String(members.length)+' associated team members on this page. Private reflections and scenario responses are not shared.'));
+            for(const member of members){
+              const card=elt('div',undefined,'academy-lesson');
+              card.append(elt('p',member.role.replaceAll('_',' ')+' · '+(member.active?'Active':'Inactive')+' · '+member.user_id.slice(0,8)+'…'));
+              if(member.active){
+                if(!Array.isArray(member.progress))card.append(elt('p','Team progress is not available on this backend version.'));
+                else if(!member.progress.length)card.append(elt('p','No course enrollment recorded.'));
+                else for(const course of member.progress){
+                  const done=Number(course.lessons_completed),total=Number(course.lessons_total);
+                  const summary=course.course_title+' · '+course.status+' · '+done+' of '+total+' published lessons completed';
+                  card.append(elt('p',summary));
+                  if(total>0&&Number.isFinite(done)&&Number.isFinite(total)){
+                    const track=elt('div',undefined,'academy-track');
+                    track.setAttribute('role','progressbar');track.setAttribute('aria-label',course.course_title+' lesson progress');
+                    track.setAttribute('aria-valuemin','0');track.setAttribute('aria-valuemax',String(total));track.setAttribute('aria-valuenow',String(Math.max(0,Math.min(total,done))));
+                    const fill=elt('div',undefined,'academy-track-fill');
+                    fill.style.width=Math.max(0,Math.min(100,done/total*100))+'%';
+                    track.append(fill);card.append(track);
+                  }
+                }
+                const canRemove=loc.role==='owner'?['gm','manager','shift_leader'].includes(member.role):
+                  loc.role==='gm'&&['manager','shift_leader'].includes(member.role);
+                if(canRemove)card.append(button('Remove access',async()=>{
+                  try{await managerRequest('deactivate_member',{location_id:loc.id,user_id:member.user_id});
+                    show('Manager access removed from this location.');await loadLocations();}catch(e){safeError(e);}
+                },true));
+              }
+              block.append(card);
+            }
+            const controls=elt('div',undefined,'academy-actions');
+            if(page>0)controls.append(button('Previous team page',()=>viewTeam(page-1),true));
+            if(has_more)controls.append(button('Next team page',()=>viewTeam(page+1),true));
+            block.append(controls);item.append(block);
           }catch(e){safeError(e);}
-        },true));
+        };
+        item.append(button('View team',()=>viewTeam(),true));
       }
       locationsNode.append(item);
     }
-    await loadInternalDemo();
+    await loadInternalDemo(current);
   }
   async function loadInvitations(){
+    const current=sessionGuard();
+    if(!current())return;
     const {invitations}=await managerRequest('pending_invites');
+    if(!current())return;
     hidden(invitationsNode,!invitations?.length);
     invitationsNode.replaceChildren(elt('h2','Invitations for you'));
     for(const invite of invitations||[]){
@@ -190,44 +224,247 @@
       show('Password updated. Your session is secured.');await refresh();
     }catch(err){safeError(err);}
   });
+  // No vendor or permanent file URLs in the public JavaScript. A short-lived
+  // playback URL is requested on a deliberate learner action, not during listing.
+  let mediaEpoch=0,authEpoch=0,lessonEpoch=0;
+  function sessionGuard(){
+    const epoch=authEpoch;
+    return ()=>epoch===authEpoch&&!!user&&!recovering;
+  }
+  function clearModulePlayers(){
+    mediaEpoch++;lessonEpoch++;
+    for(const video of lessonsNode.querySelectorAll('video')){
+      video.pause();video.removeAttribute('src');video.load();
+    }
+    for(const node of lessonsNode.querySelectorAll('.academy-media-player'))node.replaceChildren();
+  }
+  function invalidateLearningSession(){
+    authEpoch++;clearModulePlayers();enrollment=null;user=null;
+    hidden(detail,true);hidden(lessonsNode,true);
+    detail.replaceChildren();lessonsNode.replaceChildren();coursesNode.replaceChildren();reviewsNode.replaceChildren();
+    locationsNode.replaceChildren();invitationsNode.replaceChildren();
+  }
+  function moduleVideoCard(m,e,metadata,epoch){
+    const section=elt('section',undefined,'academy-module-video');
+    const title=String(metadata.title||'Module introduction');
+    const seconds=Number(metadata.duration_seconds);
+    const time=Number.isInteger(seconds)&&seconds>0?Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0'):'';
+    section.append(elt('p','MODULE VIDEO','academy-overline'),elt('h4',title),
+      elt('p',[time,'English captions','Optional introduction'].filter(Boolean).join(' · '),'academy-media-meta'));
+    const holder=elt('div',undefined,'academy-media-player');
+    const status=elt('p','','academy-media-meta');status.setAttribute('role','status');
+    const play=button('Watch module video',async()=>{
+      if(epoch!==mediaEpoch||enrollment?.id!==e.id||!user||recovering)return;
+      play.disabled=true;status.textContent='Preparing secure playback…';
+      try{
+        const data=await managerRequest('play_module_media',{enrollment_id:e.id,module_id:m.id});
+        if(epoch!==mediaEpoch||enrollment?.id!==e.id||!user||recovering||!section.isConnected)return;
+        const url=new URL(data?.url);
+        if(url.protocol!=='https:'||url.origin!==new URL(cfg.supabaseUrl).origin||
+          !url.pathname.startsWith('/storage/v1/object/sign/academy-module-media/')||!url.searchParams.get('token'))throw Error('Unexpected playback URL');
+        for(const old of holder.querySelectorAll('video')){old.pause();old.removeAttribute('src');old.load();}
+        const video=elt('video');video.controls=true;video.playsInline=true;video.preload='metadata';
+        video.setAttribute('aria-label',title+' — captioned instructional video');
+        video.addEventListener('error',()=>{status.textContent='Playback unavailable or the access link expired. Select Watch module video to retry.';play.disabled=false;});
+        video.src=url.href;holder.replaceChildren(video);
+        status.textContent='Video ready. Press play to begin. Captions are included in the video.';
+      }catch{
+        if(epoch===mediaEpoch&&section.isConnected)status.textContent='Video unavailable. Your reading and exercises remain available; retry playback later.';
+      }finally{play.disabled=false;}
+    },true);
+    section.append(play,holder,status);
+    return section;
+  }
   async function refresh(){
+    invalidateLearningSession();const authRequest=authEpoch;
+    hidden(memberPanel,true);
     const {data:{user:next},error}=await db.auth.getUser();
+    if(authRequest!==authEpoch)return;
     if(error && error.name!=='AuthSessionMissingError')throw error;
     user=next||null;
     hidden(authPanel,!!user || recovering);hidden(memberPanel,!user || recovering);hidden($('recoveryPanel'),!recovering);
-    hidden(detail,true);hidden(lessonsNode,true);
+    if(recovering)return;
     if(!user){show('Sign in to access an active Academy enrollment.');return;}
     $('userLabel').textContent=user.email||'Signed in';
     show('Signed in securely. Loading your enrollment…');
-    await loadLocations();await loadInvitations();await loadCourses();await loadReviews();
+    await loadLocations();if(authRequest!==authEpoch)return;
+    await loadInvitations();if(authRequest!==authEpoch)return;
+    await loadCourses();if(authRequest!==authEpoch)return;
+    await loadReviews();
   }
   async function loadCourses(){
-    const data=await read('academy_enrollments',q=>q.select('id,course_id,status,expires_at').order('created_at',{ascending:false}));
+    const current=sessionGuard();
+    if(!current())return;
+    const {data,error}=await db.rpc('academy_learner_available_enrollments');
+    if(!current())return;
+    if(error)throw error;
     coursesNode.replaceChildren(elt('h2','My courses'));
-    const now=Date.now();
-    const eligible=data.filter(e=>['active','completed'].includes(e.status)&&(!e.expires_at||Date.parse(e.expires_at)>now));
+    const eligible=data||[];
     if(!eligible.length){coursesNode.append(elt('p','No active course access is associated with this account. Enrollment and payment activation are managed separately.'));show('Signed in. No active enrollment.');return;}
-    const courses=await read('academy_courses',q=>q.select('id,title,published').in('id',eligible.map(x=>x.course_id)));
+    const courses=await read('academy_courses',q=>q.select('id,slug,title,published').in('id',eligible.map(x=>x.course_id)));
+    if(!current())return;
     for(const e of eligible){
       const course=courses.find(c=>c.id===e.course_id && c.published);
       if(!course)continue;
-      const item=elt('div',undefined,'academy-lesson');item.append(elt('strong',course.title+' · '+e.status));
+      const item=elt('div',undefined,'academy-lesson');item.append(elt('strong',course.title+' · '+e.location_name+' · '+e.status));
       item.append(button('Open course',()=>loadLessons(e,course).catch(safeError),true));coursesNode.append(item);
     }
     show('Your Academy courses are ready.');
   }
   const moduleGuides=[["Discover strengths","Recognize the conditions that make this team effective.","Identify specific successes and design an appreciative improvement experiment."],["Lead authentically","Make values, service and healthy boundaries visible in daily work.","Practice credible, fair decisions that combine care and accountability."],["Build belonging","Create trust, psychological safety and reasons employees choose to stay.","Listen to employees and turn insight into meaningful action."],["Coach for growth","Use curiosity, feedback and delegation to develop people.","Guide development conversations and create visible growth opportunities."],["Transform conflict","Respond to tension with courage, empathy and accountability.","Navigate a difficult conversation and develop a constructive agreement."],["Sustain the culture","Build practical leadership routines and evidence of improvement.","Create a 30/60/90-day leadership plan that can be measured and sustained."]];
+  async function downloadCertificate(enrollmentId, current) {
+    if (!current()) return;
+    const {data, error} = await db.rpc('academy_my_completion_certificate', {p_enrollment: enrollmentId});
+    if (!current()) return;
+    if (error) throw error;
+    const certificate = data?.[0];
+    if (!certificate) {
+      show('An approved completion certificate is unavailable for this enrollment.');
+      return;
+    }
+
+    const page = document.implementation.createHTMLDocument('Academy certificate of completion');
+    page.documentElement.lang = 'en';
+    const style = page.createElement('style');
+    style.textContent = 'body{font:18px Georgia,serif;color:#16342d;line-height:1.5;margin:10vh auto;text-align:center;max-width:650px;padding:2rem}h1{margin-top:2rem}strong{font-size:1.4rem}@media print{body{margin:2rem auto}}';
+    page.head.append(style);
+    page.body.append(
+      elt('p', 'Care & Stay Academy'),
+      elt('h1', 'Certificate of completion'),
+      elt('p', 'Awarded to'),
+      elt('strong', user.email || user.id),
+      elt('p', 'For completing ' + certificate.course_title),
+      elt('p', 'Awarded ' + new Intl.DateTimeFormat(undefined, {dateStyle: 'long', timeZone: 'UTC'})
+        .format(new Date(certificate.awarded_at))),
+    );
+    const url = URL.createObjectURL(new Blob(['<!doctype html>', page.documentElement.outerHTML], {type: 'text/html'}));
+    const link = elt('a');
+    link.href = url;
+    link.download = 'academy-certificate-of-completion.html';
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    show('Certificate downloaded. Open the file to print or save it as a PDF.');
+  }
+  const careSettingCourses = new Set([
+    'stay-culture-leadership-academy-senior-care-v2',
+    'stay-culture-leadership-academy-hospice-v2',
+  ]);
+  const applicationLabels = {
+    case_study: 'Case study', scenario: 'Scenario', simulation: 'Simulation',
+    exercise: 'Exercise', reflection: 'Reflection question', fieldwork: 'Fieldwork',
+    recommendation: 'Developmental recommendation',
+  };
+  async function loadCareSettings(course, enrollmentId, intro, current) {
+    if (!careSettingCourses.has(course.slug)) return null;
+    try {
+      const {data, error} = await db.rpc('academy_my_care_settings', {p_enrollment: enrollmentId});
+      if (!current() || error || !data?.length) return null;
+      const label = elt('label', 'Care setting for the next lesson you open');
+      const select = elt('select', undefined, 'academy-input');
+      const foundation = elt('option', 'Shared foundation');
+      foundation.value = '';
+      select.append(foundation);
+      for (const setting of data) {
+        const option = elt('option', setting.label);
+        option.value = setting.setting_key;
+        select.append(option);
+      }
+      label.append(select);
+      intro.append(label);
+      return select;
+    } catch {
+      return null;
+    }
+  }
+  async function showLessonApplications(lessonId, enrollmentId, setting, current) {
+    if (!setting) return;
+    try {
+      const {data, error} = await db.rpc('academy_my_lesson_applications', {
+        p_enrollment: enrollmentId, p_lesson: lessonId, p_setting: setting.key,
+      });
+      if (!current() || error || !data?.length) return;
+      const section = elt('section', undefined, 'academy-question');
+      section.append(elt('h3', 'Practice for ' + setting.label));
+      for (const application of data) {
+        const label = applicationLabels[application.kind];
+        if (!label) continue;
+        section.append(elt('h4', label));
+        for (const paragraph of application.body.split(/\n\n+/)) section.append(elt('p', paragraph));
+      }
+      detail.append(section);
+    } catch {
+      // Shared lesson content remains available if the optional application request fails.
+    }
+  }
+  function renderLearningGoals(course, lessonActions, current) {
+    const map = window.ACADEMY_GOAL_MAPS?.[course.id];
+    if (map?.slug !== course.slug) return null;
+    const goals = map.goals.map(goal => ({
+      label: goal.label,
+      lessons: goal.lessons.map(id => lessonActions.get(id)).filter(Boolean),
+    })).filter(goal => goal.lessons.length);
+    if (!goals.length) return null;
+
+    const panel = elt('section', undefined, 'academy-question');
+    panel.append(elt('h3', 'Practice a learning goal'));
+    panel.append(elt('p', 'Choose a goal to find relevant lessons. Your selection stays in this course view.'));
+    const label = elt('label', 'Learning goal');
+    const select = elt('select', undefined, 'academy-input');
+    const placeholder = elt('option', 'Choose a goal');
+    placeholder.value = '';
+    select.append(placeholder);
+    goals.forEach((goal, index) => {
+      const option = elt('option', goal.label);
+      option.value = String(index);
+      select.append(option);
+    });
+    label.append(select);
+    const suggestions = elt('ul');
+    suggestions.setAttribute('aria-live', 'polite');
+    select.addEventListener('change', () => {
+      if (!current()) return;
+      suggestions.replaceChildren();
+      if (select.value === '') return;
+      const goal = goals[Number(select.value)];
+      for (const lesson of goal?.lessons || []) {
+        const item = elt('li');
+        item.append(button(lesson.title, () => {
+          if (!current()) return;
+          lesson.card.open = true;
+          lesson.action.click();
+        }, true));
+        suggestions.append(item);
+      }
+    });
+    panel.append(label, suggestions);
+    return panel;
+  }
   async function loadLessons(e,course){
+    if(!user||recovering)return;
+    clearModulePlayers();const epoch=mediaEpoch;
     enrollment=e; hidden(lessonsNode,false);hidden(detail,true);
     lessonsNode.replaceChildren();
     const intro=elt('div',undefined,'academy-course-heading');
     intro.append(elt('p','YOUR LEARNING PATH','academy-overline'),elt('h2',course.title),
-      elt('p','Six modules · 24 lessons · Learn, reflect, and apply at your own pace.','academy-intro'));
+      elt('p','Loading your course…','academy-intro'));
     lessonsNode.append(intro);
     const modules=await read('academy_modules',q=>q.select('id,title,position,overview').eq('course_id',course.id).order('position'));
     const progress=await read('academy_lesson_progress',q=>q.select('lesson_id').eq('enrollment_id',e.id));
     const done=new Set(progress.map(p=>p.lesson_id));
-    const lessons=await read('academy_lessons',q=>q.select('id,module_id,title,body,position').in('module_id',modules.map(m=>m.id)).eq('published',true).order('position'));
+    let moduleMedia=new Map();
+    try{
+      const response=await managerRequest('list_module_media',{enrollment_id:e.id});
+      moduleMedia=new Map((response?.modules||[]).filter(m=>m.captioned===true).map(m=>[m.module_id,m]));
+    }catch{/* Optional video service must not prevent access to the lessons. */}
+    if(epoch!==mediaEpoch||enrollment?.id!==e.id||!user||recovering)return;
+
+    const lessons=modules.length?await read('academy_lessons',q=>q.select('id,module_id,title,body,position').in('module_id',modules.map(m=>m.id)).eq('published',true).order('position')):[];
+    if(epoch!==mediaEpoch||enrollment?.id!==e.id||!user||recovering)return;
+    intro.querySelector('.academy-intro').textContent=modules.length+' '+(modules.length===1?'module':'modules')+' · '+lessons.length+' '+(lessons.length===1?'lesson':'lessons')+' · Learn, reflect, and apply at your own pace.';
+    if(!lessons.length){lessonsNode.append(elt('p','No published lessons are currently available for this course. Contact your Academy administrator if you expect access.'));return;}
+    const currentCourse = () => epoch === mediaEpoch && enrollment?.id === e.id && !!user && !recovering;
+    const settings = careSettingCourses.has(course.slug) ? await loadCareSettings(course, e.id, intro, currentCourse) : null;
+    if (!currentCourse()) return;
     const finished=lessons.filter(l=>done.has(l.id)).length;
     const summary=elt('div',undefined,'academy-progress-summary');
     const head=elt('div',undefined,'academy-progress-top');
@@ -237,11 +474,19 @@
     track.setAttribute('aria-valuemax',String(lessons.length));track.setAttribute('aria-valuenow',String(finished));track.setAttribute('aria-label','Course progress');
     const fill=elt('div',undefined,'academy-track-fill');fill.style.width=(lessons.length?100*finished/lessons.length:0)+'%';
     track.append(fill);summary.append(head,track);lessonsNode.append(summary);
+    if (e.status === 'completed') {
+      const current = () => epoch === mediaEpoch && enrollment?.id === e.id && !!user && !recovering;
+      summary.append(button('Download completion certificate', async () => {
+        try { await downloadCertificate(e.id, current); }
+        catch { if (current()) show('Could not retrieve your certificate. Please retry.', true); }
+      }, true));
+    }
     const cards=elt('div',undefined,'academy-modules');
+    const lessonActions = new Map();
     for(const m of modules){
       const items=lessons.filter(l=>l.module_id===m.id);
       const completed=items.filter(l=>done.has(l.id)).length;
-      const guide=moduleGuides[m.position-1]||['Leadership practice','Explore these lessons.','Apply the learning to your team.'];
+      const guide=(course.slug==='stay-culture-leadership-academy'?moduleGuides[m.position-1]:null)||['Leadership practice','Explore '+m.title.toLowerCase()+'.','Practice the learning objectives in the module introduction.'];
       const card=elt('details',undefined,'academy-module-card');
       if(completed>0&&completed<items.length||m.position===1&&finished===0)card.open=true;
       const header=elt('summary',undefined,'academy-module-header');
@@ -252,6 +497,7 @@
       header.append(num,title,elt('span',completed+' / '+items.length+' complete','academy-count'));card.append(header);
       const content=elt('div',undefined,'academy-module-content');
       content.append(elt('p','Learning outcome: '+guide[2],'academy-outcome'));
+      if(moduleMedia.has(m.id))content.append(moduleVideoCard(m,e,moduleMedia.get(m.id),epoch));
       if(m.overview){
         const intro=elt('details',undefined,'academy-module-guide');
         const trigger=elt('summary','Read the module introduction and guiding questions');
@@ -274,17 +520,73 @@
         label.append(elt('span',done.has(lesson.id)?'✓':'',done.has(lesson.id)?'academy-lesson-status complete':'academy-lesson-status'));
         const copy=elt('div');copy.append(elt('strong',lesson.title),elt('small','Lesson '+lesson.position+' · Learn · Reflect · Apply'));
         label.append(copy);
-        row.append(label,button(done.has(lesson.id)?'Review lesson':'Study lesson',async()=>{
-          try{await openLesson(lesson,done.has(lesson.id),row);}
-          catch(err){safeError(err);detail.append(elt('p','Unable to load this lesson. '+(err?.message||'Please retry.'),'academy-error'));}
-        },true));
+        const action = button(done.has(lesson.id)?'Review lesson':'Study lesson',async()=>{
+          if(epoch!==mediaEpoch||enrollment?.id!==e.id||!user||recovering)return;
+          const request=++lessonEpoch;
+          try{await openLesson(lesson,done.has(lesson.id),row,e.id,request,course.slug,
+            settings?.value ? {key: settings.value, label: settings.selectedOptions[0].textContent} : null);}
+          catch(err){if(request===lessonEpoch&&enrollment?.id===e.id&&user&&!recovering){safeError(err);detail.append(elt('p','Unable to load this lesson. '+(err?.message||'Please retry.'),'academy-error'));}}
+        },true);
+        lessonActions.set(lesson.id, {title: lesson.title, card, action});
+        row.append(label,action);
         list.append(row);
       }
       content.append(list);card.append(content);cards.append(card);
     }
+    const goals = renderLearningGoals(course, lessonActions, currentCourse);
+    if (goals) lessonsNode.append(goals);
     lessonsNode.append(cards);
   }
-  async function openLesson(l,completed,clickedRow){
+  async function loadWorksheets(lessonId, enrollmentId, current) {
+    const templates = await read('academy_worksheet_templates', q =>
+      q.select('id,title,prompts,version').eq('lesson_id', lessonId).order('title'));
+    if (!current() || !templates.length) return;
+    const responses = await read('academy_worksheet_responses', q =>
+      q.select('template_id,answers').eq('enrollment_id', enrollmentId).in('template_id', templates.map(t => t.id)));
+    if (!current()) return;
+    for (const template of templates) {
+      const saved = responses.find(response => response.template_id === template.id)?.answers || {};
+      const section = elt('section', undefined, 'academy-question');
+      section.append(elt('h3', template.title));
+      section.append(elt('p', 'Your answers are private. Use fictional or de-identified examples.'));
+      const status = elt('p', '', 'academy-save-status');
+      status.setAttribute('role', 'status');
+      const inputs = template.prompts.map((prompt, index) => {
+        const label = elt('label', prompt);
+        const input = elt('textarea', undefined, 'academy-input');
+        input.maxLength = 2000;
+        input.rows = 3;
+        input.value = saved[String(index + 1)] || '';
+        label.append(input);
+        section.append(label);
+        return input;
+      });
+      const save = button('Save private worksheet', async () => {
+        if (!current()) return;
+        save.disabled = true;
+        inputs.forEach(input => { input.disabled = true; });
+        status.textContent = 'Saving…';
+        try {
+          const answers = Object.fromEntries(inputs.map((input, index) => [String(index + 1), input.value]));
+          const {error} = await db.rpc('academy_save_worksheet', {
+            p_enrollment: enrollmentId, p_template: template.id, p_answers: answers,
+          });
+          if (error) throw error;
+          if (current()) status.textContent = 'Private worksheet saved.';
+        } catch {
+          if (current()) status.textContent = 'Could not save your worksheet. Please retry.';
+        } finally {
+          save.disabled = false;
+          inputs.forEach(input => { input.disabled = false; });
+        }
+      });
+      section.append(save, status);
+      detail.append(section);
+    }
+  }
+  async function openLesson(l,completed,clickedRow,enrollmentId,request,courseSlug,setting){
+    const current=()=>request===lessonEpoch&&enrollment?.id===enrollmentId&&!!user&&!recovering&&clickedRow.isConnected;
+    if(!current())return;
     // Keep the lesson directly next to the Study lesson button rather than after all 24 lessons.
     // The previous placement looked like a nonresponsive button, especially on mobile.
     clickedRow.append(detail);
@@ -303,11 +605,15 @@
       reading.append(section);
     }
     detail.replaceChildren(header,reading);
+    if (setting) await showLessonApplications(l.id, enrollmentId, setting, current);
+    if (!current()) return;
     const scenarios=await read('academy_scenarios',q=>q.select('id,prompt,position').eq('lesson_id',l.id).order('position'));
+    if(!current())return;
     for(const scenario of scenarios){
       const box=elt('section',undefined,'academy-question');
       box.append(elt('strong',scenario.prompt));
       const choices=await read('academy_choices',q=>q.select('id,choice_text,feedback,position').eq('scenario_id',scenario.id).order('position'));
+    if(!current())return;
       const feedback=elt('p');feedback.setAttribute('aria-live','polite');
       choices.forEach(ch=>{
         const b=button(ch.choice_text,()=>{feedback.textContent=ch.feedback;},true);
@@ -315,7 +621,8 @@
       });
       box.append(feedback);detail.append(box);
     }
-    const notes=await read('academy_private_reflections',q=>q.select('body').eq('enrollment_id',enrollment.id).eq('lesson_id',l.id));
+    const notes=await read('academy_private_reflections',q=>q.select('body').eq('enrollment_id',enrollmentId).eq('lesson_id',l.id));
+    if(!current())return;
     const reflectionSection=elt('section',undefined,'academy-question');
     reflectionSection.append(elt('h3','Private reflection — just for you'));
     reflectionSection.append(elt('p','Use this space for your own thoughts, questions, and learning. It is not shared with a GM, manager, or reviewer.'));
@@ -327,19 +634,22 @@
     reflectionStatus.setAttribute('role','status');reflectionStatus.setAttribute('aria-live','polite');
     input.addEventListener('input',()=>{reflectionStatus.textContent='Unsaved changes';reflectionStatus.classList.remove('academy-error');});
     const reflectionSave=button('Save private reflection',async()=>{
+      if(!current())return;
       reflectionSave.disabled=true;reflectionStatus.textContent='Saving…';reflectionStatus.classList.remove('academy-error');
       try{
-        const {error}=await db.from('academy_private_reflections').upsert({enrollment_id:enrollment.id,lesson_id:l.id,body:input.value,modified_at:new Date().toISOString()},{onConflict:'enrollment_id,lesson_id'});
+        const {error}=await db.from('academy_private_reflections').upsert({enrollment_id:enrollmentId,lesson_id:l.id,body:input.value,modified_at:new Date().toISOString()},{onConflict:'enrollment_id,lesson_id'});
+        if(!current())return;
         if(error)throw error;
         reflectionStatus.textContent='✓ Private reflection saved successfully.';
         show('Private reflection saved.');
-      }catch(e){reflectionStatus.textContent='Could not save reflection: '+(e?.message||'Please retry.');reflectionStatus.classList.add('academy-error');safeError(e);}
+      }catch(e){if(!current())return;reflectionStatus.textContent='Could not save reflection: '+(e?.message||'Please retry.');reflectionStatus.classList.add('academy-error');safeError(e);}
       finally{reflectionSave.disabled=false;}
     });
     reflectionSection.append(reflectionSave,reflectionStatus);
     detail.append(reflectionSection);
 
-    const existing=await read('academy_submissions',q=>q.select('body').eq('enrollment_id',enrollment.id).eq('lesson_id',l.id));
+    const existing=await read('academy_submissions',q=>q.select('body').eq('enrollment_id',enrollmentId).eq('lesson_id',l.id));
+    if(!current())return;
     const practiceSection=elt('section',undefined,'academy-question');
     practiceSection.append(elt('h3','Put it into practice — evidence for feedback'));
     practiceSection.append(elt('p','This is different from your private reflection. Try the activity at work, then describe what you did, what happened, and what you learned. Your submission can be reviewed by someone specifically assigned to support your development.'));
@@ -354,44 +664,95 @@
     practiceStatus.setAttribute('role','status');practiceStatus.setAttribute('aria-live','polite');
     submission.addEventListener('input',()=>{practiceStatus.textContent=existing.length?'Edited, not yet shared':'Not yet shared';practiceStatus.classList.remove('academy-error');});
     const practiceSave=button(existing.length?'Update shared practice submission':'Share practice for review',async()=>{
+      if(!current())return;
       if(!submission.value.trim()){practiceStatus.textContent='Please describe an action you tried before sharing.';practiceStatus.classList.add('academy-error');return;}
       practiceSave.disabled=true;practiceStatus.textContent='Sharing…';practiceStatus.classList.remove('academy-error');
       try{
-        const {error}=await db.from('academy_submissions').upsert({enrollment_id:enrollment.id,lesson_id:l.id,body:submission.value},{onConflict:'enrollment_id,lesson_id'});
+        const {error}=await db.from('academy_submissions').upsert({enrollment_id:enrollmentId,lesson_id:l.id,body:submission.value},{onConflict:'enrollment_id,lesson_id'});
+        if(!current())return;
         if(error)throw error;
         practiceStatus.textContent='✓ Practice submission saved and available to your assigned reviewer.';
         practiceSave.textContent='Update shared practice submission';
         show('Practice submission saved.');
-      }catch(e){practiceStatus.textContent='Could not share practice: '+(e?.message||'Please retry.');practiceStatus.classList.add('academy-error');safeError(e);}
+      }catch(e){if(!current())return;practiceStatus.textContent='Could not share practice: '+(e?.message||'Please retry.');practiceStatus.classList.add('academy-error');safeError(e);}
       finally{practiceSave.disabled=false;}
     });
     practiceSection.append(practiceSave,practiceStatus);
     detail.append(practiceSection);
+    if (courseSlug !== 'stay-culture-leadership-academy') {
+      try {
+        await loadWorksheets(l.id, enrollmentId, current);
+      } catch {
+        if (current()) detail.append(elt('p', 'Private worksheets are temporarily unavailable.'));
+      }
+      if (!current()) return;
+    }
     detail.append(button(completed?'Completed ✓':'Mark lesson complete',async()=>{
+      if(!current())return;
       try{
-        const {error}=await db.from('academy_lesson_progress').upsert({enrollment_id:enrollment.id,lesson_id:l.id},{onConflict:'enrollment_id,lesson_id'});
+        const {error}=await db.from('academy_lesson_progress').upsert({enrollment_id:enrollmentId,lesson_id:l.id},{onConflict:'enrollment_id,lesson_id'});
+        if(!current())return;
         if(error)throw error;show('Lesson progress saved.');
-      }catch(e){safeError(e);}
+      }catch(e){if(current())safeError(e);}
     },true));
   }
   async function loadReviews(){
-    const assignments=await read('academy_reviewer_assignments',q=>q.select('enrollment_id').eq('reviewer_user_id',user.id));
+    const current=sessionGuard();
+    if(!current())return;
+    const reviewerId=user.id;
+    const assignments=await read('academy_reviewer_assignments',q=>q.select('enrollment_id').eq('reviewer_user_id',reviewerId));
+    if(!current())return;
     if(!assignments.length){hidden(reviewsNode,true);return;}
     hidden(reviewsNode,false);reviewsNode.replaceChildren(elt('h2','Assigned practice reviews'));
     const submissions=await read('academy_submissions',q=>q.select('id,enrollment_id,body,submitted_at').in('enrollment_id',assignments.map(a=>a.enrollment_id)));
+    if(!current())return;
     if(!submissions.length){reviewsNode.append(elt('p','No submissions yet.'));return;}
+    const awardControls = new Set();
     for(const s of submissions){
       const item=elt('div',undefined,'academy-lesson');item.append(elt('p',s.body));
       const comment=elt('textarea',undefined,'academy-input');comment.placeholder='Write constructive reviewer feedback';comment.rows=3;item.append(comment);
       for(const decision of ['approved','changes_requested'])item.append(button(decision==='approved'?'Approve':'Request changes',async()=>{
+        if(!current()||!item.isConnected)return;
         try{
-          const {error}=await db.from('academy_reviews').upsert({submission_id:s.id,reviewer_user_id:user.id,decision,feedback:comment.value},{onConflict:'submission_id'});
+          const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s.body));
+          const submissionHash = Array.from(new Uint8Array(bytes), byte => byte.toString(16).padStart(2, '0')).join('');
+          if(!current()||!item.isConnected)return;
+          const {error}=await db.from('academy_reviews').upsert({
+            submission_id:s.id,reviewer_user_id:reviewerId,decision,feedback:comment.value,
+            submission_sha256:submissionHash,
+          },{onConflict:'submission_id'});
+          if(!current())return;
           if(error)throw error;show('Your review was saved.');
-        }catch(e){safeError(e);}
+        }catch(e){if(current())safeError(e);}
       },decision!=='approved'));
+      if (!awardControls.has(s.enrollment_id)) {
+        awardControls.add(s.enrollment_id);
+        const award = button('Award certificate for this enrollment', async () => {
+          if (!current() || !item.isConnected) return;
+          award.disabled = true;
+          try {
+            await managerRequest('award_certificate', {enrollment_id: s.enrollment_id});
+            if (current()) show('Completion certificate awarded.');
+          } catch (error) {
+            if (current()) safeError(error);
+          } finally {
+            award.disabled = false;
+          }
+        }, true);
+        item.append(award);
+      }
       reviewsNode.append(item);
     }
   }
-  db.auth.onAuthStateChange((event)=>{if(event==='PASSWORD_RECOVERY'){recovering=true;hidden(authPanel,true);hidden(memberPanel,true);hidden($('recoveryPanel'),false);show('Enter a new password to finish account recovery.');}if(event==='SIGNED_OUT'){user=null;hidden(memberPanel,true);hidden(authPanel,false);}});
+  db.auth.onAuthStateChange((event)=>{
+    if(event==='PASSWORD_RECOVERY'){
+      invalidateLearningSession();recovering=true;hidden(authPanel,true);hidden(memberPanel,true);hidden($('recoveryPanel'),false);
+      show('Enter a new password to finish account recovery.');
+    }
+    if(event==='SIGNED_OUT'){
+      invalidateLearningSession();recovering=false;hidden(memberPanel,true);hidden(authPanel,false);hidden($('recoveryPanel'),true);
+      show('Sign in to access an active Academy enrollment.');
+    }
+  });
   refresh().catch(safeError);
 })();

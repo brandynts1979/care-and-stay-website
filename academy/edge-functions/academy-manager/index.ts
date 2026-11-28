@@ -1,5 +1,8 @@
+import { checkoutMode, isQsrSandbox, validSandboxPrice } from "../_shared/qsr-sandbox-policy.mjs";
+import { validModuleMediaPath } from "./media-path.mjs";
 import { createClient } from "npm:@supabase/supabase-js@2.57.0";
 import Stripe from "npm:stripe@17.7.0";
+import { summarizeTeamProgress } from "./member-policy.mjs";
 
 const env = (k: string) => Deno.env.get(k) || "";
 const origin = (env("ACADEMY_SITE_ORIGIN") || "https://mycareandstay.com").replace(/\/$/,"");
@@ -11,7 +14,7 @@ const stripe=env("STRIPE_SECRET_KEY") ? new Stripe(env("STRIPE_SECRET_KEY")) : n
 const active=(status:string)=>["active","trialing"].includes(status);
 const uuid=(s:unknown)=>typeof s==="string" && /^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(s);
 const cleanEmail=(s:unknown)=>String(s||"").trim().toLowerCase();
-const fail=(s:number,m:string):never=>{throw Object.assign(new Error(m),{http:s});};
+function fail(s:number,m:string):never { throw Object.assign(new Error(m),{http:s}); }
 const unwrap=<T>(r:{data:T|null,error:any})=>{if(r.error)throw r.error;return r.data as T;};
 async function authenticate(req:Request){
  const token=(req.headers.get("authorization")||"").replace(/^Bearer\s+/i,"");
@@ -25,34 +28,55 @@ async function permission(userId:string,locationId:string){
  if(!row||!row.active||!["owner","gm"].includes(row.role))fail(403,"Owner or GM permission required");
  return row!.role;
 }
+// Bounded, deterministic pages. A full page is not evidence that all rows were returned.
+async function readAll(factory:(from:number,to:number)=>PromiseLike<any>):Promise<any[]> {
+ const out:any[]=[]; const size=250;
+ for(let from=0;from<10000;from+=size){
+   const {data,error}=await factory(from,from+size-1);
+   if(error)throw error;
+   const rows=data||[];out.push(...rows);
+   if(rows.length<size)return out;
+ }
+ fail(503,"Team progress is temporarily too large to summarize; contact support.");
+}
+async function byIds(ids:string[],factory:(batch:string[],from:number,to:number)=>PromiseLike<any>):Promise<any[]> {
+ const unique=[...new Set(ids)];
+ const rows:any[]=[];
+ for(let i=0;i<unique.length;i+=50){
+   const batch=unique.slice(i,i+50);
+   rows.push(...await readAll((from,to)=>factory(batch,from,to)));
+ }
+ return rows;
+}
+async function teamProgress(locationId:string,members:any[]){
+ const memberIds=members.filter(m=>m.active).map(m=>m.user_id);
+ const enrollments=await byIds(memberIds,(batch,from,to)=>admin.from("academy_enrollments")
+   .select("id,user_id,location_id,course_id,status").eq("location_id",locationId).in("user_id",batch)
+   .order("id").range(from,to));
+ const courseIds=enrollments.map(e=>e.course_id);
+ const courses=await byIds(courseIds,(batch,from,to)=>admin.from("academy_courses")
+   .select("id,title").in("id",batch).order("id").range(from,to));
+ const modules=await byIds(courseIds,(batch,from,to)=>admin.from("academy_modules")
+   .select("id,course_id").in("course_id",batch).order("id").range(from,to));
+ const lessons=await byIds(modules.map(m=>m.id),(batch,from,to)=>admin.from("academy_lessons")
+   .select("id,module_id,published").in("module_id",batch).eq("published",true).order("id").range(from,to));
+ const progress=await byIds(enrollments.map(e=>e.id),(batch,from,to)=>admin.from("academy_lesson_progress")
+   .select("enrollment_id,lesson_id").in("enrollment_id",batch)
+   .order("enrollment_id").order("lesson_id").range(from,to));
+ // Deliberately never query private reflections, scenario answers, or review narratives.
+ return summarizeTeamProgress(locationId,members,enrollments,courses,modules,lessons,progress);
+}
 async function location(id:string){
  const row=unwrap(await admin.from("academy_locations").select("*").eq("id",id).single()) as any;
  if(!row)fail(404,"Location not found");
  return row;
 }
 async function grant(userId:string,locationId:string){
- const loc=await location(locationId);
- if(!active(loc.subscription_status))fail(403,"Location subscription not active");
- const {data:courses,error}=await admin.from("academy_courses").select("id").eq("published",true);
+ const {data,error}=await admin.rpc("academy_grant_member_atomic",{p_location:locationId,p_user:userId});
  if(error)throw error;
- for(const course of courses||[]){
-   const {data:existing,error:readError}=await admin.from("academy_enrollments")
-     .select("id,status").eq("location_id",locationId).eq("user_id",userId).eq("course_id",course.id).maybeSingle();
-   if(readError)throw readError;
-   if(existing){
-     const {error:upError}=await admin.from("academy_enrollments").update({
-       status:existing.status==="completed"?"completed":"active",
-       stripe_subscription_id:loc.stripe_subscription_id,expires_at:null
-     }).eq("id",existing.id);
-     if(upError)throw upError;
-   }else{
-     const {error:insError}=await admin.from("academy_enrollments").insert({
-       user_id:userId,course_id:course.id,location_id:locationId,
-       status:"active",stripe_subscription_id:loc.stripe_subscription_id,granted_at:new Date().toISOString()
-     });
-     if(insError)throw insError;
-   }
- }
+ if(data==="inactive"||data==="forbidden")fail(403,"Active location membership required");
+ if(data==="not_found")fail(404,"Location not found");
+ if(data!=="granted")fail(503,"Approved Academy course unavailable");
 }
 Deno.serve(async(req:Request)=>{
  if(req.method==="OPTIONS")return new Response(null,{status:204,headers:cors});
@@ -63,6 +87,42 @@ Deno.serve(async(req:Request)=>{
   const user=await authenticate(req);
   const body=await req.json();
   const action=String(body.action||"");
+  if(action==="award_certificate"){
+    if(!uuid(body.enrollment_id))fail(400,"Invalid enrollment");
+    const result=unwrap(await admin.rpc("academy_award_assigned_certificate",{
+      p_enrollment:body.enrollment_id,p_reviewer:user.id,
+    }));
+    if(result==="forbidden")fail(403,"Certificate award requires an assigned reviewer and eligible learner");
+    if(result==="review_required")fail(409,"Review and approve the latest practice submissions first");
+    if(result==="incomplete")fail(409,"Course completion and practice approvals are still required");
+    if(result!=="awarded")fail(503,"Certificate award is unavailable");
+    return json(200,{awarded:true});
+  }
+  // Only authorized learners receive temporary access to reviewed private files.
+  // Never accept a bucket name, object path, user id or a signed URL from a client.
+  if(action==="list_module_media" || action==="play_module_media"){
+    const enrollmentId=String(body.enrollment_id||"");
+    const moduleId=String(body.module_id||"");
+    if(!uuid(enrollmentId)||(action==="play_module_media"&&!uuid(moduleId)))fail(400,"Invalid module or enrollment");
+    const {data:rows,error:mediaError}=await admin.rpc("academy_module_media_for_enrollment",{
+      p_user:user.id,p_enrollment:enrollmentId
+    });
+    if(mediaError)throw mediaError;
+    const media=rows||[];
+    if(action==="list_module_media"){
+      return json(200,{modules:media.map((m:any)=>({module_id:m.module_id,title:m.title,duration_seconds:m.duration_seconds,captioned:m.captioned}))});
+    }
+    const selected=media.find((m:any)=>m.module_id===moduleId);
+    if(!selected)fail(403,"Module video is unavailable for this enrollment");
+    // Defense in depth: ensure the bucket has not been made public accidentally.
+    const {data:bucket,error:bucketError}=await admin.storage.getBucket("academy-module-media");
+    if(bucketError||!bucket||bucket.public!==false)fail(503,"Secure module video storage is unavailable");
+    if(!validModuleMediaPath(moduleId,selected.object_path))fail(503,"Module video configuration invalid");
+    const seconds=600;
+    const {data:signed,error:signError}=await admin.storage.from("academy-module-media").createSignedUrl(selected.object_path,seconds);
+    if(signError||!signed?.signedUrl)fail(503,"Module video temporarily unavailable");
+    return json(200,{url:signed!.signedUrl,expires_in:seconds,title:selected.title});
+  }
   if(action==="demo_status" || action==="activate_demo"){
     const email=cleanEmail(user.email);
     const {data:allowed,error:allowError}=await admin.from("academy_demo_authorized")
@@ -123,24 +183,53 @@ Deno.serve(async(req:Request)=>{
     const loc=await location(id);
     if(loc.billing_owner_id!==user.id)fail(403,"Only the billing owner can subscribe");
     if(active(loc.subscription_status))fail(409,"Already subscribed");
-    if(env("ACADEMY_BILLING_ENABLED")!=="true")fail(503,"Academy billing is not yet enabled");
+    // ACADEMY_BILLING_ENABLED is the independent live release switch; the QSR sandbox has its own gate.
+    const mode=checkoutMode(env);
+    if(!mode)fail(503,"Academy billing is not yet enabled");
     if(!env("ACADEMY_STRIPE_PRICE_ID")||!env("STRIPE_SECRET_KEY"))fail(503,"Billing not configured");
     if(!stripe)fail(503,"Stripe billing is not yet configured");
-    const session=await stripe!.checkout.sessions.create({
-      mode:"subscription",line_items:[{price:env("ACADEMY_STRIPE_PRICE_ID"),quantity:1}],
-      client_reference_id:id,customer_email:user.email,automatic_tax:{enabled:true},
-      billing_address_collection:"required",tax_id_collection:{enabled:true},
-      subscription_data:{metadata:{academy_location_id:id}},
-      metadata:{academy_location_id:id,academy_owner_id:user.id},
-      success_url:origin+"/academy/learn/?checkout=success",
-      cancel_url:origin+"/academy/learn/?checkout=cancel"
-    },{idempotencyKey:"academy-checkout-"+id+"-"+user.id+"-"+Math.floor(Date.now()/300000)});
+    const price=env("ACADEMY_STRIPE_PRICE_ID");
+    if(mode==="sandbox"){
+      const {data:routes,error}=await admin.from("academy_qsr_bundle_routes").select("product").eq("location_id",id);
+      if(error||routes?.length!==2)fail(503,"QSR sandbox fulfillment routes are not configured for this location");
+      if(!validSandboxPrice(await stripe!.prices.retrieve(price)))fail(503,"Approved sandbox price unavailable");
+    }
+    const reservation=unwrap(await admin.rpc("academy_reserve_checkout",{p_location:id,p_owner:user.id,p_email:user.email!,p_price:price})) as any;
+    if(reservation?.result==="forbidden")fail(403,"Active billing owner required");
+    if(reservation?.result!=="reserved")fail(409,"Existing or unresolved subscription; use billing portal or contact support");
+    const attempt=reservation.attempt;
+    let session:Stripe.Checkout.Session;
+    if(attempt.stripe_session_id){
+      session=await stripe!.checkout.sessions.retrieve(attempt.stripe_session_id);
+      if(session.status==="expired"){
+        const {error}=await admin.from("academy_checkout_attempts").update({state:"expired"}).eq("id",attempt.id).eq("state","pending").eq("stripe_session_id",session.id);
+        if(error)throw error;
+        fail(409,"Previous Checkout expired. Select Subscribe again.");
+      }
+      if(session.status!=="open")fail(409,"Checkout already submitted; awaiting payment confirmation");
+    }else{
+      // A durable attempt survives request retries. Never reuse an unknown
+      // Stripe idempotency key outside a conservative retry window.
+      if(Date.now()-Date.parse(attempt.created_at)>15*60*1000)fail(409,"Checkout recovery requires support review");
+      const metadata={academy_location_id:id,academy_owner_id:user.id,academy_checkout_attempt_id:attempt.id};
+      session=await stripe!.checkout.sessions.create({
+        mode:"subscription",line_items:[{price:attempt.price_id,quantity:1}],
+        client_reference_id:id,...(attempt.customer_id?{customer:attempt.customer_id}:{customer_email:attempt.owner_email}),
+        automatic_tax:{enabled:true},billing_address_collection:"required",tax_id_collection:{enabled:true},
+        subscription_data:{metadata},metadata,
+        success_url:origin+"/academy/learn/?checkout=success",cancel_url:origin+"/academy/learn/?checkout=cancel"
+      },{idempotencyKey:"academy-checkout-"+attempt.id});
+      const recorded=unwrap(await admin.rpc("academy_record_checkout_session",{p_attempt:attempt.id,p_session:session.id}));
+      if(recorded!==true)fail(409,"Checkout recording failed; contact support");
+    }
+    if(session.livemode!==(mode==="live")||session.status!=="open"||!session.url)fail(409,"Checkout unavailable");
     return json(200,{checkout_url:session.url});
   }
   if(action==="billing_portal"){
     const id=String(body.location_id||"");if(!uuid(id))fail(400,"Invalid location");
     const loc=await location(id);
     if(loc.billing_owner_id!==user.id)fail(403,"Only the billing owner can manage billing");
+    if(isQsrSandbox(env)&&!checkoutMode(env))fail(503,"Sandbox billing is not yet enabled");
     if(!loc.stripe_customer_id)fail(404,"No billing customer linked");
     if(!stripe)fail(503,"Stripe billing is not yet configured");
     const session=await stripe!.billingPortal.sessions.create({customer:loc.stripe_customer_id,return_url:origin+"/academy/learn/"});
@@ -183,43 +272,41 @@ Deno.serve(async(req:Request)=>{
   }
   if(action==="accept_invite"){
     const inviteId=String(body.invitation_id||"");if(!uuid(inviteId))fail(400,"Invalid invitation");
-    const invite=unwrap(await admin.from("academy_invitations").select("*").eq("id",inviteId).single()) as any;
-    if(cleanEmail(invite.invited_email)!==cleanEmail(user.email) || invite.accepted_at || invite.revoked_at
-       || Date.parse(invite.expires_at)<Date.now())fail(403,"Invitation invalid or expired");
-    const loc=await location(invite.location_id);if(!active(loc.subscription_status))fail(403,"Location billing inactive");
-    const inviter=await admin.from("academy_location_members").select("role,active").eq("location_id",invite.location_id).eq("user_id",invite.invited_by).maybeSingle();
-    if(inviter.error||!inviter.data?.active||!["owner","gm"].includes(inviter.data.role))fail(403,"Inviting manager is no longer authorized");
-    const {data:existingMember,error:existingError}=await admin.from("academy_location_members")
-      .select("role").eq("location_id",invite.location_id).eq("user_id",user.id).maybeSingle();
-    if(existingError)throw existingError;
-    // An invitation must never demote an owner or existing GM.
-    const safeRole=existingMember&&["owner","gm"].includes(existingMember.role)?existingMember.role:invite.intended_role;
-    const {error:memberError}=await admin.from("academy_location_members").upsert({
-      location_id:invite.location_id,user_id:user.id,role:safeRole,active:true
-    },{onConflict:"location_id,user_id"});if(memberError)throw memberError;
-    const {error:upError}=await admin.from("academy_invitations").update({accepted_by:user.id,accepted_at:new Date().toISOString()}).eq("id",inviteId).is("accepted_at",null);
-    if(upError)throw upError;
-    await grant(user.id,invite.location_id);
-    await admin.from("academy_audit_log").insert({actor_id:user.id,action:"invite_accepted",target:invite.location_id});
-    return json(200,{joined:true,location_id:invite.location_id});
+    const {data,error}=await admin.rpc("academy_accept_invitation_atomic",{
+      p_invitation:inviteId,p_user:user.id,p_verified_email:cleanEmail(user.email)
+    });
+    if(error)throw error;
+    if(data?.result==="invalid"||data?.result==="forbidden")fail(403,"Invitation invalid or expired");
+    if(data?.result==="inactive")fail(403,"Location billing inactive");
+    if(data?.result==="no_course")fail(503,"Approved Academy course unavailable");
+    if(!["joined","already_joined"].includes(data?.result))fail(503,"Unable to confirm invitation acceptance");
+    return json(200,{joined:true,already_joined:data.result==="already_joined",location_id:data.location_id});
   }
   if(action==="list_members"){
     const id=String(body.location_id||"");if(!uuid(id))fail(400,"Invalid location");
     await permission(user.id,id);
-    const {data,error}=await admin.from("academy_location_members").select("user_id,role,active,added_at").eq("location_id",id).order("added_at");
+    const page=body.page===undefined?0:Number(body.page);
+    if(!Number.isSafeInteger(page)||page<0||page>100000)fail(400,"Invalid team page");
+    const size=25,offset=page*size;
+    const {data,error}=await admin.from("academy_location_members")
+      .select("user_id,role,active,added_at").eq("location_id",id)
+      .order("added_at").order("user_id").range(offset,offset+size);
     if(error)throw error;
-    return json(200,{members:data||[]});
+    const rows=data||[],members=await teamProgress(id,rows.slice(0,size));
+    return json(200,{members,page,has_more:rows.length>size});
   }
   if(action==="deactivate_member"){
     const id=String(body.location_id||""),target=String(body.user_id||"");
     if(!uuid(id)||!uuid(target))fail(400,"Invalid user or location");
-    await permission(user.id,id);
-    const loc=await location(id);
-    if(target===loc.billing_owner_id)fail(403,"Cannot deactivate billing owner");
-    const {error}=await admin.from("academy_location_members").update({active:false}).eq("location_id",id).eq("user_id",target);
+    // Atomic service-only RPC repeats actor and target role checks under row locks.
+    // Apply the staged SQL before deploying this Edge Function.
+    const {data:result,error}=await admin.rpc("academy_deactivate_member_atomic",{
+      p_actor:user.id,p_location:id,p_target:target
+    });
     if(error)throw error;
-    await admin.from("academy_enrollments").update({status:"revoked"}).eq("location_id",id).eq("user_id",target).neq("status","completed");
-    await admin.from("academy_audit_log").insert({actor_id:user.id,action:"member_deactivated",target:id});
+    if(result==="not_found")fail(404,"Team member or location not found");
+    if(result==="forbidden")fail(403,"Not authorized to remove this team member");
+    if(result!=="deactivated")fail(503,"Unable to confirm member removal");
     return json(200,{deactivated:true});
   }
   return json(400,{error:"Unknown action"});

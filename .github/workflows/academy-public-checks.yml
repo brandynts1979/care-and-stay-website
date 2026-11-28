@@ -13,6 +13,9 @@ on:
       - 'academy/**'
       - 'tools/academy/**'
       - '.github/workflows/academy-public-checks.yml'
+concurrency:
+  group: academy-public-checks-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   smoke:
     runs-on: ubuntu-latest
@@ -44,9 +47,11 @@ jobs:
           node-version: '22'
       - name: Test Academy public page
         run: |
-          node --test tools/academy/smoke.test.mjs tools/academy/launch_readiness.test.mjs
+          node --test tools/academy/*.test.mjs
           node --check academy/learn/app.js
           node --check academy/learn/config.js
+      - name: Rehearse learner video and auth transitions in headless Chrome
+        run: node tools/academy/learner-media-browser.mjs
       - name: Set up Deno for Edge Function validation
         uses: denoland/setup-deno@v2
         with:
@@ -85,3 +90,72 @@ jobs:
         run: psql -v ON_ERROR_STOP=1 -f academy/database/004_require_active_restaurant_for_content.sql
       - name: Verify cancellation and manager removal revoke course access
         run: psql -v ON_ERROR_STOP=1 -f tools/academy/paid_gate_smoke.sql
+
+      - name: Apply staged exact-location write and atomic revocation gates
+        run: psql -v ON_ERROR_STOP=1 -f academy/database/staged_qsr_member_revocation.sql
+      - name: Verify two-location isolation and transactional role-safe revocation
+        run: psql -v ON_ERROR_STOP=1 -f tools/academy/exact_location_revocation_smoke.sql
+
+      - name: Apply staged explicit Academy course entitlements
+        run: psql -v ON_ERROR_STOP=1 -f academy/database/staged_academy_course_entitlements.sql
+      - name: Install versioned private worksheets
+        run: psql -v ON_ERROR_STOP=1 -f academy/database/staged_academy_worksheets.sql
+
+      - name: Install private completion certificates
+        run: psql -v ON_ERROR_STOP=1 -f academy/database/staged_academy_certificates.sql
+
+      - name: Install course care settings and contextual lesson applications
+        run: psql -v ON_ERROR_STOP=1 -f academy/database/staged_academy_care_settings.sql
+
+      - name: Install assigned reviewer certificate award
+        run: psql -v ON_ERROR_STOP=1 -f academy/database/staged_academy_reviewer_certificates.sql
+
+      - name: Verify versioned entitlements, private worksheets, certificates and care settings
+        run: psql -v ON_ERROR_STOP=1 -f tools/academy/explicit_entitlements_smoke.sql
+
+      - name: Apply staged atomic invitation and member grant functions
+        run: psql -v ON_ERROR_STOP=1 -f academy/database/staged_academy_atomic_invites.sql
+      - name: Verify invitation identity, role, expiration, replay and grant idempotency
+        run: psql -v ON_ERROR_STOP=1 -f tools/academy/atomic_invites_smoke.sql
+
+      - name: Apply staged transactional Stripe reconciliation
+        run: psql -v ON_ERROR_STOP=1 -f academy/database/staged_academy_atomic_billing.sql
+      - name: Verify duplicate payment events, revision conflict and location isolation
+        run: psql -v ON_ERROR_STOP=1 -f tools/academy/atomic_billing_smoke.sql
+
+      - name: Exercise concurrent invitation and billing sessions
+        run: bash tools/academy/concurrent_provisioning_smoke.sh
+
+      - name: Install staged private module-media manifest
+        run: psql -v ON_ERROR_STOP=1 -f academy/database/staged_academy_module_media.sql
+      - name: Install staged shared foundation media mapping
+        run: psql -v ON_ERROR_STOP=1 -f academy/database/staged_academy_shared_media.sql
+
+      - name: Verify media entitlement and nonpublic manifests
+        run: psql -v ON_ERROR_STOP=1 -f tools/academy/module_media_smoke.sql
+
+      - name: Install and verify in-place original QSR media authorization
+        run: |
+          psql -v ON_ERROR_STOP=1 -f academy/database/staged_qsr_original_media.sql
+          psql -v ON_ERROR_STOP=1 -f tools/academy/qsr_original_media_smoke.sql
+
+      - name: Install owner-authorized checkout reservations
+        run: psql -v ON_ERROR_STOP=1 -f academy/database/staged_academy_checkout_binding.sql
+      - name: Verify duplicate checkout and first-subscription binding
+        run: psql -v ON_ERROR_STOP=1 -f tools/academy/checkout_binding_smoke.sql
+
+      - name: Verify QSR bundle delivery lifecycle and isolation
+        run: |
+          psql -v ON_ERROR_STOP=1 -f academy/database/staged_qsr_bundle_delivery.sql
+          psql -v ON_ERROR_STOP=1 -f academy/database/staged_qsr_assessment_cycles.sql
+          psql -v ON_ERROR_STOP=1 -f tools/academy/qsr_bundle_delivery_smoke.sql
+
+      - name: Install payment risk review inbox
+        run: psql -v ON_ERROR_STOP=1 -f academy/database/staged_academy_billing_risk.sql
+      - name: Verify risk event idempotency, verified association and privacy
+        run: psql -v ON_ERROR_STOP=1 -f tools/academy/billing_risk_smoke.sql
+
+      - name: Rehearse curriculum staging commit and rollback in disposable PostgreSQL
+        run: |
+          psql -X -v ON_ERROR_STOP=1 -f academy/database/008_module_overviews.sql
+          ACADEMY_IMPORT_TEST=1 node --test tools/academy/curriculum-rehearsal.test.mjs
